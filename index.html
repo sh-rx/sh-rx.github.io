@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Documents</title>
+    <style>
+        /* Professional, fast-loading system fonts */
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 30px 20px;
+        }
+
+        /* Main container styling */
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 25px 35px;
+        }
+
+        /* Header styling */
+        h1 {
+            color: #1a365d;
+            font-size: 26px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+/* Tabs Styling */
+        .tabs {
+            display: flex;
+            gap: 8px; /* Tighter gap between buttons */
+            margin-bottom: 20px;
+            border-bottom: 2px solid #edf2f7;
+            
+            /* Enable horizontal scrolling on small screens instead of wrapping */
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 2px;
+        }
+
+        /* Makes the scrollbar look neat and thin if it activates */
+        .tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+        .tabs::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            font-size: 14px; /* Reduced font size from 16px */
+            font-weight: 600;
+            color: #a0aec0;
+            cursor: pointer;
+            padding: 8px 4px; /* Tighter padding around text */
+            transition: all 0.2s ease;
+            flex-shrink: 0; /* Prevents text from squishing */
+        }
+
+        .tab-btn:hover {
+            color: #4a5568;
+        }
+
+        .tab-btn.active {
+            color: #2b6cb0;
+            border-bottom: 3px solid #2b6cb0;
+            margin-bottom: -2px; 
+        }
+
+        .fav-count {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            border-radius: 12px;
+            padding: 2px 6px;
+            font-size: 12px; /* Slightly smaller number badge */
+            margin-left: 4px;
+        }
+
+        /* Category Header Styling */
+        h2 {
+            font-size: 18px;
+            color: #2d3748;
+            margin-top: 25px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+
+        /* Search bar styling */
+        .search-container {
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px 0;
+            z-index: 100;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 15px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+        }
+
+        /* Link list styling - Flexbox to align link and star */
+        .link-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .link-item {
+            margin-bottom: 2px;
+            border-radius: 4px;
+            transition: background-color 0.1s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .link-item:hover {
+            background-color: #ebf8ff;
+        }
+
+        /* Individual link styling */
+        .link-item a {
+            flex-grow: 1; /* Pushes the star to the right */
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            text-decoration: none;
+            color: #2b6cb0;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .link-item a::before {
+            content: "📄";
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .link-item a:hover {
+            color: #1a365d;
+            text-decoration: underline;
+        }
+
+        /* Star Button Styling */
+        .star-btn {
+            cursor: pointer;
+            font-size: 20px;
+            color: #cbd5e0;
+            padding: 0 15px;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .star-btn:hover {
+            color: #ecc94b;
+            transform: scale(1.2);
+        }
+
+        .star-btn.favorited {
+            color: #d69e2e;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+            <h1 style="margin: 0;">Pharmacy Documents</h1>
+            
+            <div class="sync-actions" style="padding-bottom: 5px;">
+                <button id="btnExport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px;">Export Favorites</button>
+                <button id="btnImport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; margin-left: 10px;">Import Favorites</button>
+                <input type="file" id="importFile" accept=".txt" style="display:none;">
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn" data-target="all">All Documents</button>
+            <button class="tab-btn" data-target="Antimicrobial Dosing Protocols">Antibiotic Dosing</button>
+            <button class="tab-btn" data-target="Protocols">Protocols</button>
+            <button class="tab-btn" data-target="Antimicrobial Stewardship Guidelines and Resources">Stewardship</button>
+            <button class="tab-btn" data-target="Guidelines">Guidelines</button>
+            <button class="tab-btn" data-target="Resources">Resources</button>
+	    <button class="tab-btn" data-target="Nurse Resources">Nurse Resources</button>
+	    <button class="tab-btn" data-target="Standard Work">Standard Work</button>
+            <button class="tab-btn" data-target="favs">Favorites <span class="fav-count" id="favCount">0</span></button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search documents... (e.g., Vancomycin, Adult)">
+        </div>
+
+        <div class="category-section">
+            <h2>Antimicrobial Dosing Protocols</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Acyclovir.pdf?csf=1&web=1&e=hZGDYh" target="_blank">Acyclovir</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Amoxicillin.pdf?csf=1&web=1&e=Euykhv" target="_blank">Amoxicillin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Amoxicillin_Clavulanate.pdf?csf=1&web=1&e=597bSj" target="_blank">Amoxicillin Clavulanate</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Amphotericin%20B%20Deoxycholate.pdf?csf=1&web=1&e=mhOgiU" target="_blank">Amphotericin B Deoxycholate</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ampicillin.pdf?csf=1&web=1&e=7UamTg" target="_blank">Ampicillin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ampicillin_Sulbactam.pdf?csf=1&web=1&e=b7omtX" target="_blank">Ampicillin Sulbactam</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Aztreonam.pdf?csf=1&web=1&e=VI80ts" target="_blank">Aztreonam</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cefazolin.pdf?csf=1&web=1&e=JNMfcM" target="_blank">Cefazolin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cefepime.pdf?csf=1&web=1&e=wpxRNy" target="_blank">Cefepime</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cefoxitin.pdf?csf=1&web=1&e=aHnMj4" target="_blank">Cefoxitin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cefpodoxime.pdf?csf=1&web=1&e=aO7dBq" target="_blank">Cefpodoxime</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ceftaroline.pdf?csf=1&web=1&e=ky8b4F" target="_blank">Ceftaroline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ceftazidime_Avibactam.pdf?csf=1&web=1&e=iOyDNv" target="_blank">Ceftazidime Avibactam</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ceftolozane_Tazobactam.pdf?csf=1&web=1&e=I6jhVk" target="_blank">Ceftolozane Tazobactam</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ceftriaxone.pdf?csf=1&web=1&e=5h0INR" target="_blank">Ceftriaxone</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cefuroxime.pdf?csf=1&web=1&e=Po87Vo" target="_blank">Cefuroxime</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Cephalexin.pdf?csf=1&web=1&e=f1X55e" target="_blank">Cephalexin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ciprofloxacin.pdf?csf=1&web=1&e=IuwLsj" target="_blank">Ciprofloxacin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Colistimethate%20(Colistin).pdf?csf=1&web=1&e=Qbn8q2" target="_blank">Colistimethate (Colistin)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Dalbavancin.pdf?csf=1&web=1&e=dwg9e8" target="_blank">Dalbavancin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Daptomycin.pdf?csf=1&web=1&e=LsWWwF" target="_blank">Daptomycin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Eravacycline.pdf?csf=1&web=1&e=7UV1Ky" target="_blank">Eravacycline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ertapenem.pdf?csf=1&web=1&e=mwnSmC" target="_blank">Ertapenem</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Fluconazole.pdf?csf=1&web=1&e=CFFMsX" target="_blank">Fluconazole</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Flucytosine.pdf?csf=1&web=1&e=c3Uvbi" target="_blank">Flucytosine</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Foscarnet.pdf?csf=1&web=1&e=zGm6sS" target="_blank">Foscarnet</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Ganciclovir.pdf?csf=1&web=1&e=7geAm4" target="_blank">Ganciclovir</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Imipenem_Cilistatin.pdf?csf=1&web=1&e=bvFOoF" target="_blank">Imipenem Cilistatin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Levofloxacin.pdf?csf=1&web=1&e=rSfFUw" target="_blank">Levofloxacin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Meropenem.pdf?csf=1&web=1&e=5eaAA3" target="_blank">Meropenem</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Oseltamivir.pdf?csf=1&web=1&e=96Q7AA" target="_blank">Oseltamivir</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Penicillin%20G%20(Aqueous).pdf?csf=1&web=1&e=OxkPyV" target="_blank">Penicillin G (Aqueous)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Piperacillin_Tazobactam.pdf?csf=1&web=1&e=NdTYwc" target="_blank">Piperacillin Tazobactam</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Rifampin.pdf?csf=1&web=1&e=OJLogN" target="_blank">Rifampin</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Sulfamethoxazole_Trimethoprim.pdf?csf=1&web=1&e=JDBfKq" target="_blank">Sulfamethoxazole Trimethoprim</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Dosing%20Protocols/Tigecycline.pdf?csf=1&web=1&e=bRB6l2" target="_blank">Tigecycline</a></li>
+            </ul>
+        </div>
+
+        <div class="category-section">
+            <h2>Protocols</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Adult%20Aminoglycoside%20Dosing%20Protocol.pdf?csf=1&web=1&e=leYE8g" target="_blank">Adult Aminoglycoside Dosing Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Adult%20Parenteral%20Nutrition%20Management%20Guideline.pdf?csf=1&web=1&e=93LivD" target="_blank">Adult Parenteral Nutrition Management Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Adult%20Reversal%20of%20Anticoagulants%20Antiplatelets%20and%20Thrombolytic%20Protocol.pdf?csf=1&web=1&e=pMpgoT" target="_blank">Adult Reversal of Anticoagulants, Antiplatelets, and Thrombolytics Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Adult%20Vancomycin%20Dosing%20Guideline.pdf?csf=1&web=1&e=JzvYca" target="_blank">Adult Vancomycin Dosing Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Albumin%20for%20Paracentesis.pdf?csf=1&web=1&e=VXVxaH" target="_blank">Albumin for Paracentesis</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Anticoagulation%20for%20Central%20Venous%20Thrombosis%20(CVT)%20and%20Central%20Venous%20Sinus%20Thrombosis%20(CVST).pdf?csf=1&web=1&e=GDeB5D" target="_blank">Anticoagulation for Central Venous Thrombosis (CVT) and Central Venous Sinus Thrombosis (CVST)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Anticoagulation%20Guidelines%20(Inpatient).pdf?csf=1&web=1&e=NAqzID" target="_blank">Anticoagulation Guidelines (Inpatient)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Bupropion%20Product%20Standardization.pdf?csf=1&web=1&e=jC0HZ9" target="_blank">Bupropion Product Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Cangrelor%20Dosing%20Standardization.pdf?csf=1&web=1&e=uw6OJf" target="_blank">Cangrelor Dosing Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Famotidine%20(Pepcid)%20Dose%20Standardization.pdf?csf=1&web=1&e=LVoder" target="_blank">Famotidine (Pepcid) Dose Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Gabapentin%20Dose%20Standardization.pdf?csf=1&web=1&e=n4knoJ" target="_blank">Gabapentin Dose Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Inpatient%20PET%20Scan%20Order%20Process.pdf?csf=1&web=1&e=XTXzDW" target="_blank">Inpatient PET Scan Order Process</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Insulin%20Formulary.pdf?csf=1&web=1&e=M7wf7o" target="_blank">Insulin Formulary</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Intravenous%20(IV)%20to%20Oral%20(PO)%20Conversion%20Protocol.pdf?csf=1&web=1&e=8Iak2N" target="_blank">Intravenous (IV) to Oral (PO) Conversion Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Iron%20Sucrose%20Dose%20Standardization.pdf?csf=1&web=1&e=mNxjfU" target="_blank">Iron Sucrose Dose Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Medication%20Dose%20Rounding.pdf?csf=1&web=1&e=EXvZr8" target="_blank">Medication Dose Rounding</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Medication%20Orders%20After%20a%20Medication%20History%20Update.pdf?csf=1&web=1&e=kprsc3" target="_blank">Medication Orders After a Medication History Update</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Metoclopramide%20Dose%20Standardization.pdf?csf=1&web=1&e=Obfzjp" target="_blank">Metoclopramide Dose Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Nebulized%20Therapy%20Therapeutic%20Duplication%20Protocol.pdf?csf=1&web=1&e=elQHZy" target="_blank">Nebulized Therapy Therapeutic Duplication Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Neonatal%20Aminoglycoside%20Dosing%20Guideline.pdf?csf=1&web=1&e=ODlKuN" target="_blank">Neonatal Aminoglycoside Dosing Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:x:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Pediatric%20Aminoglycoside%20Calculator%20(download%20to%20edit).xlsx?d=w3bf15419be1148c18e873122f6fb1c3a&csf=1&web=1&e=UDPokJ" target="_blank">Pediatric Aminoglycoside Calculator (download to edit)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Pediatric%20Aminoglycoside%20Dosing%20Protocol.pdf?csf=1&web=1&e=fG5GKc" target="_blank">Pediatric Aminoglycoside Dosing Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Pediatric%20Vancomycin%20Dosing%20Protocol.pdf?csf=1&web=1&e=79vVkP" target="_blank">Pediatric Vancomycin Dosing Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Pharmacy%20and%20Therapeutics%20Committee%20Approved%20Therapeutic%20Interchanges%20for%20Inpatient%20Pharmacy.pdf?csf=1&web=1&e=BpQnXV" target="_blank">Pharmacy and Therapeutics Committee Approved Therapeutic Interchanges</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Pharmacy%20Dosing%20Standardization%20Adjustment%20Protocol.pdf?csf=1&web=1&e=Ji4Fok" target="_blank">Pharmacy Dosing Standardization Adjustment Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Prevention%20of%20VTE%20(Prophylaxis)%20Dosing%20for%20Medical%20and%20Surgical%20Patients.pdf?csf=1&web=1&e=VmOOq4" target="_blank">Prevention of VTE (Prophylaxis) Dosing for Medical and Surgical Patients</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Rho(D)%20Immune%20Globulin%20Dosing.pdf?csf=1&web=1&e=v3CnVU" target="_blank">Rho(D) Immune Globulin Dosing</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Suboxone%20Product%20Standardization%20and%20Dosing%20Guidance.pdf?csf=1&web=1&e=98IGyr" target="_blank">Suboxone Product Standardization and Dosing Guidance</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Thrombolytic%20(alteplase%20or%20tenecteplase)%20Per%20Pharmacy%20Protocol.pdf?csf=1&web=1&e=B5BH0F" target="_blank">Thrombolytic (alteplase or tenecteplase) Per Pharmacy Protocol</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Tirofiban%20Dosing.pdf?csf=1&web=1&e=APn4eS" target="_blank">Tirofiban Dosing</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Protocols/Vancomycin%20Dosing%20Protocol%20for%20patients%20receiving%20HD,%20CRRT,%20PD%20or%20CAPD.pdf?csf=1&web=1&e=IpkQpX" target="_blank">Vancomycin Dosing Protocol for patients receiving HD, CRRT, PD or CAPD</a></li>
+            </ul>
+        </div>
+
+        <div class="category-section">
+            <h2>Antimicrobial Stewardship Guidelines and Resources</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Adult%20ED%20Dalbavancin%20Treatment%20Decision%20Algorithm.pdf?csf=1&web=1&e=msvJCP" target="_blank">Adult ED Dalbavancin Treatment Decision Algorithm</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Adult%20ED%20Outpatient%20Antibiotic%20%26%20Susceptibility%20Mismatch%20Guideline.pdf?csf=1&web=1&e=lezlje" target="_blank">Adult ED Outpatient Antibiotic & Susceptibility Mismatch Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Adult%20ED%20Uncomplicated%20Cystitis%20Treatment%20Algorithm.pdf?csf=1&web=1&e=hPZZkB" target="_blank">Adult ED Uncomplicated Cystitis Treatment Algorithm</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Adult%20Inpatient%20Antifungal%20Usage%20Guideline.pdf?csf=1&web=1&e=bneGnz" target="_blank">Adult Inpatient Antifungal Usage Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Adult%20Inpatient%20Infectious%20Diseases%20Treatment%20Guideline.pdf?csf=1&web=1&e=HgSgzd" target="_blank">Adult Inpatient Infectious Diseases Treatment Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Antibiogram%20(2026-28-01).pdf?csf=1&web=1&e=FAq993" target="_blank">Antibiogram (2026-28-01)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Anti-Infective%20Formulary%20Management%20Guideline.pdf?csf=1&web=1&e=rH4Es9" target="_blank">Anti-Infective Formulary Management Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Antibiotic%20Selection%20Recommendations%20for%20Adult%20Surgical%20Prophylaxis.pdf?csf=1&web=1&e=mYMnzw" target="_blank">Antibiotic Selection Recommendations for Adult Surgical Prophylaxis</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Beta-lactam%20Use%20in%20Penicillin%20Allergic%20Patients%20Guideline.pdf?csf=1&web=1&e=pMTs5Y" target="_blank">Beta-lactam Use in Penicillin Allergic Patients Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Body%20Weight%20Selection%20for%20Antimicrobial%20Dosing,%20Adult.pdf?csf=1&web=1&e=d5k6rL" target="_blank">Body Weight Selection for Antimicrobial Dosing, Adult</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Clostridioides%20difficile%20Adult%20Management%20Guideline.pdf?csf=1&web=1&e=yNlJid" target="_blank">Clostridioides difficile Adult Management Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/ED%20Outpatient%20STI%20Treatment%20Evaluation%20%26%20Prescribing%20Guideline.pdf?csf=1&web=1&e=RT8VtJ" target="_blank">ED Outpatient STI Treatment Evaluation & Prescribing Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Empiric%20and%20Definitive%20Antibiotic%20Treatment%20Recommendations%20for%20Adult%20Patients.pdf?csf=1&web=1&e=f8RBfD" target="_blank">Empiric and Definitive Antibiotic Treatment Recommendations for Adult Patients</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Oral%20Antibiotics%20for%20Bacteremia%20(BSI).pdf?csf=1&web=1&e=kWV7x6" target="_blank">Oral Antibiotics for Bacteremia (BSI)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/Prophylactic%20Antibiotic%20Guideline%20for%20Trauma-Related%20Injuiries.pdf?csf=1&web=1&e=XfZt5J" target="_blank">Prophylactic Antibiotic Guideline for Trauma-Related Injuries</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Antimicrobial%20Stewardship/Antimicrobial%20Stewardship%20Guidelines%20%26%20Resources/West%20Valley%20Hospital%20Anti-Infective%20Formulary%20Management%20Guideline.pdf?csf=1&web=1&e=llv1DQ" target="_blank">West Valley Hospital Anti-Infective Formulary Management Guideline</a></li>
+            </ul>
+        </div>
+
+        <div class="category-section">
+            <h2>Guidelines</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Acetylcysteine%20for%20Acetaminophen%20Overdose.pdf?csf=1&web=1&e=prM89i" target="_blank">Acetylcysteine for Acetaminophen Overdose</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Antibiotic%20Lock%20Therapy%20Suggestions%20and%20Recipes.pdf?csf=1&web=1&e=S1nAxC" target="_blank">Antibiotic Lock Therapy Suggestions and Recipes</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/ARNI%20for%20Heart%20Failure%20Initiation%20Considerations%20and%20Pathway.pdf?csf=1&web=1&e=Z1NY3c" target="_blank">ARNI for Heart Failure Initiation Considerations and Pathway</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Code%20Box%20Inventory.pdf?csf=1&web=1&e=m6h1eG" target="_blank">Code Box Inventory</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Do%20Not%20Tube%20List.pdf?csf=1&web=1&e=T7KSQN" target="_blank">Do Not Tube List</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Extravasation%20Injury%20Management.pdf?csf=1&web=1&e=ycVezl" target="_blank">Extravasation Injury Management</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Fosphenytoin%20Phenytoin%20Dosing%20Guidelines%20for%20Adults.pdf?csf=1&web=1&e=4xdd3h" target="_blank">Fosphenytoin Phenytoin Dosing Guidelines for Adults</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Guideline%20for%20IV%20Drips%20Limited%20to%20Intensive%20Level%20of%20Care%20(Adult%20Inpatient).pdf?csf=1&web=1&e=eL8v50" target="_blank">Guideline for IV Drips Limited to Intensive Level of Care (Adult Inpatient)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Heart%20Failure%20Guideline%20Directed%20Medical%20Therapy%20(GDMT).pdf?csf=1&web=1&e=G34FBs" target="_blank">Heart Failure Guideline Directed Medical Therapy (GDMT)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Heart%20Failure%20Pocket%20Reference.pdf?csf=1&web=1&e=6osn3x" target="_blank">Heart Failure Pocket Reference</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Infliximab%20Dose%20Standardization.pdf?csf=1&web=1&e=YPfKan" target="_blank">Infliximab Dose Standardization</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Inpatient%20Diuretic%20Algorithm%20for%20Patients%20With%20Acute%20Decompensated%20Heart%20Failure.pdf?csf=1&web=1&e=RmrqBQ" target="_blank">Inpatient Diuretic Algorithm for Patients With Acute Decompensated Heart Failure</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Intravenous%20Potassium%20Administration.pdf?csf=1&web=1&e=mb0UrC" target="_blank">Intravenous Potassium Administration</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Liposomal%20Bupivacaine%20(Exparel)%20Dosing%20Guideline.pdf?csf=1&web=1&e=wKXEKH" target="_blank">Liposomal Bupivacaine (Exparel) Dosing Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Low%20Dose%20(Subanesthetic)%20Ketamine%20for%20Severe%20Acute%20Intractable%20Pain%20Guideline.pdf?csf=1&web=1&e=5rRa7Y" target="_blank">Low Dose (Subanesthetic) Ketamine for Severe Acute Intractable Pain Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Medication%20Mixing%20Instructions%20for%20Pediatric%20and%20NICU%20Piggybacks.pdf?csf=1&web=1&e=677sY3" target="_blank">Medication Mixing Instructions for Pediatric and NICU Piggybacks</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Medications%20with%20Inpatient%20Restrictions.pdf?csf=1&web=1&e=69fTwg" target="_blank">Medications with Inpatient Restrictions</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Neonatal%20Code%20Box%20Inventory.pdf?csf=1&web=1&e=81reoZ" target="_blank">Neonatal Code Box Inventory</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/NICU,%20Neonatal%20Vancomycin%20Dosing%20Guideline.pdf?csf=1&web=1&e=uSLy37" target="_blank">NICU, Neonatal Vancomycin Dosing Guideline</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Pediatric%20(non-NICU)%20Dosing%20Standardization%20-%20Select%20Medications.pdf?csf=1&web=1&e=qdZkBg" target="_blank">Pediatric (non-NICU) Dosing Standardization - Select Medications</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Phenobarbital%20Loading%20Dose%20and%20Disposition%20ED.pdf?csf=1&web=1&e=Tg2gRt" target="_blank">Phenobarbital Loading Dose and Disposition ED</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Phenobarbital%20Loading%20Dose%20Inpatient.pdf?csf=1&web=1&e=a9cbrI" target="_blank">Phenobarbital Loading Dose Inpatient</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/PN%20Infusion%20Clinic%20Required%20Paperwork%20for%20Kaiser%20Patients.pdf?csf=1&web=1&e=w0FOAQ" target="_blank">PN Infusion Clinic Required Paperwork for Kaiser Patients</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Retail%20Pharmacy%20Clarifications%20on%20Discharge%20Prescriptions%20that%20May%20be%20Completed%20by%20Retail%20or%20Meds%20to%20Beds%20pharmacists%20without%20provider%20consult.pdf?csf=1&web=1&e=Q3OyUM" target="_blank">Retail Pharmacy Clarifications on Discharge Prescriptions</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Salem%20Health%20Post-Operative%20Nausea%20and%20Vomiting%20Prevention%20and%20Management%20Guidelines.pdf?csf=1&web=1&e=PApnJV" target="_blank">Salem Health Post-Operative Nausea and Vomiting Prevention and Management Guidelines</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/SGLT-2%20Inhibitor%20Initiation%20Considerations%20and%20Pathway.pdf?csf=1&web=1&e=HALSx0" target="_blank">SGLT-2 Inhibitor Initiation Considerations and Pathway</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/SH%20Adult%20Antibiotic%20Lock%20Solution%20Therapies.pdf?csf=1&web=1&e=91rGUB" target="_blank">SH Adult Antibiotic Lock Solution Therapies</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Guidelines/Standard%20of%20Practice%20Labs%20for%20Outpatient%20Parenteral%20Antimicrobial%20Therapy.pdf?csf=1&web=1&e=ZjkDKc" target="_blank">Standard of Practice Labs for Outpatient Parenteral Antimicrobial Therapy</a></li>
+            </ul>
+        </div>
+
+        <div class="category-section">
+            <h2>Resources</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Addition%20of%20Investigational%20Medications%20to%20the%20Home%20Medication%20List%20SW.pdf?csf=1&web=1&e=Ulak13" target="_blank">Addition of Investigational Medications to the Home Medication List SW</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Chemotherapy%20Dilution%20and%20Administration%20Quick%20Facts.pdf?csf=1&web=1&e=zOTREJ" target="_blank">Chemotherapy Dilution and Administration Quick Facts</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Code%20Drugs%20Pocket%20Reference.pdf?csf=1&web=1&e=481Dup" target="_blank">Code Drugs Pocket Reference</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Handbook%20of%20Drug%20Administration%20Via%20Enteral%20Feeding%20Tubes.pdf?csf=1&web=1&e=F05DWg" target="_blank">Handbook of Drug Administration Via Enteral Feeding Tubes</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Local%20Anesthetic%20Systemic%20Toxicity%20Checklist%20-%20ASRA.pdf?csf=1&web=1&e=tonuMI" target="_blank">Local Anesthetic Systemic Toxicity Checklist - ASRA</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Medication%20History%20Methadone,%20Suboxone,%20and%20Warfarin%20Verification%20SW%202025.08.pdf?csf=1&web=1&e=oYJS7A" target="_blank">Medication History Methadone, Suboxone, and Warfarin Verification SW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/NICU_Pediatric%20Rapid%20Sequence%20Intubation%20and%20Epinephrine%20Infusion%20Charts.pdf?csf=1&web=1&e=fFEx90" target="_blank">NICU_Pediatric Rapid Sequence Intubation and Epinephrine Infusion Charts</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Pharmacist%20Letter%20Login%20Instructions.pdf?csf=1&web=1&e=ahNsJ8" target="_blank">Pharmacist Letter Login Instructions</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Pharmacy%20Technician%20Letter%20-%20Hospital%20Version%20-%20Instruction%20For%20Access.pdf?csf=1&web=1&e=Yrb6bt" target="_blank">Pharmacy Technician Letter - Hospital Version - Instruction For Access</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/QTc%20and%20Tisdale%20Score%20Response%20Guide.pdf?csf=1&web=1&e=EmlDit" target="_blank">QTc and Tisdale Score Response Guide</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Standard%20Work%20-%20Med%20History%20Prep%20Tech.pdf?csf=1&web=1&e=9FuolD" target="_blank">Standard Work - Med History Prep Tech</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Tenecteplase%20(TNK)%20Kit%20Dosing%20card%20(use%20printer%20301%20for%20color).pdf?csf=1&web=1&e=bzvM51" target="_blank">Tenecteplase (TNK) Kit Dosing card (use printer 301 for color)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Tenecteplase%20(TNK)%20Kit%20Mixing%20Instructions%20(print%204%20sheets%20per%20page,%20use%20printer%20301%20for%20color).pdf?csf=1&web=1&e=zh9UuE" target="_blank">Tenecteplase (TNK) Kit Mixing Instructions (print 4 sheets per page, use printer 301 for color)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/Tenecteplase%20Kit%20-%20evaluate%20for%20IV%20thrombolytic%20pages%20-%20print%204%20sheets%20per%20page%202%20sided%20on%20printer%20301.pdf?csf=1&web=1&e=VNk4yC" target="_blank">Tenecteplase Kit - evaluate for IV thrombolytic pages - print 4 sheets per page 2 sided on printer 301</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Inpatient%20Pharmacy%20Resources/WVH%20Take%20Home%20Medications%20Tip%20Sheet.pdf?csf=1&web=1&e=uX247X" target="_blank">WVH Take Home Medications Tip Sheet</a></li>
+            </ul>
+        </div>
+<div class="category-section">
+            <h2>Nurse Resources</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Agitation%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=OG12ae" target="_blank">Administration Hierarchy - Agitation (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Anti-Emetics%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=sPQQTn" target="_blank">Administration Hierarchy - Anti-Emetics (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Anti-Migraine%20Medications%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=GoBHza" target="_blank">Administration Hierarchy - Anti-Migraine Medications (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Blood%20Pressure%20Medications%20for%20Hypertensions%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=z83fkm" target="_blank">Administration Hierarchy - Blood Pressure Medications for Hypertensions (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Constipation%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=BYfYrK" target="_blank">Administration Hierarchy - Constipation (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Fever%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=TRcu9O" target="_blank">Administration Hierarchy - Fever (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Insomnia%20Medications%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=A6dggu" target="_blank">Administration Hierarchy - Insomnia Medications (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Administration%20Hierarchies/Administration%20Hierarchy%20-%20Pain%20Medications%20(for%20PRN%20orders%20only).pdf?csf=1&web=1&e=qdqczf" target="_blank">Administration Hierarchy - Pain Medications (for PRN orders only)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Adult%20DKA%20Algorithm.pdf?csf=1&web=1&e=ehAI41" target="_blank">Adult DKA Algorithm</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/CRS%20%26%20ICANS%20Grading%20and%20Treatment%20for%20CAR-T%20and%20Bispecific%20Therapy.pdf?csf=1&web=1&e=Ro0zyq" target="_blank">CRS & ICANS Grading and Treatment for CAR-T and Bispecific Therapy</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Lexicomp%20Orientation%20for%20Nurses.pdf?csf=1&web=1&e=ergTF6" target="_blank">Lexicomp Orientation for Nurses</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Parenteral%20Nutrition%20Filter%20TipSheet.pdf?csf=1&web=1&e=SjFgNK" target="_blank">Parenteral Nutrition Filter TipSheet</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Recommendations%20for%20Monitoring%20following%20High-Dose%20Methotrexate%20(MTX).pdf?csf=1&web=1&e=x3jDPA" target="_blank">Recommendations for Monitoring following High-Dose Methotrexate (MTX)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Take%20Home%20Medications%20Tip%20Sheet%20-%20Nursing.pdf?csf=1&web=1&e=Lkimfe" target="_blank">Take Home Medications Tip Sheet - Nursing</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Take%20Home%20Medications%20Tip%20Sheet%20-%20Physician.pdf?csf=1&web=1&e=rQpwuD" target="_blank">Take Home Medications Tip Sheet - Physician</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:b:/r/sites/Pharmacy2/Shared%20Documents/Nurse%20Resources/Vial2Bag%20Advanced%20Quick%20Reference%20Guide.pdf?csf=1&web=1&e=Bd6QHc" target="_blank">Vial2Bag Advanced Quick Reference Guide</a></li>
+            </ul>
+        </div>
+<div class="category-section">
+            <h2>Standard Work</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/1.%20Pharmacy%20Standard%20Work%20SW%202025.05.pdf" target="_blank">1. Pharmacy Standard Work SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/2.%20Pharmacy%20Standard%20Work%20Template.docx" target="_blank">2. Pharmacy Standard Work Template</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/3.%20Pharmacy%20Standard%20Works%20Tipsheet%202025.05.pdf" target="_blank">3. Pharmacy Standard Works Tipsheet 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-041-1036%20Proper%20Storage%20of%20Drugs%20(department%20specific%20written%20monitoring%20plan)%20SW%202025.07.pdf" target="_blank">855-041-1036 Proper Storage of Drugs (department specific written monitoring plan) SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-041-1046%20Secure%20and%20Responsible%20Drug%20Disposal,%20Authorized%20Collector%20of%C2%A0%20CDTB%20SW%202025.07.pdf" target="_blank">855-041-1046 Secure and Responsible Drug Disposal, Authorized Collector of CDTB SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-041-1130%20-%20Retail%20Drug%20Outlet%20Pharmacy%20Prescription%20Labeling%20SW%202025.06.pdf" target="_blank">855-041-1130 - Retail Drug Outlet Pharmacy Prescription Labeling SW 2025.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-0411131%20Prescription%20Reader%20Accessibility%20SW%202025.07.pdf" target="_blank">855-0411131 Prescription Reader Accessibility SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-041-1132%20Limited%20English%20Proficiency%20and%20Accessibility,%20patient%20labels%20SW%202025.07.pdf" target="_blank">855-041-1132 Limited English Proficiency and Accessibility, patient labels SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-041-1133%20Dispensing%20-%20Interpretation%20SW%202025.07.pdf" target="_blank">855-041-1133 Dispensing - Interpretation SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/855-080-0026%20-%20Selling%20Pseudoephedrine%20and%20Ephedrine%20over%20the%20counter%20SW%202025.06.pdf" target="_blank">855-080-0026 - Selling Pseudoephedrine and Ephedrine over the counter SW 2025.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Activities%20Pharmacists%20Can%20Perform%20Without%20Leadership%20Approval%20SW%202025.05.pdf" target="_blank">Activities Pharmacists Can Perform Without Leadership Approval SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Anesthesia%20Box%20Bluesight%20Reconciliation%20WVH%202026.01.pdf" target="_blank">Anesthesia Box Bluesight Reconciliation WVH 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Assessing%20%26%20Addressing%20As%20Needed%20Therapeutic%20Duplication%20SW%202026.01.pdf" target="_blank">Assessing & Addressing As Needed Therapeutic Duplication SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Attendance%20SW%202025.09.pdf" target="_blank">Attendance SW 2025.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Batching%20Sterile%20Compounded%20Products%20SW%202025.05.pdf" target="_blank">Batching Sterile Compounded Products SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Board%20of%20Pharmacy%20Rule%20855-080-0026.pdf" target="_blank">Board of Pharmacy Rule 855-080-0026</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Bulk%20Multi%20Dose%20Dispense%20or%20Credit%20Dispense%20Process%20SW%202023.10.pdf" target="_blank">Bulk Multi Dose Dispense or Credit Dispense Process SW 2023.10</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Chemotherapy%20Order%20Review%20and%20Dose%20Coordination%20with%20Beacon%20SW%202025.11.pdf" target="_blank">Chemotherapy Order Review and Dose Coordination with Beacon SW 2025.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Cleaning%20and%20Assembling%20an%20RSI%20kit%20for%20ED%20and%20Catch%20Lab%20SW%202020.07.pdf" target="_blank">Cleaning and Assembling an RSI kit for ED and Catch Lab SW 2020.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Cleaning%20and%20decontamination%20of%20Reusable%20Supplies%20in%20HD%20Areas%20SW%202025.05.pdf" target="_blank">Cleaning and decontamination of Reusable Supplies in HD Areas SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Cleaning%20Spills%20and%20Using%20Spill%20Kits%20for%20Chemotherapy%20and%20Hazardous%20Drugs%20SW%202025.05.pdf" target="_blank">Cleaning Spills and Using Spill Kits for Chemotherapy and Hazardous Drugs SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Closing%20for%20lunch%20on%20weekends%20and%20observed%20holidays%20SW%202025.06.pdf" target="_blank">Closing for lunch on weekends and observed holidays SW 2025.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Code%20Box%20Refilling%20Replacement%20and%20Monthly%20Checks%20Standard%20Work%20SW%202024.03.pdf" target="_blank">Code Box Refilling Replacement and Monthly Checks Standard Work SW 2024.03</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Code%20Tray%20Restocking%20SW%202025.05.pdf" target="_blank">Code Tray Restocking SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Compounding%20Push%20Dose%20Epinephrine%20SW%202024.05.pdf" target="_blank">Compounding Push Dose Epinephrine SW 2024.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Controlled%20Substance%20Security%20and%20Accountability%20Procedure%20SW%20WVH%202026.1.pdf" target="_blank">Controlled Substance Security and Accountability Procedure SW WVH 2026.1</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Controlled%20Substances%20-%20Wasting%20in%20IV%20Pharmacy%20SW%202024.08.pdf" target="_blank">Controlled Substances - Wasting in IV Pharmacy SW 2024.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Crushing%20and%20administering%20oral%20solid%20antineoplastic%20(chemotherapy)%20drugs%20(1).pdf" target="_blank">Crushing and administering oral solid antineoplastic (chemotherapy) drugs (1)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/CS%20Discrepancy%20Prevention%20and%20Resolution%20SW%202024.12.pdf" target="_blank">CS Discrepancy Prevention and Resolution SW 2024.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/CS%20Omnicell%20Return%20Bin%20SW%202025.01.pdf" target="_blank">CS Omnicell Return Bin SW 2025.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/CS%20Procurement%20and%20Receiving%20SW%202024.09.pdf" target="_blank">CS Procurement and Receiving SW 2024.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/CS%20Wasting%20in%20IV%20Pharmacy%20SW%202024.08.pdf" target="_blank">CS Wasting in IV Pharmacy SW 2024.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Designated%20Hazardous%20Person%20SW%202025.04.pdf" target="_blank">Designated Hazardous Person SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Drug%20Supply%20Chain%20Security%20Act%20(DSCSA)%20SW%202017.09.pdf" target="_blank">Drug Supply Chain Security Act (DSCSA) SW 2017.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Drug,%20Biological,%20and%20Device%20Recalls%20SW%202018.11.pdf" target="_blank">Drug, Biological, and Device Recalls SW 2018.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Emergency%20Department%20Take%20Home%20Medication%20SW%202022.04.pdf" target="_blank">Emergency Department Take Home Medication SW 2022.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/ENT%20Medication%20Kit%20Replacement%20SW%202018.08.pdf" target="_blank">ENT Medication Kit Replacement SW 2018.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Environmental%20Monitoring%20of%20ISO%20Classified%20Areas.pdf" target="_blank">Environmental Monitoring of ISO Classified Areas</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Epic%20Beacon%20Inpatient%20Blank%20Protocol%20Use%20SW%202025.08.pdf" target="_blank">Epic Beacon Inpatient Blank Protocol Use SW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Epic%20Downtime%20Workflow%20SW%202025.09.pdf" target="_blank">Epic Downtime Workflow SW 2025.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Exclusions%20from%20Patient%20Care%20in%20Pharmacy%20SW%202025.09.pdf" target="_blank">Exclusions from Patient Care in Pharmacy SW 2025.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Extra%20Pharmacist%20Expectations%20and%20Workflow%20SW%202025.05.pdf" target="_blank">Extra Pharmacist Expectations and Workflow SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/EZ%20Texting%20SW%202026.01.pdf" target="_blank">EZ Texting SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Facility%20Design%20and%20Environmental%20Controls%20SW%202025.05.pdf" target="_blank">Facility Design and Environmental Controls SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Flexlock%20Temp%20Report%20Handling%20Process%202025.5.pdf" target="_blank">Flexlock Temp Report Handling Process 2025.5</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Home%20Medication%20List%20Assembly%20SW%202019.06.pdf" target="_blank">Home Medication List Assembly SW 2019.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/HVAC%20Downtime%20or%20Failure%20Procedure%20for%20IV%20Pharmacy%20SW%202025.04.pdf" target="_blank">HVAC Downtime or Failure Procedure for IV Pharmacy SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Immediate-Use%20CSPs%20for%20Nurses%20SW%20WVH.pdf" target="_blank">Immediate-Use CSPs for Nurses SW WVH</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Immediate-Use%20CSPs%20SW%202025.04.pdf" target="_blank">Immediate-Use CSPs SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Infusion%20-%20Beacon%20Pharmacy%20to%20Dose%20Orders%20SW%202025.07.pdf" target="_blank">Infusion - Beacon Pharmacy to Dose Orders SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Inpatient%20Pharmacy%20Scheduling%20Expectations%20SW%202024.06.pdf" target="_blank">Inpatient Pharmacy Scheduling Expectations SW 2024.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Inpatient%20Pharmacy%20Vacation%20Time%20Off%20Requests%20SW%202025.08.pdf" target="_blank">Inpatient Pharmacy Vacation Time Off Requests SW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Insulin%20Pump%20Order%20Entry%20and%20Documentation%20SW%202025.07.pdf" target="_blank">Insulin Pump Order Entry and Documentation SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Intraperitoneal%20Antibiotic%20Order%20Entry%20SW%202019.05.pdf" target="_blank">Intraperitoneal Antibiotic Order Entry SW 2019.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Intrapleural%20Dornase%20and%20Alteplase%20Delivery%20SW%202025.05.pdf" target="_blank">Intrapleural Dornase and Alteplase Delivery SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Investigational%20Drug%20Accountability%20Record%20Form%20SW%202017.07.pdf" target="_blank">Investigational Drug Accountability Record Form SW 2017.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Isotretinoin%20filling%20and%20dispensing,%20iPledge%20program%20compliance%20SW%202025.07.pdf" target="_blank">Isotretinoin filling and dispensing, iPledge program compliance SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Chemotherapy%20Delivery%20to%20Nursing%20Area%20SW%202025.08.pdf" target="_blank">IV Chemotherapy Delivery to Nursing Area SW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Fluid%20Shortage%20Mitigation%20SW%202024.12.pdf" target="_blank">IV Fluid Shortage Mitigation SW 2024.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Aseptic%20Technique%20SW%202025.04.pdf" target="_blank">IV Pharmacy Aseptic Technique SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Cleaning%20of%20PEC%20SW%202025.04.pdf" target="_blank">IV Pharmacy Cleaning of PEC SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Decontamination,%20deactivation,%20disinfecting%20and%20cleaning%20SW2025.05.pdf" target="_blank">IV Pharmacy Decontamination, deactivation, disinfecting and cleaning SW2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Equiment%20Use%20and%20Maintenance%20SW%202025.05.pdf" target="_blank">IV Pharmacy Equiment Use and Maintenance SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Handwashing,%20Garbing,%20and%20Gowning%20for%20HD%20and%20Non-HD%20Sterile%20Compounding%20SW%202025.04.pdf" target="_blank">IV Pharmacy Handwashing, Garbing, and Gowning for HD and Non-HD Sterile Compounding SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Handwashing,%20Garbing,%20and%20Gowning%20for%20HD%20and%20Non-HD%20Sterile%20Compounding%20WVH.pdf" target="_blank">IV Pharmacy Handwashing, Garbing, and Gowning for HD and Non-HD Sterile Compounding WVH</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Personnel%20Competency%20Assessment%20SW%202025.04.pdf" target="_blank">IV Pharmacy Personnel Competency Assessment SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Respirator%20Use%20SW%202025.05.pdf" target="_blank">IV Pharmacy Respirator Use SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Sterile%20Chemotherapy%20Preparation%20and%20Checking%20SW%202025.05.pdf" target="_blank">IV Pharmacy Sterile Chemotherapy Preparation and Checking SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IV%20Pharmacy%20Tier%201%20Huddle%20SW%202025.04.pdf" target="_blank">IV Pharmacy Tier 1 Huddle SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/i-Vent%20Documentation%20SW%202026.1.pdf" target="_blank">i-Vent Documentation SW 2026.1</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/IWC%20Delivery%20of%20Daily%20Medications%202017.07.pdf" target="_blank">IWC Delivery of Daily Medications 2017.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Labeling%20a%20Medication%20to%20Send%20Home%20SW%202024.02.pdf" target="_blank">Labeling a Medication to Send Home SW 2024.02</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Lean%20to%20the%20Frontline%20SW%202026.01.pdf" target="_blank">Lean to the Frontline SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/LET%20Gel%20Compounding%20SW%202025.06.pdf" target="_blank">LET Gel Compounding SW 2025.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Master%20Formulation%20Records%20and%20Compounding%20Records%20SW%202025.04.pdf" target="_blank">Master Formulation Records and Compounding Records SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Medication%20cold%20storage%20system%20SW%202025.04.pdf" target="_blank">Medication cold storage system SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Medication%20History%20Methadone,%20Suboxone,%20and%20Warfarin%20Verification%20SW%202025.08.pdf" target="_blank">Medication History Methadone, Suboxone, and Warfarin Verification SW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Medication%20History%20SW%202025.9.pdf" target="_blank">Medication History SW 2025.9</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Medication%20Packaging%20SW%202018.05.pdf" target="_blank">Medication Packaging SW 2018.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Mifepristone%20Dispensing%20from%20Inpatient%20Pharmacy%20SW%202025.09.pdf" target="_blank">Mifepristone Dispensing from Inpatient Pharmacy SW 2025.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Multidisciplinary%20Rounds%20Outside%20of%20Critical%20Care%20SW%202025.7.pdf" target="_blank">Multidisciplinary Rounds Outside of Critical Care SW 2025.7</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/NICU%20Oral%20Morphine%200.4ml%20Solution%20SW%202025.05.pdf" target="_blank">NICU Oral Morphine 0.4ml Solution SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Omnicell%20Discrepancy%20Investigation%20SW%202025.04.pdf" target="_blank">Omnicell Discrepancy Investigation SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Ordering%20After%20Hours%20SW%202019.01.pdf" target="_blank">Ordering After Hours SW 2019.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Partial%20Oral%20Narcotic%20SW%202018.06.pdf" target="_blank">Partial Oral Narcotic SW 2018.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Partial%20Oral%20Narcotics%20Omni%20bin%20WVH%202025.08.pdf" target="_blank">Partial Oral Narcotics Omni bin WVH 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Patient%20Own%20Narcotic%20SW%202023.07.pdf" target="_blank">Patient Own Narcotic SW 2023.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Patient%20Own%20Narcotic%20SW%20WVH%202025.7.pdf" target="_blank">Patient Own Narcotic SW WVH 2025.7</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Patient%27s%20Own%20Medications%20SW%202024.05.pdf" target="_blank">Patient's Own Medications SW 2024.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/PET%20Scan%20Process%20Order%20Adjustment%20and%20Documentation%20SW%202025.07.pdf" target="_blank">PET Scan Process Order Adjustment and Documentation SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Communication%20Between%20Shifts%20SW%202024.12.pdf" target="_blank">Pharmacist Communication Between Shifts SW 2024.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Daily%20Chat%20SW%202025.06.pdf" target="_blank">Pharmacist Daily Chat SW 2025.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Entry%20of%20a%20CRRT%20Replacement%20Fluid%20Order%20SW%202026.01.pdf" target="_blank">Pharmacist Entry of a CRRT Replacement Fluid Order SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Expectations%20and%20Workflow%20Priorities%20SW%202026.1.pdf" target="_blank">Pharmacist Expectations and Workflow Priorities SW 2026.1</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Innovation%20Time%20SW%202024.06.pdf" target="_blank">Pharmacist Innovation Time SW 2024.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Notification%20of%20BioFire%20Blood%20Identification%20Results%20SW%202025.10.pdf" target="_blank">Pharmacist Notification of BioFire Blood Identification Results SW 2025.10</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Responsibilities%20for%20After-Hours%20Discharge%20Medications%20SW%202020.07.pdf" target="_blank">Pharmacist Responsibilities for After-Hours Discharge Medications SW 2020.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Rounding%20Standardization%20SW%202024.11.pdf" target="_blank">Pharmacist Rounding Standardization SW 2024.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Tier%201%20Huddle%20SW%202024.09.pdf" target="_blank">Pharmacist Tier 1 Huddle SW 2024.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacist%20Verification%20SW%202024.11.pdf" target="_blank">Pharmacist Verification SW 2024.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacists%20Responsibilities%20-%20Code%20Blue%20SW%202026.01.pdf" target="_blank">Pharmacists Responsibilities - Code Blue SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20COVID%20Vaccine%20Storage%20Transport%20and%20Documentation%20SW%202023.04.pdf" target="_blank">Pharmacy COVID Vaccine Storage Transport and Documentation SW 2023.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20Security%20Access%20SW%202016.06.pdf" target="_blank">Pharmacy Security Access SW 2016.06</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20SharePoint%20Page%20SW%202025.12.pdf" target="_blank">Pharmacy SharePoint Page SW 2025.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20Staffing%20and%20Critical%20Workload%20SW%202025.01.pdf" target="_blank">Pharmacy Staffing and Critical Workload SW 2025.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20Standard%20Work%20C2%20Tablet%20repackingSW%202025.08.pdf" target="_blank">Pharmacy Standard Work C2 Tablet repackingSW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20Standard%20Work%20Hazard%20Medication(SW%2007.25).pdf" target="_blank">Pharmacy Standard Work Hazard Medication(SW 07.25)</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Pharmacy%20Standard%20Work%20Liquid%20repackingSW%202025.08.pdf" target="_blank">Pharmacy Standard Work Liquid repackingSW 2025.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Placement%20and%20Movement%20of%20Materials%20into%20Anteroom%20and%20Cleanroom%20SW%202025.04.pdf" target="_blank">Placement and Movement of Materials into Anteroom and Cleanroom SW 2025.04</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Platelet%20Boilermaker%20SW%202025.05.pdf" target="_blank">Platelet Boilermaker SW 2025.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Processing%20Take%20Home%20Medication%20Paperwork%20SW%202021.11.pdf" target="_blank">Processing Take Home Medication Paperwork SW 2021.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Providing%20Cardioplegia%20Bag%201%20for%20Cardiovascular%20Surgery%20SW%202017.11.pdf" target="_blank">Providing Cardioplegia Bag 1 for Cardiovascular Surgery SW 2017.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Recall%20of%20Medications%20Sub%20SW%202025.07.pdf" target="_blank">Recall of Medications Sub SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Receiving%20Unpacking%20and%20Transporting%20Hazardous%20NIOSH%201%20Drugs%20SW%202025.07.pdf" target="_blank">Receiving Unpacking and Transporting Hazardous NIOSH 1 Drugs SW 2025.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Redispensing%20Bulk%20Items%20SW%202017.08.pdf" target="_blank">Redispensing Bulk Items SW 2017.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Repackaging%20of%20Bulk%20to%20Unit%20Dose%20Hazardous%20Medications%20SW%202023.11.pdf" target="_blank">Repackaging of Bulk to Unit Dose Hazardous Medications SW 2023.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Repackaging%20Patient%20Own%20Chemo%20or%20Hazardous%20Medications%20SW%202019.05.pdf" target="_blank">Repackaging Patient Own Chemo or Hazardous Medications SW 2019.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Reviewing%20Home%20Med%20Lists%20Transcribed%20by%20Medication%20History%20Technicians%20SW%202026.01.pdf" target="_blank">Reviewing Home Med Lists Transcribed by Medication History Technicians SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Revising%20Inpatient%20Orders%20After%20Home%20Medication%20List%20Updates%20SW%202020.09.pdf" target="_blank">Revising Inpatient Orders After Home Medication List Updates SW 2020.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/RightFax%20Pharmacy%20Orders%20Outlook%20mailbox%20configuration%20SW%202023.12.pdf" target="_blank">RightFax Pharmacy Orders Outlook mailbox configuration SW 2023.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Rx%20To%20Do%20and%20Handoff%20Standardization%20SW%202024.03.pdf" target="_blank">Rx To Do and Handoff Standardization SW 2024.03</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/RxDestroyer%20Use%20SW%202023.05.pdf" target="_blank">RxDestroyer Use SW 2023.05</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/SHMG%20Clinic%20Medication%20Ordering%20SW%202025.09.pdf" target="_blank">SHMG Clinic Medication Ordering SW 2025.09</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/SHWV%20On-Call%20Pharmacist%20SW%202026.01.pdf" target="_blank">SHWV On-Call Pharmacist SW 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Take%20Home%20Meds%20-%20Albuterol%20SW%202020.07.pdf" target="_blank">Take Home Meds - Albuterol SW 2020.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Take%20Home%20Meds%20-%20Getting%20an%20Interpreter%20SW%202017.07.pdf" target="_blank">Take Home Meds - Getting an Interpreter SW 2017.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Take%20Home%20Meds%20-%20Processing%20Paperwork%20SW%202021.11.pdf" target="_blank">Take Home Meds - Processing Paperwork SW 2021.11</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Take%20Home%20Meds%20Albuterol%20Inhaler%20Process%20SW%202020.07.pdf" target="_blank">Take Home Meds Albuterol Inhaler Process SW 2020.07</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/TNK%20for%20stroke%20kit%20assembly%20SW%202023.12.pdf" target="_blank">TNK for stroke kit assembly SW 2023.12</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Ultomiris%20%26%20Soliris%20REMS%20Education.pdf" target="_blank">Ultomiris & Soliris REMS Education</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/U-Status%20Pharmacist%20SW%202025.10.pdf" target="_blank">U-Status Pharmacist SW 2025.10</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Visual%20Inspection%20Quality%20Assurance%20and%20Quality%20Control%20of%20IV%20Pharmacy%20Compounded%20Sterile%20Products.pdf" target="_blank">Visual Inspection Quality Assurance and Quality Control of IV Pharmacy Compounded Sterile Products</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/Waste%20an%20expired%20item%20that%20was%20returned%20to%20the%20CMS%20SW%202017.08.pdf" target="_blank">Waste an expired item that was returned to the CMS SW 2017.08</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/WVH%20ED%20RPh%20checking%20inbasket%202026.01.pdf" target="_blank">WVH ED RPh checking inbasket 2026.01</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/WVH%20Pharmacy%20Scheduling%20SW%206.2.23.pdf" target="_blank">WVH Pharmacy Scheduling SW 6.2.23</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Standard%20Work/WVH%20Pharmacy%20Vacation%20Time%20Off%20Request%20SW.pdf" target="_blank">WVH Pharmacy Vacation Time Off Request SW</a></li>
+            </ul>
+        </div>
+    </div>
+
+<script>
+        // Load saved favorites from the browser
+        let favorites = JSON.parse(localStorage.getItem('pharmacyFavs')) || [];
+        
+        // Determine starting tab: If they have favorites, start there. Otherwise, start on All.
+        let currentTab = favorites.length > 0 ? 'favs' : 'all';
+
+        // Apply the active tab styling on load
+        document.querySelector(`.tab-btn[data-target="${currentTab}"]`).classList.add('active');
+
+        // Automatically inject a clickable star button into every link item
+        document.querySelectorAll('.link-item').forEach(function(item) {
+            let link = item.querySelector('a');
+            let star = document.createElement('span');
+            star.className = 'star-btn';
+            
+            if (favorites.includes(link.href)) {
+                star.classList.add('favorited');
+                star.innerHTML = '★';
+                item.classList.add('is-fav');
+            } else {
+                star.innerHTML = '☆';
+            }
+
+            star.onclick = function() {
+                if (favorites.includes(link.href)) {
+                    favorites = favorites.filter(f => f !== link.href);
+                    star.classList.remove('favorited');
+                    star.innerHTML = '☆';
+                    item.classList.remove('is-fav');
+                } else {
+                    favorites.push(link.href);
+                    star.classList.add('favorited');
+                    star.innerHTML = '★';
+                    item.classList.add('is-fav');
+                }
+                
+                localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
+                updateFavCount();
+                
+                // If we are on the favorites tab and un-star something, hide it immediately
+                if (currentTab === 'favs') {
+                    filterList();
+                }
+            };
+
+            item.appendChild(star);
+        });
+
+        // Click behavior for ALL tabs
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Set the current tab to this button's target and filter
+                currentTab = this.getAttribute('data-target');
+                filterList();
+            };
+        });
+
+        // Search typing behavior
+        document.getElementById('searchInput').addEventListener('keyup', filterList);
+
+        // Master function to hide/show items based on Search AND current Tab
+        function filterList() {
+            let filterText = document.getElementById('searchInput').value.toLowerCase();
+            let sections = document.querySelectorAll('.category-section');
+
+            sections.forEach(function(section) {
+                // Read the exact title from the <h2> element
+                let sectionName = section.querySelector('h2').innerText;
+                let listItems = section.querySelectorAll('.link-item');
+                let hasVisibleItems = false;
+
+                // If a specific category tab is selected, and this section is NOT that category, hide it entirely
+                if (currentTab !== 'all' && currentTab !== 'favs' && currentTab !== sectionName) {
+                    section.style.display = "none";
+                    return; // Skip processing the items inside to save browser memory
+                }
+
+                listItems.forEach(function(item) {
+                    let text = item.querySelector('a').innerText.toLowerCase();
+                    let isFav = item.classList.contains('is-fav');
+
+                    let matchesSearch = text.indexOf(filterText) > -1;
+                    
+                    // If on the 'Favorites' tab, the item MUST be a favorite. Otherwise, it's fair game.
+                    let matchesTab = (currentTab === 'favs') ? isFav : true;
+
+                    if (matchesSearch && matchesTab) {
+                        item.style.display = ""; // Show item
+                        hasVisibleItems = true;
+                    } else {
+                        item.style.display = "none"; // Hide item
+                    }
+                });
+
+                // Hide the whole category (like "Guidelines") if it has no visible items right now
+                if (hasVisibleItems) {
+                    section.style.display = "";
+                } else {
+                    section.style.display = "none";
+                }
+            });
+        }
+
+        function updateFavCount() {
+            document.getElementById('favCount').innerText = favorites.length;
+        }
+        
+        // Run these once on page load to set the initial state
+        updateFavCount(); 
+        filterList(); 
+// --- EXPORT / IMPORT FAVORITES LOGIC ---
+
+        // Export Favorites
+        document.getElementById('btnExport').onclick = function() {
+            if (favorites.length === 0) {
+                alert("You don't have any favorites to export yet!");
+                return;
+            }
+            // Package the favorites into a clean text file (one URL per line)
+            let dataStr = favorites.join('\n');
+            let dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
+            let exportFileDefaultName = 'Pharmacy_Favorites.txt';
+
+            // Trigger the browser to download it
+            let linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        };
+
+        // Trigger the hidden file selector when clicking Import
+        document.getElementById('btnImport').onclick = function() {
+            document.getElementById('importFile').click();
+        };
+
+        // Process the imported text file
+        document.getElementById('importFile').addEventListener('change', function(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // Split the text file by line breaks, clean up spaces, and ignore blank lines
+                    let importedText = e.target.result;
+                    let importedFavs = importedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                    
+                    if (importedFavs.length > 0) {
+                        // Merge the imported favorites with any existing ones, removing duplicates
+                        let combined = new Set([...favorites, ...importedFavs]);
+                        favorites = Array.from(combined);
+                        localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
+                        
+                        alert("Favorites imported successfully!");
+                        location.reload(); // Instantly reloads the page to update all the gold stars
+                    } else {
+                        alert("The text file appears to be empty.");
+                    }
+                } catch (err) {
+                    alert("Error reading file. Make sure it is a valid text file containing your links.");
+                }
+            };
+            
+            // Reset the input so you can import the same file again if needed
+            event.target.value = '';
+            reader.readAsText(file);
+        });
+    </script>
