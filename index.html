@@ -35,35 +35,21 @@
 /* Tabs Styling */
         .tabs {
             display: flex;
-            gap: 8px; /* Tighter gap between buttons */
+            flex-wrap: wrap; /* Allows tabs to drop to a neat second line if the screen is too narrow */
+            gap: 4px; /* Extremely tight gap between buttons */
             margin-bottom: 20px;
             border-bottom: 2px solid #edf2f7;
-            
-            /* Enable horizontal scrolling on small screens instead of wrapping */
-            overflow-x: auto;
-            white-space: nowrap;
-            padding-bottom: 2px;
-        }
-
-        /* Makes the scrollbar look neat and thin if it activates */
-        .tabs::-webkit-scrollbar {
-            height: 4px;
-        }
-        .tabs::-webkit-scrollbar-thumb {
-            background: #cbd5e0;
-            border-radius: 4px;
         }
 
         .tab-btn {
             background: none;
             border: none;
-            font-size: 14px; /* Reduced font size from 16px */
+            font-size: 13px; /* Shrunk the font size */
             font-weight: 600;
             color: #a0aec0;
             cursor: pointer;
-            padding: 8px 4px; /* Tighter padding around text */
+            padding: 8px 6px; /* Squeezed the clickable padding closer to the text */
             transition: all 0.2s ease;
-            flex-shrink: 0; /* Prevents text from squishing */
         }
 
         .tab-btn:hover {
@@ -73,16 +59,16 @@
         .tab-btn.active {
             color: #2b6cb0;
             border-bottom: 3px solid #2b6cb0;
-            margin-bottom: -2px; 
+            margin-bottom: -2px; /* Keeps the active line locked to the gray border */
         }
 
         .fav-count {
             background-color: #ebf8ff;
             color: #2b6cb0;
             border-radius: 12px;
-            padding: 2px 6px;
-            font-size: 12px; /* Slightly smaller number badge */
-            margin-left: 4px;
+            padding: 2px 5px;
+            font-size: 11px; /* Shrunk the favorites counter bubble */
+            margin-left: 3px;
         }
 
         /* Category Header Styling */
@@ -721,3 +707,4 @@
         });
 
     </script>
+
