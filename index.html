@@ -199,6 +199,7 @@
 
         <div class="tabs">
             <button class="tab-btn" data-target="all">All Documents</button>
+			<button class="tab-btn" data-target="Links">Links</button>
             <button class="tab-btn" data-target="Antimicrobial Dosing Protocols">Antibiotic Dosing</button>
             <button class="tab-btn" data-target="Protocols">Protocols</button>
             <button class="tab-btn" data-target="Antimicrobial Stewardship Guidelines and Resources">Stewardship</button>
@@ -211,7 +212,20 @@
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Search documents... (e.g., Vancomycin, Adult)">
         </div>
-
+		
+		<div class="category-section">
+            <h2>Links</h2>
+            <ul class="link-list">
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/:o:/r/teams/Pharmacy/_layouts/15/Doc2.aspx?action=edit&sourcedoc=%7b77ca4e30-3a02-4dcc-ae5b-51c6acedd1e6%7d&web=1&CID=3ba2b48d-1c09-4df6-96e4-71cd30e16704" target="_blank">Pharmacy Huddle Board</a></li>
+                <li class="link-item"><a href="https://online.lexi.com/lco/action/home?siteid=5" target="_blank">Lexicomp</a></li>
+                <li class="link-item"><a href="https://www.uptodate.com/contents/search" target="_blank">UpToDate</a></li>
+                <li class="link-item"><a href="https://10.99.200.61/OmniCenter/dashboard/home" target="_blank">Omnicenter</a></li>
+                <li class="link-item"><a href="https://salemhealth.sharepoint.com/sites/Pharmacy2/Shared%20Documents/Inpatient%20Pharmacy/Drug%20Shortage%20Dashboard.xlsx?web=1" target="_blank">Drug Shortage Dashboard</a></li>
+                <li class="link-item"><a href="https://online.lexi.com/lco/action/doc/retrieve/docid/patch_f/4111?cesid=3HUdIZEt9li&searchUrl=/lco/action/search?q%3Dextravasation%26t%3Dname%26acs%3Dfalse%26acq%3Dextravasation" target="_blank">Management of Drug Extravasations - Lexicomp</a></li>
+                <li class="link-item"><a href="https://cloud.sensoscientific.com/Account/Login.aspx" target="_blank">Sensoscientific</a></li>
+            </ul>
+        </div>
+		
         <div class="category-section">
             <h2>Antimicrobial Dosing Protocols</h2>
             <ul class="link-list">
@@ -705,4 +719,5 @@
             event.target.value = '';
             reader.readAsText(file);
         });
+
     </script>
