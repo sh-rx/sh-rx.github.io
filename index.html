@@ -32,11 +32,30 @@
             margin-bottom: 15px;
         }
 
-/* Tabs Styling */
+        /* Cross-Page Navigation Link Styling */
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background-color: #edf2f7;
+            color: #2b6cb0;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background-color: #e2e8f0;
+            color: #1a365d;
+        }
+
+        /* Tabs Styling */
         .tabs {
             display: flex;
-            flex-wrap: wrap; /* Allows tabs to drop to a neat second line if the screen is too narrow */
-            gap: 4px; /* Extremely tight gap between buttons */
+            flex-wrap: wrap;
+            gap: 4px;
             margin-bottom: 20px;
             border-bottom: 2px solid #edf2f7;
         }
@@ -44,11 +63,11 @@
         .tab-btn {
             background: none;
             border: none;
-            font-size: 13px; /* Shrunk the font size */
+            font-size: 13px;
             font-weight: 600;
             color: #a0aec0;
             cursor: pointer;
-            padding: 8px 6px; /* Squeezed the clickable padding closer to the text */
+            padding: 8px 6px;
             transition: all 0.2s ease;
         }
 
@@ -59,7 +78,7 @@
         .tab-btn.active {
             color: #2b6cb0;
             border-bottom: 3px solid #2b6cb0;
-            margin-bottom: -2px; /* Keeps the active line locked to the gray border */
+            margin-bottom: -2px;
         }
 
         .fav-count {
@@ -67,7 +86,7 @@
             color: #2b6cb0;
             border-radius: 12px;
             padding: 2px 5px;
-            font-size: 11px; /* Shrunk the favorites counter bubble */
+            font-size: 11px;
             margin-left: 3px;
         }
 
@@ -129,7 +148,7 @@
 
         /* Individual link styling */
         .link-item a {
-            flex-grow: 1; /* Pushes the star to the right */
+            flex-grow: 1;
             display: flex;
             align-items: center;
             padding: 8px 10px;
@@ -176,29 +195,33 @@
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
             <h1 style="margin: 0;">Pharmacy Documents</h1>
             
-            <div class="sync-actions" style="padding-bottom: 5px;">
-                <button id="btnExport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px;">Export Favorites</button>
-                <button id="btnImport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; margin-left: 10px;">Import Favorites</button>
-                <input type="file" id="importFile" accept=".txt" style="display:none;">
+            <div style="display: flex; align-items: center; gap: 15px; padding-bottom: 5px;">
+                <a href="policies.html" class="nav-link">Hospital Policies ➡</a>
+                
+                <div class="sync-actions">
+                    <button id="btnExport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; padding:0;">Export Favorites</button>
+                    <button id="btnImport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; margin-left: 10px; padding:0;">Import Favorites</button>
+                    <input type="file" id="importFile" accept=".txt" style="display:none;">
+                </div>
             </div>
         </div>
 
         <div class="tabs">
             <button class="tab-btn" data-target="all">All Documents</button>
-			<button class="tab-btn" data-target="Links">Links</button>
+            <button class="tab-btn" data-target="Links">Links</button>
             <button class="tab-btn" data-target="Antimicrobial Dosing Protocols">Antibiotic Dosing</button>
             <button class="tab-btn" data-target="Protocols">Protocols</button>
             <button class="tab-btn" data-target="Antimicrobial Stewardship Guidelines and Resources">Stewardship</button>
             <button class="tab-btn" data-target="Guidelines">Guidelines</button>
             <button class="tab-btn" data-target="Resources">Resources</button>
-	    <button class="tab-btn" data-target="Nurse Resources">Nurse Resources</button>
-	    <button class="tab-btn" data-target="Standard Work">Standard Work</button>
+            <button class="tab-btn" data-target="Nurse Resources">Nurse Resources</button>
+            <button class="tab-btn" data-target="Standard Work">Standard Work</button>
             <button class="tab-btn" data-target="favs">Favorites <span class="fav-count" id="favCount">0</span></button>
         </div>
+
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Search documents... (e.g., Vancomycin, Adult)">
         </div>
-		
 		<div class="category-section">
             <h2>Links</h2>
             <ul class="link-list">
@@ -542,16 +565,13 @@
             </ul>
         </div>
     </div>
+        </div>
 
 <script>
-        // Load saved favorites from the browser
+        // Load SHARED favorites from the browser
         let favorites = JSON.parse(localStorage.getItem('pharmacyFavs')) || [];
         
-        // Determine starting tab: If they have favorites, start there. Otherwise, start on All.
-        let currentTab = favorites.length > 0 ? 'favs' : 'all';
-
-        // Apply the active tab styling on load
-        document.querySelector(`.tab-btn[data-target="${currentTab}"]`).classList.add('active');
+        let hasLocalFavs = false;
 
         // Automatically inject a clickable star button into every link item
         document.querySelectorAll('.link-item').forEach(function(item) {
@@ -563,6 +583,7 @@
                 star.classList.add('favorited');
                 star.innerHTML = '★';
                 item.classList.add('is-fav');
+                hasLocalFavs = true; // Marks that this specific page has at least one favorite
             } else {
                 star.innerHTML = '☆';
             }
@@ -583,25 +604,21 @@
                 localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
                 updateFavCount();
                 
-                // If we are on the favorites tab and un-star something, hide it immediately
-                if (currentTab === 'favs') {
-                    filterList();
-                }
+                if (currentTab === 'favs') filterList();
             };
 
             item.appendChild(star);
         });
 
+        // Determine starting tab: If they have favorites ON THIS PAGE, start there. Otherwise, start on All.
+        let currentTab = hasLocalFavs ? 'favs' : 'all';
+        document.querySelector(`.tab-btn[data-target="${currentTab}"]`).classList.add('active');
+
         // Click behavior for ALL tabs
         document.querySelectorAll('.tab-btn').forEach(function(btn) {
             btn.onclick = function() {
-                // Remove active class from all buttons
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                
-                // Add active class to clicked button
                 this.classList.add('active');
-                
-                // Set the current tab to this button's target and filter
                 currentTab = this.getAttribute('data-target');
                 filterList();
             };
@@ -610,41 +627,35 @@
         // Search typing behavior
         document.getElementById('searchInput').addEventListener('keyup', filterList);
 
-        // Master function to hide/show items based on Search AND current Tab
+        // Master function to hide/show items
         function filterList() {
             let filterText = document.getElementById('searchInput').value.toLowerCase();
             let sections = document.querySelectorAll('.category-section');
 
             sections.forEach(function(section) {
-                // Read the exact title from the <h2> element
                 let sectionName = section.querySelector('h2').innerText;
                 let listItems = section.querySelectorAll('.link-item');
                 let hasVisibleItems = false;
 
-                // If a specific category tab is selected, and this section is NOT that category, hide it entirely
                 if (currentTab !== 'all' && currentTab !== 'favs' && currentTab !== sectionName) {
                     section.style.display = "none";
-                    return; // Skip processing the items inside to save browser memory
+                    return; 
                 }
 
                 listItems.forEach(function(item) {
                     let text = item.querySelector('a').innerText.toLowerCase();
                     let isFav = item.classList.contains('is-fav');
-
                     let matchesSearch = text.indexOf(filterText) > -1;
-                    
-                    // If on the 'Favorites' tab, the item MUST be a favorite. Otherwise, it's fair game.
                     let matchesTab = (currentTab === 'favs') ? isFav : true;
 
                     if (matchesSearch && matchesTab) {
-                        item.style.display = ""; // Show item
+                        item.style.display = "flex"; 
                         hasVisibleItems = true;
                     } else {
-                        item.style.display = "none"; // Hide item
+                        item.style.display = "none"; 
                     }
                 });
 
-                // Hide the whole category (like "Guidelines") if it has no visible items right now
                 if (hasVisibleItems) {
                     section.style.display = "";
                 } else {
@@ -653,39 +664,33 @@
             });
         }
 
+        // SMART COUNTER: Only count favorites found in the HTML of the current page
         function updateFavCount() {
-            document.getElementById('favCount').innerText = favorites.length;
+            let pageFavCount = document.querySelectorAll('.link-item.is-fav').length;
+            document.getElementById('favCount').innerText = pageFavCount;
         }
         
-        // Run these once on page load to set the initial state
         updateFavCount(); 
         filterList(); 
-// --- EXPORT / IMPORT FAVORITES LOGIC ---
 
-        // Export Favorites
+        // --- SHARED EXPORT / IMPORT FAVORITES LOGIC ---
         document.getElementById('btnExport').onclick = function() {
             if (favorites.length === 0) {
                 alert("You don't have any favorites to export yet!");
                 return;
             }
-            // Package the favorites into a clean text file (one URL per line)
             let dataStr = favorites.join('\n');
             let dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
-            let exportFileDefaultName = 'Pharmacy_Favorites.txt';
-
-            // Trigger the browser to download it
             let linkElement = document.createElement('a');
             linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.setAttribute('download', 'Pharmacy_Favorites.txt');
             linkElement.click();
         };
 
-        // Trigger the hidden file selector when clicking Import
         document.getElementById('btnImport').onclick = function() {
             document.getElementById('importFile').click();
         };
 
-        // Process the imported text file
         document.getElementById('importFile').addEventListener('change', function(event) {
             let file = event.target.files[0];
             if (!file) return;
@@ -693,18 +698,13 @@
             let reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    // Split the text file by line breaks, clean up spaces, and ignore blank lines
-                    let importedText = e.target.result;
-                    let importedFavs = importedText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-                    
+                    let importedFavs = e.target.result.split('\n').map(line => line.trim()).filter(line => line.length > 0);
                     if (importedFavs.length > 0) {
-                        // Merge the imported favorites with any existing ones, removing duplicates
                         let combined = new Set([...favorites, ...importedFavs]);
                         favorites = Array.from(combined);
                         localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
-                        
                         alert("Favorites imported successfully!");
-                        location.reload(); // Instantly reloads the page to update all the gold stars
+                        location.reload(); 
                     } else {
                         alert("The text file appears to be empty.");
                     }
@@ -712,12 +712,9 @@
                     alert("Error reading file. Make sure it is a valid text file containing your links.");
                 }
             };
-            
-            // Reset the input so you can import the same file again if needed
             event.target.value = '';
             reader.readAsText(file);
         });
-
     </script>
-
-
+</body>
+</html>

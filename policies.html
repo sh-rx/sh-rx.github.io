@@ -6,117 +6,64 @@
     <title>Hospital Policies</title>
     <style>
         /* Professional, fast-loading system fonts */
-        body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f4f7f9;
-            color: #333;
-            margin: 0;
-            padding: 30px 20px;
-        }
+        body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 30px 20px; }
+        .container { max-width: 950px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px 35px; }
+        h1 { color: #1a365d; font-size: 26px; margin: 0; }
+        
+        /* Cross-Page Navigation Link Styling */
+        .nav-link { display: inline-flex; align-items: center; padding: 6px 12px; background-color: #edf2f7; color: #2b6cb0; text-decoration: none; font-size: 13px; font-weight: 600; border-radius: 6px; transition: all 0.2s ease; }
+        .nav-link:hover { background-color: #e2e8f0; color: #1a365d; }
 
-        /* Main container styling */
-        .container {
-            max-width: 950px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 25px 35px;
-        }
-
-        /* Header styling */
-        h1 {
-            color: #1a365d;
-            font-size: 26px;
-            margin-top: 0;
-            margin-bottom: 25px;
-            border-bottom: 2px solid #edf2f7;
-            padding-bottom: 15px;
-        }
+        /* Tabs Styling */
+        .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #edf2f7; }
+        .tab-btn { background: none; border: none; font-size: 14px; font-weight: 600; color: #a0aec0; cursor: pointer; padding: 10px 12px; transition: all 0.2s ease; }
+        .tab-btn:hover { color: #4a5568; }
+        .tab-btn.active { color: #2b6cb0; border-bottom: 3px solid #2b6cb0; margin-bottom: -2px; }
+        .fav-count { background-color: #ebf8ff; color: #2b6cb0; border-radius: 12px; padding: 2px 6px; font-size: 11px; margin-left: 4px; }
 
         /* Search bar styling */
-        .search-container {
-            margin-bottom: 20px;
-            position: sticky;
-            top: 0;
-            background: white;
-            padding: 10px 0;
-            z-index: 100;
-        }
-
-        #searchInput {
-            width: 100%;
-            padding: 12px 16px;
-            font-size: 16px;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        #searchInput:focus {
-            outline: none;
-            border-color: #3182ce;
-            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
-        }
+        .search-container { margin-bottom: 20px; position: sticky; top: 0; background: white; padding: 10px 0; z-index: 100; }
+        #searchInput { width: 100%; padding: 12px 16px; font-size: 15px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; transition: border-color 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        #searchInput:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1); }
 
         /* Link list styling */
-        .link-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+        .link-list { list-style: none; padding: 0; margin: 0; }
+        .link-item { margin-bottom: 4px; border-radius: 4px; transition: background-color 0.1s ease; display: flex; justify-content: space-between; align-items: center; }
+        .link-item:hover { background-color: #ebf8ff; }
+        .link-item a { flex-grow: 1; display: flex; align-items: center; padding: 10px 12px; text-decoration: none; color: #2b6cb0; font-weight: 500; font-size: 15px; }
+        .link-item a::before { content: "📄"; margin-right: 10px; font-size: 16px; }
+        .link-item a:hover { color: #1a365d; text-decoration: underline; }
 
-        .link-item {
-            margin-bottom: 4px;
-            border-radius: 4px;
-            transition: background-color 0.1s ease;
-            display: flex;
-            align-items: center;
-        }
-
-        .link-item:hover {
-            background-color: #ebf8ff;
-        }
-
-        /* Individual link styling */
-        .link-item a {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            padding: 10px 12px;
-            text-decoration: none;
-            color: #2b6cb0;
-            font-weight: 500;
-            font-size: 15px;
-        }
-
-        .link-item a::before {
-            content: "📄";
-            margin-right: 10px;
-            font-size: 16px;
-        }
-
-        .link-item a:hover {
-            color: #1a365d;
-            text-decoration: underline;
-        }
-
-        .no-results {
-            text-align: center;
-            color: #718096;
-            padding: 20px;
-            display: none;
-            font-style: italic;
-        }
+        /* Star Button Styling */
+        .star-btn { cursor: pointer; font-size: 20px; color: #cbd5e0; padding: 0 15px; user-select: none; transition: all 0.2s ease; }
+        .star-btn:hover { color: #ecc94b; transform: scale(1.2); }
+        .star-btn.favorited { color: #d69e2e; }
+        .no-results { text-align: center; color: #718096; padding: 20px; display: none; font-style: italic; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Hospital Policies</h1>
         
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #edf2f7; padding-bottom: 15px;">
+            <h1>Hospital Policies</h1>
+            
+            <div style="display: flex; align-items: center; gap: 20px; padding-bottom: 5px;">
+                <a href="index.html" class="nav-link">⬅ Pharmacy Documents</a>
+                
+                <div class="sync-actions" style="display: flex; gap: 10px;">
+                    <button id="btnExport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; padding:0;">Export Favorites</button>
+                    <button id="btnImport" style="background:none; border:none; color:#718096; cursor:pointer; font-size:12px; padding:0;">Import Favorites</button>
+                    <input type="file" id="importFile" accept=".txt" style="display:none;">
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn" data-target="all">All Policies</button>
+            <button class="tab-btn" data-target="favs">Favorites <span class="fav-count" id="favCount">0</span></button>
+        </div>
+
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Search policies... (e.g., Code Blue, Stroke, Medication)">
         </div>
@@ -1119,28 +1066,129 @@
     </div>
 
     <script>
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('keyup', function() {
-            let filterText = this.value.toLowerCase();
+        // Load SHARED favorites from the browser
+        let favorites = JSON.parse(localStorage.getItem('pharmacyFavs')) || [];
+        
+        // Automatically inject a clickable star button into every link item
+        let hasLocalFavs = false;
+        document.querySelectorAll('.link-item').forEach(function(item) {
+            let link = item.querySelector('a');
+            let star = document.createElement('span');
+            star.className = 'star-btn';
+            
+            if (favorites.includes(link.href)) {
+                star.classList.add('favorited');
+                star.innerHTML = '★';
+                item.classList.add('is-fav');
+                hasLocalFavs = true; // We have at least one favorite on THIS page
+            } else {
+                star.innerHTML = '☆';
+            }
+
+            star.onclick = function() {
+                if (favorites.includes(link.href)) {
+                    favorites = favorites.filter(f => f !== link.href);
+                    star.classList.remove('favorited');
+                    star.innerHTML = '☆';
+                    item.classList.remove('is-fav');
+                } else {
+                    favorites.push(link.href);
+                    star.classList.add('favorited');
+                    star.innerHTML = '★';
+                    item.classList.add('is-fav');
+                }
+                
+                localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
+                updateFavCount();
+                
+                if (currentTab === 'favs') filterList();
+            };
+            item.appendChild(star);
+        });
+
+        // Determine starting tab: Start on favs only if they have favorites on THIS specific page
+        let currentTab = hasLocalFavs ? 'favs' : 'all';
+        document.querySelector(`.tab-btn[data-target="${currentTab}"]`).classList.add('active');
+
+        // Click behavior for TABS
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.onclick = function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentTab = this.getAttribute('data-target');
+                filterList();
+            };
+        });
+
+        // Search typing behavior
+        document.getElementById('searchInput').addEventListener('keyup', filterList);
+
+        // Filter Logic
+        function filterList() {
+            let filterText = document.getElementById('searchInput').value.toLowerCase();
             let listItems = document.querySelectorAll('.link-item');
             let hasVisibleItems = false;
-            let noResultsMsg = document.getElementById('noResults');
 
             listItems.forEach(function(item) {
                 let text = item.querySelector('a').innerText.toLowerCase();
-                
-                if (text.indexOf(filterText) > -1) {
-                    item.style.display = "flex"; // Show item (flex preserves alignment)
+                let isFav = item.classList.contains('is-fav');
+                let matchesSearch = text.indexOf(filterText) > -1;
+                let matchesTab = (currentTab === 'favs') ? isFav : true;
+
+                if (matchesSearch && matchesTab) {
+                    item.style.display = "flex"; 
                     hasVisibleItems = true;
                 } else {
-                    item.style.display = "none"; // Hide item
+                    item.style.display = "none"; 
                 }
             });
 
-            // Show or hide the "No results found" message
-            if (noResultsMsg) {
-                noResultsMsg.style.display = hasVisibleItems ? "none" : "block";
+            document.getElementById('noResults').style.display = hasVisibleItems ? "none" : "block";
+        }
+
+        // Only count the favorites that belong to THIS page for the bubble
+        function updateFavCount() {
+            let pageFavCount = document.querySelectorAll('.link-item.is-fav').length;
+            document.getElementById('favCount').innerText = pageFavCount;
+        }
+        
+        updateFavCount(); 
+        filterList(); 
+
+        // --- SHARED EXPORT / IMPORT LOGIC ---
+        document.getElementById('btnExport').onclick = function() {
+            if (favorites.length === 0) {
+                alert("You don't have any favorites to export yet!");
+                return;
             }
+            let dataStr = favorites.join('\n');
+            let dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
+            let linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', 'Pharmacy_Favorites.txt');
+            linkElement.click();
+        };
+
+        document.getElementById('btnImport').onclick = function() { document.getElementById('importFile').click(); };
+
+        document.getElementById('importFile').addEventListener('change', function(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let importedFavs = e.target.result.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                    if (importedFavs.length > 0) {
+                        let combined = new Set([...favorites, ...importedFavs]);
+                        favorites = Array.from(combined);
+                        localStorage.setItem('pharmacyFavs', JSON.stringify(favorites));
+                        alert("Favorites imported successfully!");
+                        location.reload(); 
+                    }
+                } catch (err) { alert("Error reading file."); }
+            };
+            event.target.value = '';
+            reader.readAsText(file);
         });
     </script>
 </body>
