@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrolyte Calculator</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --surface: #ffffff;
+            --background: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --danger: #dc2626;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 1rem 0.5rem;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .header {
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        h2 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
+        p.subtitle { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+
+        input[type="number"] {
+            padding: 0.35rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            width: 100%;
+            box-sizing: border-box;
+            background: #f8fafc;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--surface);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            margin: 0;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .toggle-row label {
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: none;
+            color: var(--text-main);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.4rem;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            transition: background 0.1s;
+        }
+
+        .btn-primary { flex: 1; background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { flex: 0.2; background: #e2e8f0; color: var(--text-main); }
+        .btn-secondary:hover { background: #cbd5e1; }
+
+        #results { margin-top: 1rem; display: none; }
+
+        .result-box {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #fafafa;
+            transition: opacity 0.2s;
+        }
+
+        .result-box.targets {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            border-radius: 0;
+            padding: 0 0 0.5rem 0;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .result-box h3 { 
+            margin: 0 0 0.4rem 0; 
+            font-size: 0.85rem; 
+            color: var(--primary);
+        }
+
+        .recipe-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.2rem;
+            font-size: 13px;
+            padding-bottom: 0.2rem;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .recipe-line:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .note { color: var(--text-muted); font-size: 0.75rem; }
+        .vol { color: var(--text-muted); font-size: 0.75rem; margin-left: 0.2rem; }
+
+        .osm-grid {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .osm-item {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .osm-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600;}
+        .osm-val { font-weight: 600; font-size: 13px; }
+
+        .high-osm { color: var(--danger); }
+        .high-osm::after { content: " ⚠️"; font-size: 0.8em; }
+
+        /* Muted style for disabled/redundant options */
+        .grayed-out {
+            opacity: 0.6;
+            background: #f1f5f9;
+            border-style: dashed;
+        }
+        .grayed-out h3 { color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <h2>Electrolyte Replacement</h2>
+            <p class="subtitle">K⁺ & PO₄ Dosing Calculator</p>
+        </div>
+        
+        <div class="input-row">
+            <div class="input-group">
+                <label>Weight (kg)</label>
+                <input type="number" id="weight" step="0.1" required>
+            </div>
+            <div class="input-group">
+                <label>K⁺ Level</label>
+                <input type="number" id="k_level" step="0.1" required>
+            </div>
+            <div class="input-group">
+                <label>PO₄ Level</label>
+                <input type="number" id="p_level" step="0.1" required>
+            </div>
+        </div>
+
+        <div class="toggle-row">
+            <input type="checkbox" id="renal_toggle">
+            <label for="renal_toggle">Renal Impairment (½ K⁺ Dose)</label>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn-primary" onclick="calculate()">Calculate</button>
+            <button class="btn-secondary" onclick="clearForm()">Clear</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const getKDose = (k) => k < 3 ? 80 : (k <= 3.4 ? 60 : (k <= 3.9 ? 40 : 0));
+        
+        const getPDose = (p, wt) => {
+            if (p >= 1.8 && p <= 2.4) return wt <= 60 ? 10 : (wt <= 80 ? 15 : 20);
+            if (p >= 1.0 && p <= 1.7) return wt <= 60 ? 20 : (wt <= 80 ? 30 : 40);
+            if (p < 1.0) return wt <= 60 ? 30 : (wt <= 80 ? 40 : 50);
+            return 0;
+        };
+
+        const calcOsm = (baseOsm, vFluidMl, kclMeq, phosMmol) => {
+            if (vFluidMl <= 0) return null;
+            const totalOsmoles = (baseOsm * (vFluidMl/1000)) + (kclMeq * 2.0) + (phosMmol * 2.33);
+            const totalVolL = (vFluidMl + (kclMeq/2.0) + (phosMmol/3.0)) / 1000.0;
+            return totalVolL > 0 ? totalOsmoles / totalVolL : null;
+        };
+
+        const formatOsm = (val) => {
+            if (val === null) return 'N/A';
+            const isHigh = val >= 500;
+            return `<span class="osm-val ${isHigh ? 'high-osm' : ''}">${val.toFixed(0)}</span>`;
+        };
+
+        // Helper to check if both NS and D5W are >= 500 mOsm/L
+        const isBothHigh = (ns, d5) => (ns !== null && ns >= 500) && (d5 !== null && d5 >= 500);
+
+        function clearForm() {
+            document.getElementById('weight').value = '';
+            document.getElementById('k_level').value = '';
+            document.getElementById('p_level').value = '';
+            document.getElementById('renal_toggle').checked = false;
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('weight').focus();
+        }
+
+        function calculate() {
+            const wt = parseFloat(document.getElementById('weight').value);
+            const k = parseFloat(document.getElementById('k_level').value);
+            const p = parseFloat(document.getElementById('p_level').value);
+            const isRenal = document.getElementById('renal_toggle').checked;
+            const resultsDiv = document.getElementById('results');
+
+            if (isNaN(wt) || isNaN(k) || isNaN(p)) return;
+
+            let tK = getKDose(k);
+            if (isRenal) tK = tK / 2;
+            
+            const tP = getPDose(p, wt);
+            
+            let vol = 0;
+            if (tK >= 60) vol = 1000;
+            else if (tK >= 30) vol = 500;
+            else if (tK > 0) vol = 250;
+
+            let html = '';
+
+            if (vol > 0 && tP > 0) {
+                // Background calculation variables
+                let opt1Gray, opt2Gray, opt3Gray;
+                let osmNsBase, osmD5Base, osmNsAdj, osmD5Adj, osmNsOpt3, osmD5Opt3;
+                let adjKcl, kclMeqOpt3;
+                
+                // Static salt math (doesn't change with fluid volume)
+                const kFromKphos = tP * (4.4 / 3.0);
+                const isOpt2Unreasonable = kFromKphos > (tK * 1.1);
+                
+                // Round KCl to nearest 1
+                adjKcl = Math.round(Math.max(0, tK - kFromKphos));
+                
+                const isRedundant = kFromKphos <= tK;
+                const kphosMmolOpt3 = Math.round(Math.min(tP, tK * (3.0 / 4.4)));
+                const naphosMmolOpt3 = Math.round(tP - kphosMmolOpt3);
+                const kProvidedOpt3 = kphosMmolOpt3 * (4.4 / 3.0);
+                
+                // Round KCl to nearest 1
+                kclMeqOpt3 = Math.round(Math.max(0, tK - kProvidedOpt3));
+
+                // Auto-scale fluid loop: If all options are grayed out, step up the volume
+                const volTiers = [250, 500, 1000].filter(v => v >= vol);
+                for (let i = 0; i < volTiers.length; i++) {
+                    vol = volTiers[i];
+                    
+                    // Evaluate Option 1
+                    osmNsBase = calcOsm(308, vol, tK, tP);
+                    osmD5Base = calcOsm(252, vol, tK, tP);
+                    opt1Gray = isBothHigh(osmNsBase, osmD5Base);
+
+                    // Evaluate Option 2
+                    osmNsAdj = calcOsm(308, vol, adjKcl, tP);
+                    osmD5Adj = calcOsm(252, vol, adjKcl, tP);
+                    opt2Gray = isOpt2Unreasonable || isBothHigh(osmNsAdj, osmD5Adj);
+
+                    // Evaluate Option 3
+                    if (!isRedundant) {
+                        osmNsOpt3 = calcOsm(308, vol, 0, tP); // 0 KCl
+                        osmD5Opt3 = calcOsm(252, vol, 0, tP);
+                        opt3Gray = isBothHigh(osmNsOpt3, osmD5Opt3);
+                    } else {
+                        opt3Gray = true; // Redundant options are treated as grayed out
+                    }
+
+                    // Break the loop if at least ONE option is viable (not grayed out)
+                    if (!opt1Gray || !opt2Gray || !opt3Gray) {
+                        break;
+                    }
+                }
+
+                // Render Header
+                html += `
+                    <div class="result-box targets">
+                        <div><span class="note">Target K⁺:</span> <strong>${tK > 0 ? tK + ' mEq' : 'None'}</strong></div>
+                        <div><span class="note">Target PO₄:</span> <strong>${tP > 0 ? tP + ' mmol' : 'None'}</strong></div>
+                        <div><span class="note">Fluid:</span> <strong>${vol > 0 ? vol + ' mL' : 'None'}</strong></div>
+                    </div>`;
+
+                // Render Option 1
+                html += `
+                    <div class="result-box ${opt1Gray ? 'grayed-out' : ''}">
+                        <h3>1. NaPhos + KCl</h3>
+                        <div class="recipe-line">
+                            <span><strong>NaPhos:</strong> ${tP.toFixed(1)} mmol <span class="vol">(${(tP/3).toFixed(1)}mL)</span></span>
+                        </div>
+                        <div class="recipe-line">
+                            <span><strong>KCl:</strong> ${tK} mEq <span class="vol">(${(tK/2).toFixed(1)}mL)</span></span>
+                        </div>
+                        <div class="osm-grid">
+                            <div class="osm-item"><span class="osm-label">NS Osm</span>${formatOsm(osmNsBase)}</div>
+                            <div class="osm-item"><span class="osm-label">D5W Osm</span>${formatOsm(osmD5Base)}</div>
+                        </div>
+                    </div>`;
+
+                // Render Option 2
+                if (isOpt2Unreasonable) {
+                    html += `
+                        <div class="result-box grayed-out">
+                            <h3>2. KPhos + Reduced KCl <span style="font-size:0.7rem; font-weight:normal;">(Use Opt 3)</span></h3>
+                            <div class="recipe-line"><span><strong>KPhos</strong></span></div>
+                            <div class="recipe-line" style="border-bottom: none;"><span><strong>KCl</strong></span></div>
+                        </div>`;
+                } else {
+                    html += `
+                        <div class="result-box ${opt2Gray ? 'grayed-out' : ''}">
+                            <h3>2. KPhos + Reduced KCl</h3>
+                            <div class="recipe-line">
+                                <span><strong>KPhos:</strong> ${tP.toFixed(1)} mmol <span class="vol">(${(tP/3).toFixed(1)}mL)</span></span>
+                                <span class="note">↳ ~${kFromKphos.toFixed(1)} mEq K⁺</span>
+                            </div>
+                            <div class="recipe-line">
+                                <span><strong>KCl:</strong> ${adjKcl} mEq <span class="vol">(${(adjKcl/2).toFixed(1)}mL)</span></span>
+                            </div>
+                            <div class="osm-grid">
+                                <div class="osm-item"><span class="osm-label">NS Osm</span>${formatOsm(osmNsAdj)}</div>
+                                <div class="osm-item"><span class="osm-label">D5W Osm</span>${formatOsm(osmD5Adj)}</div>
+                            </div>
+                        </div>`;
+                }
+
+                // Render Option 3
+                if (isRedundant) {
+                    html += `
+                        <div class="result-box grayed-out">
+                            <h3>3. Mixed KPhos + NaPhos</h3>
+                            <div class="recipe-line"><span><strong>KPhos</strong></span></div>
+                            <div class="recipe-line" style="border-bottom: none;"><span><strong>NaPhos</strong></span></div>
+                        </div>`;
+                } else {
+                    html += `
+                        <div class="result-box ${opt3Gray ? 'grayed-out' : ''}">
+                            <h3>3. Mixed KPhos + NaPhos</h3>
+                            <div class="recipe-line">
+                                <span><strong>KPhos:</strong> ${kphosMmolOpt3} mmol <span class="vol">(${(kphosMmolOpt3/3).toFixed(1)}mL)</span></span>
+                                <span class="note">↳ ~${kProvidedOpt3.toFixed(1)} mEq K⁺</span>
+                            </div>
+                            <div class="recipe-line">
+                                <span><strong>NaPhos:</strong> ${naphosMmolOpt3} mmol <span class="vol">(${(naphosMmolOpt3/3).toFixed(1)}mL)</span></span>
+                            </div>
+                            <div class="osm-grid">
+                                <div class="osm-item"><span class="osm-label">NS Osm</span>${formatOsm(osmNsOpt3)}</div>
+                                <div class="osm-item"><span class="osm-label">D5W Osm</span>${formatOsm(osmD5Opt3)}</div>
+                            </div>
+                        </div>`;
+                }
+                
+            } else if (vol > 0) {
+                 const osmNs = calcOsm(308, vol, tK, 0);
+                 const osmD5 = calcOsm(252, vol, tK, 0);
+                 const fbGray = isBothHigh(osmNs, osmD5);
+                 
+                 html += `
+                    <div class="result-box targets">
+                        <div><span class="note">Target K⁺:</span> <strong>${tK > 0 ? tK + ' mEq' : 'None'}</strong></div>
+                        <div><span class="note">Target PO₄:</span> <strong>None</strong></div>
+                        <div><span class="note">Fluid:</span> <strong>${vol > 0 ? vol + ' mL' : 'None'}</strong></div>
+                    </div>
+                    <div class="result-box ${fbGray ? 'grayed-out' : ''}">
+                        <h3>KCl Only (No PO₄ Needed)</h3>
+                        <div class="recipe-line">
+                            <span><strong>KCl:</strong> ${tK} mEq <span class="vol">(${(tK/2).toFixed(1)}mL)</span></span>
+                        </div>
+                        <div class="osm-grid">
+                            <div class="osm-item"><span class="osm-label">NS Osm</span>${formatOsm(osmNs)}</div>
+                            <div class="osm-item"><span class="osm-label">D5W Osm</span>${formatOsm(osmD5)}</div>
+                        </div>
+                    </div>`;
+            } else if (tP > 0) {
+                 html += `
+                    <div class="result-box targets">
+                        <div><span class="note">Target K⁺:</span> <strong>None</strong></div>
+                        <div><span class="note">Target PO₄:</span> <strong>${tP > 0 ? tP + ' mmol' : 'None'}</strong></div>
+                        <div><span class="note">Fluid:</span> <strong>None</strong></div>
+                    </div>
+                    <div class="result-box">
+                        <h3>PO₄ Only (No K⁺ Needed)</h3>
+                        <div class="recipe-line" style="border-bottom: none;">
+                            <span><strong>NaPhos:</strong> ${tP.toFixed(1)} mmol <span class="vol">(${(tP/3).toFixed(1)}mL)</span></span>
+                        </div>
+                        <p class="note" style="margin-top: 0.3rem;">*Administer in standard volume per protocol.</p>
+                    </div>`;
+            } else {
+                html += `
+                    <div class="result-box targets">
+                        <div><span class="note">Target K⁺:</span> <strong>None</strong></div>
+                        <div><span class="note">Target PO₄:</span> <strong>None</strong></div>
+                        <div><span class="note">Fluid:</span> <strong>None</strong></div>
+                    </div>
+                    <div class="result-box"><p style="margin:0; color:var(--text-muted); text-align:center;">No replacement required.</p></div>`;
+            }
+
+            resultsDiv.innerHTML = html;
+            resultsDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
