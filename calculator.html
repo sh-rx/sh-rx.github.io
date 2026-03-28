@@ -224,7 +224,7 @@
 
         <div class="toggle-row">
             <input type="checkbox" id="renal_toggle">
-            <label for="renal_toggle">Renal Impairment (½ K⁺ Dose)</label>
+            <label for="renal_toggle">Renal Potassium Protocol</label>
         </div>
 
         <div class="btn-row">
@@ -370,14 +370,14 @@
                 if (isOpt2Unreasonable) {
                     html += `
                         <div class="result-box grayed-out">
-                            <h3>2. KPhos + Reduced KCl <span style="font-size:0.7rem; font-weight:normal;">(Use Opt 3)</span></h3>
+                            <h3>2. KPhos + KCl <span style="font-size:0.7rem; font-weight:normal;">(Use Opt 3)</span></h3>
                             <div class="recipe-line"><span><strong>KPhos</strong></span></div>
                             <div class="recipe-line" style="border-bottom: none;"><span><strong>KCl</strong></span></div>
                         </div>`;
                 } else {
                     html += `
                         <div class="result-box ${opt2Gray ? 'grayed-out' : ''}">
-                            <h3>2. KPhos + Reduced KCl</h3>
+                            <h3>2. KPhos + KCl</h3>
                             <div class="recipe-line">
                                 <span><strong>KPhos:</strong> ${tP.toFixed(1)} mmol <span class="vol">(${(tP/3).toFixed(1)}mL)</span></span>
                                 <span class="note">↳ ~${kFromKphos.toFixed(1)} mEq K⁺</span>
@@ -396,14 +396,14 @@
                 if (isRedundant) {
                     html += `
                         <div class="result-box grayed-out">
-                            <h3>3. Mixed KPhos + NaPhos</h3>
+                            <h3>3. KPhos + NaPhos</h3>
                             <div class="recipe-line"><span><strong>KPhos</strong></span></div>
                             <div class="recipe-line" style="border-bottom: none;"><span><strong>NaPhos</strong></span></div>
                         </div>`;
                 } else {
                     html += `
                         <div class="result-box ${opt3Gray ? 'grayed-out' : ''}">
-                            <h3>3. Mixed KPhos + NaPhos</h3>
+                            <h3>3. KPhos + NaPhos</h3>
                             <div class="recipe-line">
                                 <span><strong>KPhos:</strong> ${kphosMmolOpt3} mmol <span class="vol">(${(kphosMmolOpt3/3).toFixed(1)}mL)</span></span>
                                 <span class="note">↳ ~${kProvidedOpt3.toFixed(1)} mEq K⁺</span>
