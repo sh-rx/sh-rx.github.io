@@ -10,9 +10,7 @@
     </style>
 
     <script>
-        // 1. The "Canary" URL: MUST be an image hosted on an internal-only Salem Health server.
-        // Example: "https://your-intranet-site.salemhealth.org/images/logo.png"
-        // It cannot be a SharePoint file that requires a Microsoft 365 login.
+        // 1. The "Canary" URL: MUST be an image hosted on an internal-only server.
         const internalImageUrl = "https://salemhealth.sharepoint.com/sites/The_Hub/SiteAssets/__rectSitelogo__hub-rev.png"; 
 
         // 2. Set a timeout (e.g., 3 seconds)
@@ -49,12 +47,10 @@
         const img = new Image();
         
         img.onload = function() {
-            // Image loaded successfully = User is on the network
             grantAccess();
         };
 
         img.onerror = function() {
-            // Image failed to load = User is outside the network
             denyAccess("Failed to reach internal network asset.");
         };
 
@@ -67,8 +63,6 @@
         }, timeoutMs);
 
     </script>
-    <style>
-        /* Your existing CSS starts here... */
     <style>
         /* Professional, fast-loading system fonts */
         body {
