@@ -5,22 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pharmacy Documents</title>
     
+    <style id="security-hide">
+        /* Hide the entire page instantly before anything loads */
+        html { display: none !important; }
+    </style>
+
     <script>
-    // Check if the page is being loaded from the correct parent domain
-    const referrer = document.referrer;
-    if (!referrer.includes('shremote.salemhealth.org')) {
-        document.documentElement.innerHTML = `
-            <head><title>Access Denied</title></head>
-            <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
-                    <p>Please access this tool through the official remote portal.</p>
-                </div>
-            </body>
-        `;
-        throw new Error("Unauthorized access.");
-    	}
-	</script>
+        // 1. Define your allowed domain
+        const allowedDomain = "shremote.salemhealth.org";
+
+        // 2. Get the current host and the referrer (the parent page)
+        const currentHost = window.location.hostname;
+        let parentHost = "";
+        
+        try {
+            if (document.referrer) {
+                parentHost = new URL(document.referrer).hostname;
+            }
+        } catch (e) {
+            // Ignore URL parsing errors
+        }
+
+        // 3. Check if either matches the Salem Health portal
+        const isAuthorized = (currentHost === allowedDomain) || (parentHost === allowedDomain);
+
+        if (isAuthorized) {
+            // SAFE: Remove the CSS hiding the page and let it load normally
+            document.getElementById("security-hide").remove();
+        } else {
+            // NOT SAFE: Overwrite the page content entirely
+            document.documentElement.innerHTML = `
+                <head><title>Access Denied</title></head>
+                <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; display: block !important;">
+                    <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 10vh auto;">
+                        <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
+                        <p>This portal is restricted. Please access it through the official remote portal.</p>
+                        <div style="margin-top: 25px; padding: 10px; background: #edf2f7; border-radius: 4px; font-size: 11px; color: #4a5568; text-align: left; font-family: monospace;">
+                            <strong>Debug Info:</strong><br>
+                            Current Host: ${currentHost || 'None'}<br>
+                            Referrer: ${parentHost || 'None (Direct Link / Blocked)'}
+                        </div>
+                    </div>
+                </body>
+            `;
+            // Completely halt the browser from parsing the rest of the HTML
+            window.stop(); 
+        }
+    </script>
     <style>
         /* Professional, fast-loading system fonts */
         body {
