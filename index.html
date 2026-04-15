@@ -10,7 +10,6 @@
     </style>
 
     <script>
-        // 1. The "Canary" URL: MUST be an image hosted on an internal-only server.
         const internalImageUrl = "https://salemhealth.sharepoint.com/sites/The_Hub/SiteAssets/__rectSitelogo__hub-rev.png"; 
 
         // 2. Set a timeout (e.g., 3 seconds)
@@ -26,11 +25,7 @@
                 <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; display: block !important;">
                     <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 10vh auto;">
                         <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
-                        <p>This portal is restricted. Please connect to the Salem Health network or VPN to access these documents.</p>
-                        <div style="margin-top: 25px; padding: 10px; background: #edf2f7; border-radius: 4px; font-size: 11px; color: #4a5568; text-align: left; font-family: monospace;">
-                            <strong>Debug Info:</strong><br>
-                            Reason: ${reason}
-                        </div>
+                        <p>This portal is restricted.</p>
                     </div>
                 </body>
             `;
@@ -43,15 +38,10 @@
             document.getElementById("security-hide").remove();
         }
 
-        // 3. Attempt to load the internal image
         const img = new Image();
         
         img.onload = function() {
             grantAccess();
-        };
-
-        img.onerror = function() {
-            denyAccess("Failed to reach internal network asset.");
         };
 
         // Add a random number to bypass browser caching
