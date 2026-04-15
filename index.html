@@ -6,21 +6,21 @@
     <title>Pharmacy Documents</title>
     
     <script>
-        if (window.location.hostname !== 'shremote.salemhealth.org') {
-            // Overwrite the entire page with a clean error message
-            document.documentElement.innerHTML = `
-                <head><title>Access Denied</title></head>
-                <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                    <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px;">
-                        <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
-                        <p style="margin-bottom: 0;">This portal is restricted and can only be accessed via <strong>shremote.salemhealth.org</strong>.</p>
-                    </div>
-                </body>
-            `;
-            // Throw an error to halt the execution of any further scripts
-            throw new Error("Unauthorized host access. Execution stopped.");
-        }
-    </script>
+    // Check if the page is being loaded from the correct parent domain
+    const referrer = document.referrer;
+    if (!referrer.includes('shremote.salemhealth.org')) {
+        document.documentElement.innerHTML = `
+            <head><title>Access Denied</title></head>
+            <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+                <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
+                    <p>Please access this tool through the official remote portal.</p>
+                </div>
+            </body>
+        `;
+        throw new Error("Unauthorized access.");
+    	}
+	</script>
     <style>
         /* Professional, fast-loading system fonts */
         body {
