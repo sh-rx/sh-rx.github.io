@@ -6,52 +6,69 @@
     <title>Pharmacy Documents</title>
     
     <style id="security-hide">
-        /* Hide the entire page instantly before anything loads */
         html { display: none !important; }
     </style>
 
     <script>
-        // 1. Define your allowed domain
-        const allowedDomain = "shremote.salemhealth.org";
+        // 1. The "Canary" URL: MUST be an image hosted on an internal-only Salem Health server.
+        // Example: "https://your-intranet-site.salemhealth.org/images/logo.png"
+        // It cannot be a SharePoint file that requires a Microsoft 365 login.
+        const internalImageUrl = "https://salemhealth.sharepoint.com/sites/The_Hub/SiteAssets/__rectSitelogo__hub-rev.png"; 
 
-        // 2. Get the current host and the referrer (the parent page)
-        const currentHost = window.location.hostname;
-        let parentHost = "";
-        
-        try {
-            if (document.referrer) {
-                parentHost = new URL(document.referrer).hostname;
-            }
-        } catch (e) {
-            // Ignore URL parsing errors
-        }
+        // 2. Set a timeout (e.g., 3 seconds)
+        const timeoutMs = 3000;
+        let isResolved = false;
 
-        // 3. Check if either matches the Salem Health portal
-        const isAuthorized = (currentHost === allowedDomain) || (parentHost === allowedDomain);
-
-        if (isAuthorized) {
-            // SAFE: Remove the CSS hiding the page and let it load normally
-            document.getElementById("security-hide").remove();
-        } else {
-            // NOT SAFE: Overwrite the page content entirely
+        function denyAccess(reason) {
+            if (isResolved) return;
+            isResolved = true;
+            
             document.documentElement.innerHTML = `
                 <head><title>Access Denied</title></head>
                 <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; display: block !important;">
                     <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 10vh auto;">
                         <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
-                        <p>This portal is restricted. Please access it through the official remote portal.</p>
+                        <p>This portal is restricted. Please connect to the Salem Health network or VPN to access these documents.</p>
                         <div style="margin-top: 25px; padding: 10px; background: #edf2f7; border-radius: 4px; font-size: 11px; color: #4a5568; text-align: left; font-family: monospace;">
                             <strong>Debug Info:</strong><br>
-                            Current Host: ${currentHost || 'None'}<br>
-                            Referrer: ${parentHost || 'None (Direct Link / Blocked)'}
+                            Reason: ${reason}
                         </div>
                     </div>
                 </body>
             `;
-            // Completely halt the browser from parsing the rest of the HTML
-            window.stop(); 
+            window.stop();
         }
+
+        function grantAccess() {
+            if (isResolved) return;
+            isResolved = true;
+            document.getElementById("security-hide").remove();
+        }
+
+        // 3. Attempt to load the internal image
+        const img = new Image();
+        
+        img.onload = function() {
+            // Image loaded successfully = User is on the network
+            grantAccess();
+        };
+
+        img.onerror = function() {
+            // Image failed to load = User is outside the network
+            denyAccess("Failed to reach internal network asset.");
+        };
+
+        // Add a random number to bypass browser caching
+        img.src = internalImageUrl + "?cb=" + new Date().getTime();
+
+        // 4. Fallback timeout if the request just hangs
+        setTimeout(() => {
+            denyAccess("Network check timed out.");
+        }, timeoutMs);
+
     </script>
+    <style>
+        /* Your existing CSS starts here... */
     <style>
         /* Professional, fast-loading system fonts */
         body {
