@@ -4,6 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hospital Policies</title>
+    
+    <style id="security-hide">
+        html { display: none !important; }
+    </style>
+
+    <script>
+        const internalImageUrl = "https://salemhealth.sharepoint.com/sites/The_Hub/SiteAssets/__rectSitelogo__hub-rev.png"; 
+
+        // 2. Set a timeout (e.g., 3 seconds)
+        const timeoutMs = 3000;
+        let isResolved = false;
+
+        function denyAccess(reason) {
+            if (isResolved) return;
+            isResolved = true;
+            
+            document.documentElement.innerHTML = `
+                <head><title>Access Denied</title></head>
+                <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; display: block !important;">
+                    <div style="text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 10vh auto;">
+                        <h1 style="color: #e53e3e; margin-top: 0;">Access Denied</h1>
+                        <p>This portal is restricted.</p>
+                    </div>
+                </body>
+            `;
+            window.stop();
+        }
+
+        function grantAccess() {
+            if (isResolved) return;
+            isResolved = true;
+            document.getElementById("security-hide").remove();
+        }
+
+        const img = new Image();
+        
+        img.onload = function() {
+            grantAccess();
+        };
+
+        // Add a random number to bypass browser caching
+        img.src = internalImageUrl + "?cb=" + new Date().getTime();
+
+        // 4. Fallback timeout if the request just hangs
+        setTimeout(() => {
+            denyAccess("Network check timed out.");
+        }, timeoutMs);
+
+    </script>
     <style>
         /* Professional, fast-loading system fonts */
         body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 30px 20px; }
@@ -26,7 +75,7 @@
         #searchInput { width: 100%; padding: 10px 14px; font-size: 15px; border: 1px solid #cbd5e0; border-radius: 4px; box-sizing: border-box; transition: border-color 0.2s; }
         #searchInput:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1); }
 
-		/* Link list styling */
+        /* Link list styling */
         .link-list { list-style: none; padding: 0; margin: 0; }
         .link-item { margin-bottom: 2px; border-radius: 4px; transition: background-color 0.1s ease; display: flex; justify-content: space-between; align-items: center; }
         .link-item:hover { background-color: #ebf8ff; }
@@ -34,7 +83,7 @@
         .link-item a { flex-grow: 1; display: flex; align-items: center; padding: 4px 10px; text-decoration: none; color: #2b6cb0; font-weight: 500; font-size: 14px; }
         .link-item a::before { content: "📄"; margin-right: 8px; font-size: 14px; }
         .link-item a:hover { color: #1a365d; text-decoration: underline; }
-		
+        
         /* Star Button Styling */
         .star-btn { cursor: pointer; font-size: 20px; color: #cbd5e0; padding: 0 15px; user-select: none; transition: all 0.2s ease; }
         .star-btn:hover { color: #ecc94b; transform: scale(1.2); }
