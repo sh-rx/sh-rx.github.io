@@ -13,6 +13,7 @@
             --high-tide: #0284c7;
             --low-tide: #ea580c;
             --border: #e2e8f0;
+            --primary: #0ea5e9;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -26,7 +27,7 @@
         }
         .header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 2rem;
         }
         .header h1 {
             margin: 0;
@@ -40,13 +41,77 @@
             color: var(--text-muted);
             font-size: 1.1rem;
         }
-        #tide-container {
+        
+        /* Tabs Styling */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--card-bg);
+            padding: 0.5rem;
+            border-radius: 99px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 99px;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3);
+        }
+        .tab-btn:hover:not(.active) {
+            background: #f1f5f9;
+        }
+
+        /* View Containers */
+        .view-container {
             width: 100%;
             max-width: 600px;
-            display: flex;
+            display: none;
             flex-direction: column;
             gap: 1.5rem;
         }
+        .view-container.active {
+            display: flex;
+        }
+
+        /* Controls */
+        .month-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        select {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            background: var(--card-bg);
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            appearance: none;
+            text-align: center;
+            min-width: 200px;
+        }
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        /* Cards */
         .day-card {
             background: var(--card-bg);
             border-radius: 16px;
@@ -67,7 +132,7 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
         .day-card.today .day-header {
-            background: #0ea5e9;
+            background: var(--primary);
             color: white;
             border-bottom: none;
         }
@@ -108,11 +173,13 @@
             font-weight: 600;
             font-variant-numeric: tabular-nums;
         }
-        .loader {
+        
+        #loader {
             text-align: center;
             padding: 3rem;
             color: var(--text-muted);
             font-size: 1.1rem;
+            width: 100%;
         }
         .error {
             color: #ef4444;
@@ -120,6 +187,8 @@
             padding: 1rem;
             border-radius: 8px;
             text-align: center;
+            width: 100%;
+            max-width: 600px;
         }
     </style>
 </head>
@@ -130,18 +199,41 @@
         <p>Catalina Island, California</p>
     </div>
 
-    <div id="tide-container">
-        <div class="loader">Fetching latest tide data...</div>
+    <div class="tabs" id="tabs" style="display: none;">
+        <button class="tab-btn active" onclick="switchTab('weekly')">7-Day View</button>
+        <button class="tab-btn" onclick="switchTab('monthly')">Long-Term View</button>
+    </div>
+
+    <div id="loader">Fetching 1 year of tide data...</div>
+    <div id="error-container"></div>
+
+    <div id="weekly-view" class="view-container">
+        </div>
+
+    <div id="monthly-view" class="view-container">
+        <div class="month-controls">
+            <select id="month-selector" onchange="renderMonthly()"></select>
+        </div>
+        <div id="monthly-cards">
+            </div>
     </div>
 
     <script>
+        let allTides = []; // Store the full year of data
+        const todayStrLocal = getLocalTodayStr();
+
+        function getLocalTodayStr() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
         async function fetchTides() {
             const station = "9410079";
             
-            // Calculate date range: Today through the next 6 days (7 days total)
+            // Pull exactly 1 year of data from today
             const localNow = new Date();
             const endDate = new Date(localNow);
-            endDate.setDate(localNow.getDate() + 6); 
+            endDate.setFullYear(localNow.getFullYear() + 1); 
 
             const formatDate = (date) => {
                 const yyyy = date.getFullYear();
@@ -159,9 +251,18 @@
                 
                 if (data.error) throw new Error(data.error.message);
                 
-                renderTides(data.predictions);
+                allTides = data.predictions;
+                
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('tabs').style.display = 'flex';
+                
+                populateMonthSelector();
+                renderWeekly();
+                document.getElementById('weekly-view').classList.add('active');
+
             } catch (error) {
-                document.getElementById('tide-container').innerHTML = `
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('error-container').innerHTML = `
                     <div class="error">
                         Unable to load tide data. Please try again later.
                     </div>
@@ -170,28 +271,85 @@
             }
         }
 
-        function renderTides(predictions) {
-            const container = document.getElementById('tide-container');
+        function switchTab(viewId) {
+            // Update Buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update Views
+            document.querySelectorAll('.view-container').forEach(view => view.classList.remove('active'));
+            document.getElementById(viewId + '-view').classList.add('active');
+
+            if(viewId === 'monthly') {
+                renderMonthly();
+            }
+        }
+
+        function populateMonthSelector() {
+            const selector = document.getElementById('month-selector');
+            const uniqueMonths = new Set();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            allTides.forEach(tide => {
+                // tide.t format: "YYYY-MM-DD HH:MM"
+                const yearMonth = tide.t.substring(0, 7); // Gets "YYYY-MM"
+                uniqueMonths.add(yearMonth);
+            });
+
+            uniqueMonths.forEach(ym => {
+                const [year, month] = ym.split('-');
+                const monthDisplay = `${monthNames[parseInt(month) - 1]} ${year}`;
+                const option = document.createElement('option');
+                option.value = ym;
+                option.textContent = monthDisplay;
+                selector.appendChild(option);
+            });
+        }
+
+        function renderWeekly() {
+            const container = document.getElementById('weekly-view');
+            
+            // Extract just the first 7 unique days from the main dataset
+            const uniqueDays = new Set();
+            const weeklyTides = [];
+            
+            for(let i = 0; i < allTides.length; i++) {
+                const datePart = allTides[i].t.split(" ")[0];
+                uniqueDays.add(datePart);
+                if(uniqueDays.size <= 7) {
+                    weeklyTides.push(allTides[i]);
+                } else {
+                    break;
+                }
+            }
+            
+            renderCards(container, weeklyTides);
+        }
+
+        function renderMonthly() {
+            const container = document.getElementById('monthly-cards');
+            const selectedMonth = document.getElementById('month-selector').value; // format "YYYY-MM"
+            
+            const monthlyTides = allTides.filter(tide => tide.t.startsWith(selectedMonth));
+            
+            renderCards(container, monthlyTides);
+        }
+
+        function renderCards(container, tidesArray) {
             container.innerHTML = ''; 
             
-            // Group the sequential predictions by date
+            // Group predictions by date
             const grouped = {};
-            predictions.forEach(item => {
-                // item.t format: "YYYY-MM-DD HH:MM"
+            tidesArray.forEach(item => {
                 const datePart = item.t.split(" ")[0];
                 if(!grouped[datePart]) grouped[datePart] = [];
                 grouped[datePart].push(item);
             });
 
-            // Get local date string in YYYY-MM-DD format for "Today" comparison
-            const localNow = new Date();
-            const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth()+1).padStart(2,'0')}-${String(localNow.getDate()).padStart(2,'0')}`;
-
             for (const [dateStr, tides] of Object.entries(grouped)) {
-                // Create a clean date object for formatting (using dummy time to prevent timezone shift)
+                // Create clean date object for formatting
                 const dateObj = new Date(dateStr + "T12:00:00");
-                
-                const isToday = dateStr === todayStr;
+                const isToday = dateStr === todayStrLocal;
                 
                 const dateDisplay = new Intl.DateTimeFormat('en-US', { 
                     weekday: 'long', month: 'long', day: 'numeric' 
@@ -203,7 +361,6 @@
                 let cardHTML = `<div class="day-header">${isToday ? 'Today &bull; ' : ''}${dateDisplay}</div>`;
                 
                 tides.forEach(tide => {
-                    // Format Time
                     const timeStr = tide.t.split(" ")[1];
                     const [hour, minute] = timeStr.split(":");
                     const timeObj = new Date();
