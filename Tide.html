@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avalon Tides</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --high-tide: #0284c7;
+            --low-tide: #ea580c;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+        .header p {
+            margin: 0.5rem 0 0 0;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+        #tide-container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .day-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .day-header {
+            background: #f1f5f9;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 1px solid var(--border);
+            font-size: 1.1rem;
+        }
+        .day-card.today {
+            border: 2px solid #38bdf8;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .day-card.today .day-header {
+            background: #0ea5e9;
+            color: white;
+            border-bottom: none;
+        }
+        .tide-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .tide-row:last-child {
+            border-bottom: none;
+        }
+        .tide-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .tide-type {
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            width: 60px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tide-type.high { color: var(--high-tide); }
+        .tide-type.low { color: var(--low-tide); }
+        .tide-time {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .tide-height {
+            font-size: 1.2rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .loader {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+        .error {
+            color: #ef4444;
+            background: #fef2f2;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Avalon Tides</h1>
+        <p>Catalina Island, California</p>
+    </div>
+
+    <div id="tide-container">
+        <div class="loader">Fetching latest tide data...</div>
+    </div>
+
+    <script>
+        async function fetchTides() {
+            const station = "9410079";
+            
+            // Calculate date range: Today through the next 6 days (7 days total)
+            const localNow = new Date();
+            const endDate = new Date(localNow);
+            endDate.setDate(localNow.getDate() + 6); 
+
+            const formatDate = (date) => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}${mm}${dd}`;
+            };
+
+            const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${formatDate(localNow)}&end_date=${formatDate(endDate)}&station=${station}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&format=json`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error.message);
+                
+                renderTides(data.predictions);
+            } catch (error) {
+                document.getElementById('tide-container').innerHTML = `
+                    <div class="error">
+                        Unable to load tide data. Please try again later.
+                    </div>
+                `;
+                console.error("Tide fetch error:", error);
+            }
+        }
+
+        function renderTides(predictions) {
+            const container = document.getElementById('tide-container');
+            container.innerHTML = ''; 
+            
+            // Group the sequential predictions by date
+            const grouped = {};
+            predictions.forEach(item => {
+                // item.t format: "YYYY-MM-DD HH:MM"
+                const datePart = item.t.split(" ")[0];
+                if(!grouped[datePart]) grouped[datePart] = [];
+                grouped[datePart].push(item);
+            });
+
+            // Get local date string in YYYY-MM-DD format for "Today" comparison
+            const localNow = new Date();
+            const todayStr = `${localNow.getFullYear()}-${String(localNow.getMonth()+1).padStart(2,'0')}-${String(localNow.getDate()).padStart(2,'0')}`;
+
+            for (const [dateStr, tides] of Object.entries(grouped)) {
+                // Create a clean date object for formatting (using dummy time to prevent timezone shift)
+                const dateObj = new Date(dateStr + "T12:00:00");
+                
+                const isToday = dateStr === todayStr;
+                
+                const dateDisplay = new Intl.DateTimeFormat('en-US', { 
+                    weekday: 'long', month: 'long', day: 'numeric' 
+                }).format(dateObj);
+
+                const card = document.createElement('div');
+                card.className = `day-card ${isToday ? 'today' : ''}`;
+                
+                let cardHTML = `<div class="day-header">${isToday ? 'Today &bull; ' : ''}${dateDisplay}</div>`;
+                
+                tides.forEach(tide => {
+                    // Format Time
+                    const timeStr = tide.t.split(" ")[1];
+                    const [hour, minute] = timeStr.split(":");
+                    const timeObj = new Date();
+                    timeObj.setHours(hour, minute);
+                    const timeDisplay = new Intl.DateTimeFormat('en-US', {
+                        hour: 'numeric', minute: '2-digit'
+                    }).format(timeObj);
+
+                    const isHigh = tide.type === 'H';
+                    const icon = isHigh ? '▲' : '▼';
+                    
+                    cardHTML += `
+                        <div class="tide-row">
+                            <div class="tide-info">
+                                <span class="tide-type ${isHigh ? 'high' : 'low'}">${icon} ${isHigh ? 'High' : 'Low'}</span>
+                                <span class="tide-time">${timeDisplay}</span>
+                            </div>
+                            <span class="tide-height">${parseFloat(tide.v).toFixed(1)} ft</span>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = cardHTML;
+                container.appendChild(card);
+            }
+        }
+
+        // Initialize
+        fetchTides();
+    </script>
+</body>
+</html>
