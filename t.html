@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avalon Tides</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #f8fafc;
@@ -55,6 +56,8 @@
             position: sticky;
             top: 1rem;
             z-index: 50;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         .tab-btn {
             padding: 0.75rem 1.5rem;
@@ -153,14 +156,14 @@
         
         /* Compact Long-Term View */
         #monthly-view {
-            max-width: 800px; /* Allow wider layout for grid */
+            max-width: 800px;
         }
         .month-section {
             margin-bottom: 3rem;
         }
         .month-label {
             position: sticky;
-            top: 4.5rem; /* Sit just below the tabs */
+            top: 5rem; 
             background: rgba(248, 250, 252, 0.95);
             backdrop-filter: blur(8px);
             padding: 1rem 0;
@@ -209,7 +212,30 @@
         .mini-tide.high { color: var(--high-tide); }
         .mini-tide.low { color: var(--low-tide); }
 
-        #loader {
+        /* Graph View */
+        #graph-view {
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+        }
+        .graph-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .graph-header h3 {
+            margin: 0;
+            color: var(--text-main);
+        }
+        .graph-header p {
+            margin: 0.5rem 0 0 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        #loader, #graph-loader {
             text-align: center;
             padding: 3rem;
             color: var(--text-muted);
@@ -237,6 +263,7 @@
     <div class="tabs" id="tabs" style="display: none;">
         <button class="tab-btn active" onclick="switchTab('weekly')">7-Day View</button>
         <button class="tab-btn" onclick="switchTab('monthly')">Long-Term View</button>
+        <button class="tab-btn" onclick="switchTab('graph')">48-Hour Graph</button>
     </div>
 
     <div id="loader">Fetching 1 year of tide data...</div>
@@ -248,8 +275,21 @@
     <div id="monthly-view" class="view-container">
         </div>
 
+    <div id="graph-view" class="view-container">
+        <div class="graph-header">
+            <h3>48-Hour Tide Curve</h3>
+            <p>Predicted water levels</p>
+        </div>
+        <div id="graph-loader" style="display:none;">Loading graph data...</div>
+        <canvas id="tideChart"></canvas>
+    </div>
+
     <script>
-        let allTides = []; 
+        const station = "9410079";
+        let allHiLoTides = []; 
+        let graphDataLoaded = false;
+        let tideChartInstance = null;
+
         const todayStrLocal = getLocalTodayStr();
 
         function getLocalTodayStr() {
@@ -257,22 +297,20 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
-        async function fetchTides() {
-            const station = "9410079";
-            
-            // Pull exactly 1 year of data from today
+        function formatDateForAPI(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}`;
+        }
+
+        async function init() {
+            // Pull exactly 1 year of High/Low data for the first two tabs
             const localNow = new Date();
             const endDate = new Date(localNow);
             endDate.setFullYear(localNow.getFullYear() + 1); 
 
-            const formatDate = (date) => {
-                const yyyy = date.getFullYear();
-                const mm = String(date.getMonth() + 1).padStart(2, '0');
-                const dd = String(date.getDate()).padStart(2, '0');
-                return `${yyyy}${mm}${dd}`;
-            };
-
-            const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${formatDate(localNow)}&end_date=${formatDate(endDate)}&station=${station}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&format=json`;
+            const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${formatDateForAPI(localNow)}&end_date=${formatDateForAPI(endDate)}&station=${station}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&format=json`;
 
             try {
                 const response = await fetch(url);
@@ -281,7 +319,7 @@
                 
                 if (data.error) throw new Error(data.error.message);
                 
-                allTides = data.predictions;
+                allHiLoTides = data.predictions;
                 
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('tabs').style.display = 'flex';
@@ -311,6 +349,11 @@
             document.getElementById(viewId + '-view').classList.add('active');
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Load Graph Data on demand if switching to graph tab
+            if (viewId === 'graph' && !graphDataLoaded) {
+                loadGraphData();
+            }
         }
 
         // --- 7-DAY VIEW LOGIC ---
@@ -321,11 +364,11 @@
             const uniqueDays = new Set();
             const weeklyTides = [];
             
-            for(let i = 0; i < allTides.length; i++) {
-                const datePart = allTides[i].t.split(" ")[0];
+            for(let i = 0; i < allHiLoTides.length; i++) {
+                const datePart = allHiLoTides[i].t.split(" ")[0];
                 uniqueDays.add(datePart);
                 if(uniqueDays.size <= 7) {
-                    weeklyTides.push(allTides[i]);
+                    weeklyTides.push(allHiLoTides[i]);
                 } else {
                     break;
                 }
@@ -372,13 +415,12 @@
             const container = document.getElementById('monthly-view');
             container.innerHTML = '';
 
-            // Group all records by Month -> Day
             const monthlyData = {};
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-            allTides.forEach(tide => {
-                const yearMonth = tide.t.substring(0, 7); // "YYYY-MM"
-                const datePart = tide.t.split(" ")[0];    // "YYYY-MM-DD"
+            allHiLoTides.forEach(tide => {
+                const yearMonth = tide.t.substring(0, 7); 
+                const datePart = tide.t.split(" ")[0];    
                 
                 if (!monthlyData[yearMonth]) monthlyData[yearMonth] = {};
                 if (!monthlyData[yearMonth][datePart]) monthlyData[yearMonth][datePart] = [];
@@ -386,7 +428,6 @@
                 monthlyData[yearMonth][datePart].push(tide);
             });
 
-            // Build out the scrollable sections
             for (const [yearMonth, daysObj] of Object.entries(monthlyData)) {
                 const [year, monthStr] = yearMonth.split('-');
                 const monthName = monthNames[parseInt(monthStr) - 1];
@@ -394,13 +435,11 @@
                 const section = document.createElement('div');
                 section.className = 'month-section';
                 
-                // Sticky Month Header
                 const header = document.createElement('div');
                 header.className = 'month-label';
                 header.textContent = `${monthName} ${year}`;
                 section.appendChild(header);
 
-                // Grid of Days
                 const grid = document.createElement('div');
                 grid.className = 'compact-grid';
 
@@ -408,7 +447,6 @@
                     const dateObj = new Date(dateStr + "T12:00:00");
                     const isToday = dateStr === todayStrLocal;
                     
-                    // Format like "Thu 14"
                     const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(dateObj);
                     const dayNum = dateObj.getDate();
 
@@ -437,6 +475,109 @@
                 section.appendChild(grid);
                 container.appendChild(section);
             }
+        }
+
+        // --- GRAPH VIEW LOGIC ---
+        async function loadGraphData() {
+            const loader = document.getElementById('graph-loader');
+            loader.style.display = 'block';
+
+            // Fetch 48 hours of 6-minute interval data (not just High/Low)
+            const localNow = new Date();
+            const endDate = new Date(localNow);
+            endDate.setDate(localNow.getDate() + 2); // Next 48 hours
+
+            const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${formatDateForAPI(localNow)}&end_date=${formatDateForAPI(endDate)}&station=${station}&product=predictions&datum=MLLW&time_zone=lst_ldt&units=english&format=json`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error.message);
+                
+                const labels = [];
+                const values = [];
+
+                data.predictions.forEach(item => {
+                    // Item format: {t: "2024-05-24 13:06", v: "4.521"}
+                    const timePart = item.t.split(" ")[1];
+                    labels.push(formatMiniTime(timePart));
+                    values.push(parseFloat(item.v));
+                });
+
+                renderChart(labels, values);
+                graphDataLoaded = true;
+                loader.style.display = 'none';
+
+            } catch (error) {
+                loader.innerHTML = `<div class="error">Unable to load graph data.</div>`;
+                console.error("Graph fetch error:", error);
+            }
+        }
+
+        function renderChart(labels, dataPoints) {
+            const ctx = document.getElementById('tideChart').getContext('2d');
+            
+            // gradient fill under the line
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(14, 165, 233, 0.5)'); // primary blue
+            gradient.addColorStop(1, 'rgba(14, 165, 233, 0.0)');
+
+            if(tideChartInstance) {
+                tideChartInstance.destroy();
+            }
+
+            tideChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Water Level (ft)',
+                        data: dataPoints,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointRadius: 0, // hide dots for smooth line
+                        pointHitRadius: 10,
+                        fill: true,
+                        tension: 0.4 // curve the line
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            displayColors: false,
+                            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 16, weight: 'bold' },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2) + ' ft';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxTicksLimit: 12, // don't crowd the x axis
+                                color: '#64748b'
+                            }
+                        },
+                        y: {
+                            grid: { color: '#f1f5f9' },
+                            ticks: { color: '#64748b' }
+                        }
+                    }
+                }
+            });
         }
 
         // --- UTILS ---
@@ -469,8 +610,8 @@
             return `${h}:${m}${ampm}`;
         }
 
-        // Initialize
-        fetchTides();
+        // Boot it up
+        init();
     </script>
 </body>
 </html>
