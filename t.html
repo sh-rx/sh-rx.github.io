@@ -52,6 +52,9 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             margin-bottom: 2rem;
             border: 1px solid var(--border);
+            position: sticky;
+            top: 1rem;
+            z-index: 50;
         }
         .tab-btn {
             padding: 0.75rem 1.5rem;
@@ -85,33 +88,7 @@
             display: flex;
         }
 
-        /* Controls */
-        .month-controls {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 0.5rem;
-        }
-        select {
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-main);
-            background: var(--card-bg);
-            cursor: pointer;
-            outline: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            appearance: none;
-            text-align: center;
-            min-width: 200px;
-        }
-        select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
-        }
-
-        /* Cards */
+        /* 7-Day View Cards */
         .day-card {
             background: var(--card-bg);
             border-radius: 16px;
@@ -174,6 +151,64 @@
             font-variant-numeric: tabular-nums;
         }
         
+        /* Compact Long-Term View */
+        #monthly-view {
+            max-width: 800px; /* Allow wider layout for grid */
+        }
+        .month-section {
+            margin-bottom: 3rem;
+        }
+        .month-label {
+            position: sticky;
+            top: 4.5rem; /* Sit just below the tabs */
+            background: rgba(248, 250, 252, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 1rem 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            z-index: 10;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 1rem;
+        }
+        .compact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.5rem;
+        }
+        .mini-day {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .mini-day.today {
+            border: 2px solid #38bdf8;
+            background: #f0f9ff;
+        }
+        .mini-day-header {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            text-align: center;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0.25rem;
+        }
+        .mini-tide {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .mini-tide.high { color: var(--high-tide); }
+        .mini-tide.low { color: var(--low-tide); }
+
         #loader {
             text-align: center;
             padding: 3rem;
@@ -211,15 +246,10 @@
         </div>
 
     <div id="monthly-view" class="view-container">
-        <div class="month-controls">
-            <select id="month-selector" onchange="renderMonthly()"></select>
         </div>
-        <div id="monthly-cards">
-            </div>
-    </div>
 
     <script>
-        let allTides = []; // Store the full year of data
+        let allTides = []; 
         const todayStrLocal = getLocalTodayStr();
 
         function getLocalTodayStr() {
@@ -256,8 +286,8 @@
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('tabs').style.display = 'flex';
                 
-                populateMonthSelector();
                 renderWeekly();
+                renderAllMonths();
                 document.getElementById('weekly-view').classList.add('active');
 
             } catch (error) {
@@ -279,37 +309,15 @@
             // Update Views
             document.querySelectorAll('.view-container').forEach(view => view.classList.remove('active'));
             document.getElementById(viewId + '-view').classList.add('active');
-
-            if(viewId === 'monthly') {
-                renderMonthly();
-            }
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function populateMonthSelector() {
-            const selector = document.getElementById('month-selector');
-            const uniqueMonths = new Set();
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-            allTides.forEach(tide => {
-                // tide.t format: "YYYY-MM-DD HH:MM"
-                const yearMonth = tide.t.substring(0, 7); // Gets "YYYY-MM"
-                uniqueMonths.add(yearMonth);
-            });
-
-            uniqueMonths.forEach(ym => {
-                const [year, month] = ym.split('-');
-                const monthDisplay = `${monthNames[parseInt(month) - 1]} ${year}`;
-                const option = document.createElement('option');
-                option.value = ym;
-                option.textContent = monthDisplay;
-                selector.appendChild(option);
-            });
-        }
-
+        // --- 7-DAY VIEW LOGIC ---
         function renderWeekly() {
             const container = document.getElementById('weekly-view');
+            container.innerHTML = '';
             
-            // Extract just the first 7 unique days from the main dataset
             const uniqueDays = new Set();
             const weeklyTides = [];
             
@@ -323,31 +331,9 @@
                 }
             }
             
-            renderCards(container, weeklyTides);
-        }
-
-        function renderMonthly() {
-            const container = document.getElementById('monthly-cards');
-            const selectedMonth = document.getElementById('month-selector').value; // format "YYYY-MM"
-            
-            const monthlyTides = allTides.filter(tide => tide.t.startsWith(selectedMonth));
-            
-            renderCards(container, monthlyTides);
-        }
-
-        function renderCards(container, tidesArray) {
-            container.innerHTML = ''; 
-            
-            // Group predictions by date
-            const grouped = {};
-            tidesArray.forEach(item => {
-                const datePart = item.t.split(" ")[0];
-                if(!grouped[datePart]) grouped[datePart] = [];
-                grouped[datePart].push(item);
-            });
+            const grouped = groupTidesByDay(weeklyTides);
 
             for (const [dateStr, tides] of Object.entries(grouped)) {
-                // Create clean date object for formatting
                 const dateObj = new Date(dateStr + "T12:00:00");
                 const isToday = dateStr === todayStrLocal;
                 
@@ -361,14 +347,7 @@
                 let cardHTML = `<div class="day-header">${isToday ? 'Today &bull; ' : ''}${dateDisplay}</div>`;
                 
                 tides.forEach(tide => {
-                    const timeStr = tide.t.split(" ")[1];
-                    const [hour, minute] = timeStr.split(":");
-                    const timeObj = new Date();
-                    timeObj.setHours(hour, minute);
-                    const timeDisplay = new Intl.DateTimeFormat('en-US', {
-                        hour: 'numeric', minute: '2-digit'
-                    }).format(timeObj);
-
+                    const timeDisplay = formatStandardTime(tide.t.split(" ")[1]);
                     const isHigh = tide.type === 'H';
                     const icon = isHigh ? '▲' : '▼';
                     
@@ -386,6 +365,108 @@
                 card.innerHTML = cardHTML;
                 container.appendChild(card);
             }
+        }
+
+        // --- LONG-TERM GRID LOGIC ---
+        function renderAllMonths() {
+            const container = document.getElementById('monthly-view');
+            container.innerHTML = '';
+
+            // Group all records by Month -> Day
+            const monthlyData = {};
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            allTides.forEach(tide => {
+                const yearMonth = tide.t.substring(0, 7); // "YYYY-MM"
+                const datePart = tide.t.split(" ")[0];    // "YYYY-MM-DD"
+                
+                if (!monthlyData[yearMonth]) monthlyData[yearMonth] = {};
+                if (!monthlyData[yearMonth][datePart]) monthlyData[yearMonth][datePart] = [];
+                
+                monthlyData[yearMonth][datePart].push(tide);
+            });
+
+            // Build out the scrollable sections
+            for (const [yearMonth, daysObj] of Object.entries(monthlyData)) {
+                const [year, monthStr] = yearMonth.split('-');
+                const monthName = monthNames[parseInt(monthStr) - 1];
+                
+                const section = document.createElement('div');
+                section.className = 'month-section';
+                
+                // Sticky Month Header
+                const header = document.createElement('div');
+                header.className = 'month-label';
+                header.textContent = `${monthName} ${year}`;
+                section.appendChild(header);
+
+                // Grid of Days
+                const grid = document.createElement('div');
+                grid.className = 'compact-grid';
+
+                for (const [dateStr, tides] of Object.entries(daysObj)) {
+                    const dateObj = new Date(dateStr + "T12:00:00");
+                    const isToday = dateStr === todayStrLocal;
+                    
+                    // Format like "Thu 14"
+                    const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(dateObj);
+                    const dayNum = dateObj.getDate();
+
+                    const miniCard = document.createElement('div');
+                    miniCard.className = `mini-day ${isToday ? 'today' : ''}`;
+                    
+                    let cardHTML = `<div class="mini-day-header">${dayName} ${dayNum}</div>`;
+                    
+                    tides.forEach(tide => {
+                        const isHigh = tide.type === 'H';
+                        const timeStr = formatMiniTime(tide.t.split(" ")[1]);
+                        const height = parseFloat(tide.v).toFixed(1);
+                        
+                        cardHTML += `
+                            <div class="mini-tide ${isHigh ? 'high' : 'low'}">
+                                <span>${isHigh ? '▲' : '▼'} ${timeStr}</span>
+                                <span>${height}'</span>
+                            </div>
+                        `;
+                    });
+
+                    miniCard.innerHTML = cardHTML;
+                    grid.appendChild(miniCard);
+                }
+
+                section.appendChild(grid);
+                container.appendChild(section);
+            }
+        }
+
+        // --- UTILS ---
+        function groupTidesByDay(tidesArray) {
+            const grouped = {};
+            tidesArray.forEach(item => {
+                const datePart = item.t.split(" ")[0];
+                if(!grouped[datePart]) grouped[datePart] = [];
+                grouped[datePart].push(item);
+            });
+            return grouped;
+        }
+
+        function formatStandardTime(time24) {
+            const [hour, minute] = time24.split(":");
+            const timeObj = new Date();
+            timeObj.setHours(hour, minute);
+            return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(timeObj);
+        }
+
+        function formatMiniTime(time24) {
+            let [h, m] = time24.split(':');
+            let ampm = 'a';
+            h = parseInt(h);
+            if (h >= 12) {
+                ampm = 'p';
+                if (h > 12) h -= 12;
+            }
+            if (h === 0) h = 12;
+            return `${h}:${m}${ampm}`;
         }
 
         // Initialize
