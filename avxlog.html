@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalina Footprints</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Full screen height on mobile */
+        }
+        .header {
+            background: #ffffff;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .header p {
+            margin: 0.25rem 0 0 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        #map-container {
+            flex-grow: 1; /* Takes up all remaining space below header */
+            width: 100%;
+            z-index: 1;
+        }
+        .error-banner {
+            display: none;
+            background: #fef2f2;
+            color: #ef4444;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Catalina Footprints</h1>
+        <p>Live GPS Sync via OwnTracks</p>
+    </div>
+    
+    <div id="error-banner" class="error-banner">
+        Unable to load tracking data. Check your server connection.
+    </div>
+
+    <div id="map-container"></div>
+
+    <script>
+        // Initialize the map, centered on Avalon
+        const myMap = L.map('map-container').setView([33.3428, -118.3282], 15);
+        
+        // Load the street map imagery
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(myMap);
+
+        async function loadMapData() {
+            // This points to the CORS Passkey script on your private server!
+            const dataUrl = `https://bombmud.vineyard.haus/get_walks.php`;
+
+            try {
+                const response = await fetch(dataUrl);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const walksData = await response.json();
+                const coordinates = walksData.map(point => [point.lat, point.lon]);
+
+                if (coordinates.length > 0) {
+                    // Draw the walking path
+                    const walkPath = L.polyline(coordinates, {
+                        color: '#0ea5e9',
+                        weight: 5,
+                        opacity: 0.8,
+                        smoothFactor: 1
+                    }).addTo(myMap);
+
+                    // Drop a pin on the most recent location
+                    const lastKnown = coordinates[coordinates.length - 1];
+                    L.marker(lastKnown).addTo(myMap)
+                        .bindPopup("<b>Latest Location</b>")
+                        .openPopup();
+
+                    // Zoom the map to fit the entire route
+                    myMap.fitBounds(walkPath.getBounds(), { padding: [30, 30] });
+                }
+            } catch (error) {
+                console.error("Map fetch error:", error);
+                document.getElementById('error-banner').style.display = 'block';
+            }
+        }
+
+        // Run the fetch when the page loads
+        loadMapData();
+    </script>
+</body>
+</html>
