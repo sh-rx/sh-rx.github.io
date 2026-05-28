@@ -9,58 +9,53 @@
         html { display: none !important; }
     </style>
 
-    <script>
-      <script type="module">
-    // 1. Import the library directly from a CDN (perfect for GitHub Pages)
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.1';
+    <script type="module">
+        // 1. Import the library
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.1';
 
-    // Tell it to fetch models from the web, not your local GitHub repo
-    env.allowLocalModels = false;
+        env.allowLocalModels = false;
 
-    let embedder = null;
-    let isDownloading = false;
+        let embedder = null;
+        let isDownloading = false;
 
-    // 2. The function that actually downloads the model
-    async function loadSmartSearch() {
-        // If it's already downloaded or currently downloading, do nothing
-        if (embedder || isDownloading) return; 
-        isDownloading = true;
+        async function loadSmartSearch() {
+            if (embedder || isDownloading) return; 
+            isDownloading = true;
 
-        const searchInput = document.getElementById('searchInput');
-        const originalPlaceholder = searchInput.placeholder;
-        
-        // Give the user visual feedback so they know why there is a delay
-        searchInput.placeholder = "Downloading Smart Search (~20MB)... please wait.";
-        searchInput.disabled = true; // Optional: prevent typing while downloading
-
-        try {
-            // THIS is the line that triggers the download. 
-            // We use 'all-MiniLM-L6-v2', a tiny model highly optimized for matching concepts.
-            embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            const searchInput = document.getElementById('searchInput');
+            const originalPlaceholder = searchInput.placeholder;
             
-            searchInput.placeholder = "Smart Search ready! Search by concept (e.g., retirement)...";
-            searchInput.disabled = false;
-            searchInput.focus();
-        } catch (error) {
-            console.error("Smart Search failed to load:", error);
-            searchInput.placeholder = originalPlaceholder; // Revert to normal
-            searchInput.disabled = false;
+            searchInput.placeholder = "Downloading Smart Search (~20MB)... please wait.";
+            searchInput.disabled = true;
+
+            try {
+                embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+                searchInput.placeholder = "Smart Search ready! Search by concept (e.g., retirement)...";
+                searchInput.disabled = false;
+                searchInput.focus();
+            } catch (error) {
+                console.error("Smart Search failed to load:", error);
+                searchInput.placeholder = originalPlaceholder;
+                searchInput.disabled = false;
+            }
         }
-    }
 
-    // 3. The Trigger: Wait until the user clicks into the search box!
-    document.getElementById('searchInput').addEventListener('focus', loadSmartSearch);
-</script>
+        // Wait for DOM to load before adding listener
+        window.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('focus', loadSmartSearch);
+            }
+        });
+
+        // --- Security Check ---
         const internalImageUrl = "https://salemhealth.sharepoint.com/sites/The_Hub/SiteAssets/__rectSitelogo__hub-rev.png"; 
-
-        // 2. Set a timeout (e.g., 3 seconds)
         const timeoutMs = 3000;
         let isResolved = false;
 
-        function denyAccess(reason) {
+        function denyAccess() {
             if (isResolved) return;
             isResolved = true;
-            
             document.documentElement.innerHTML = `
                 <head><title>Access Denied</title></head>
                 <body style="font-family: system-ui, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; display: block !important;">
@@ -76,61 +71,19 @@
         function grantAccess() {
             if (isResolved) return;
             isResolved = true;
-            document.getElementById("security-hide").remove();
+            const style = document.getElementById("security-hide");
+            if (style) style.remove();
         }
 
         const img = new Image();
-        
-        img.onload = function() {
-            grantAccess();
-        };
-
-        // Add a random number to bypass browser caching
+        img.onload = grantAccess;
+        img.onerror = denyAccess; // Added error handling
         img.src = internalImageUrl + "?cb=" + new Date().getTime();
 
-        // 4. Fallback timeout if the request just hangs
         setTimeout(() => {
-            denyAccess("Network check timed out.");
+            if (!isResolved) denyAccess();
         }, timeoutMs);
-
     </script>
-    <style>
-        /* Professional, fast-loading system fonts */
-        body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 30px 20px; }
-        .container { max-width: 950px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px 35px; }
-        h1 { color: #1a365d; font-size: 26px; margin: 0; }
-        
-        /* Cross-Page Navigation Link Styling */
-        .nav-link { display: inline-flex; align-items: center; padding: 6px 12px; background-color: #edf2f7; color: #2b6cb0; text-decoration: none; font-size: 13px; font-weight: 600; border-radius: 6px; transition: all 0.2s ease; }
-        .nav-link:hover { background-color: #e2e8f0; color: #1a365d; }
-
-        /* Tabs Styling */
-        .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #edf2f7; }
-        .tab-btn { background: none; border: none; font-size: 13px; font-weight: 600; color: #a0aec0; cursor: pointer; padding: 8px 6px; transition: all 0.2s ease; }
-        .tab-btn:hover { color: #4a5568; }
-        .tab-btn.active { color: #2b6cb0; border-bottom: 3px solid #2b6cb0; margin-bottom: -2px; }
-        .fav-count { background-color: #ebf8ff; color: #2b6cb0; border-radius: 12px; padding: 2px 5px; font-size: 11px; margin-left: 3px; }
-
-        /* Search bar styling */
-        .search-container { margin-bottom: 20px; position: sticky; top: 0; background: white; padding: 10px 0; z-index: 100; }
-        #searchInput { width: 100%; padding: 10px 14px; font-size: 15px; border: 1px solid #cbd5e0; border-radius: 4px; box-sizing: border-box; transition: border-color 0.2s; }
-        #searchInput:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1); }
-
-        /* Link list styling */
-        .link-list { list-style: none; padding: 0; margin: 0; }
-        .link-item { margin-bottom: 2px; border-radius: 4px; transition: background-color 0.1s ease; display: flex; justify-content: space-between; align-items: center; }
-        .link-item:hover { background-color: #ebf8ff; }
-        
-        .link-item a { flex-grow: 1; display: flex; align-items: center; padding: 4px 10px; text-decoration: none; color: #2b6cb0; font-weight: 500; font-size: 14px; }
-        .link-item a::before { content: "📄"; margin-right: 8px; font-size: 14px; }
-        .link-item a:hover { color: #1a365d; text-decoration: underline; }
-        
-        /* Star Button Styling */
-        .star-btn { cursor: pointer; font-size: 20px; color: #cbd5e0; padding: 0 15px; user-select: none; transition: all 0.2s ease; }
-        .star-btn:hover { color: #ecc94b; transform: scale(1.2); }
-        .star-btn.favorited { color: #d69e2e; }
-        .no-results { text-align: center; color: #718096; padding: 20px; display: none; font-style: italic; }
-    </style>
 </head>
 <body>
 
