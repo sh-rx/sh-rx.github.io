@@ -29,12 +29,11 @@
   </div>
 
   <script>
-    const reg = "d48601c0c663673167198a287c89f5c400490b7190d65b1086a9f5d6f1454556";
+    const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     
     async function verify(v) {
       const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
       const hash = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-      console.log("Your input hash:", hash); // THIS LINE WILL HELP US
       return hash === reg;
     }
 
