@@ -84,9 +84,16 @@
         // Echo what you typed to the screen in a subtle cyan color
         term.writeln('\x1b[36m> ' + val + '\x1b[0m');
         
-        // Send to MUD with proper Telnet carriage return / line feed
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(val + '\r\n');
+          // Add the Telnet line endings
+          const commandString = val + '\r\n';
+          
+          // CRITICAL FIX: Convert the text string into raw binary bytes
+          const encoder = new TextEncoder();
+          const byteData = encoder.encode(commandString);
+          
+          // Send the raw bytes to Websockify
+          ws.send(byteData);
         }
         
         // Clear the input bar
