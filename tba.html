@@ -4,6 +4,7 @@
   <title>My Web MUD</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
   <style>
     body { 
       background-color: #000; 
@@ -18,6 +19,10 @@
       flex-grow: 1; 
       overflow: hidden; 
     }
+    .xterm .xterm-viewport {
+      /* Forces the internal scrollbar to behave */
+      overflow-y: auto !important; 
+    }
     #input-container { 
       display: flex; 
       margin-top: 10px; 
@@ -29,7 +34,7 @@
       font-family: '"Courier New", courier-new, courier, monospace'; 
       font-size: 16px; 
       background: #111; 
-      color: #00ff00; /* Green typing text */
+      color: #00ff00; 
       border: 1px solid #444; 
       border-radius: 4px;
       outline: none; 
@@ -46,27 +51,36 @@
   </div>
 
   <script>
-    // 1. Initialize the Terminal
+    // 1. Initialize the Terminal and Fit Addon
     const term = new Terminal({
-      cursorBlink: false, // Turned off since we use the input bar below
+      cursorBlink: false,
       fontFamily: '"Courier New", courier-new, courier, monospace',
       theme: { background: '#000000' }
     });
+    
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
     term.open(document.getElementById('terminal-container'));
+    
+    // Force the terminal to fill the available space
+    fitAddon.fit();
+    
+    // Automatically resize if you resize the browser window
+    window.addEventListener('resize', () => {
+      fitAddon.fit();
+    });
+
     term.writeln('\x1b[33mInitializing connection...\x1b[0m');
 
     // 2. IMPORTANT: Paste your Cloudflare URL below!
-    // Remember to use 'wss://'
     const myCloudflareUrl = 'wss://attending-ownership-yoga-infrared.trycloudflare.com'; 
 
-    // Connect to Websockify
     const ws = new WebSocket(myCloudflareUrl);
 
     ws.onopen = () => {
       term.writeln('\x1b[32m*** Connected to Server! ***\x1b[0m\r\n');
     };
 
-    // 3. Receive data from the MUD and print to terminal
     ws.onmessage = async (event) => {
       let text = event.data;
       if (event.data instanceof Blob) {
@@ -75,33 +89,22 @@
       term.write(text);
     };
 
-    // 4. Handle the Input Bar
     const cmdInput = document.getElementById('cmd-input');
     cmdInput.addEventListener('keypress', function (e) {
       if (e.key === 'Enter') {
         const val = cmdInput.value;
-        
-        // Echo what you typed to the screen in a subtle cyan color
         term.writeln('\x1b[36m> ' + val + '\x1b[0m');
         
         if (ws.readyState === WebSocket.OPEN) {
-          // Add the Telnet line endings
           const commandString = val + '\r\n';
-          
-          // CRITICAL FIX: Convert the text string into raw binary bytes
           const encoder = new TextEncoder();
           const byteData = encoder.encode(commandString);
-          
-          // Send the raw bytes to Websockify
           ws.send(byteData);
         }
-        
-        // Clear the input bar
         cmdInput.value = '';
       }
     });
 
-    // Automatically keep focus on the input bar if you click the terminal
     document.getElementById('terminal-container').addEventListener('click', () => {
       cmdInput.focus();
     });
