@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Terminal Access</title>
+  <title></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
@@ -18,7 +18,7 @@
 <body>
   <div id="overlay">
     <div id="box">
-      <h2 style="color:#aaa;">System Initialization</h2>
+      <h2 style="color:#aaa;"></h2>
       <input type="password" id="input" autofocus autocomplete="off" />
     </div>
   </div>
@@ -29,20 +29,25 @@
   </div>
 
   <script>
-    const c = [102, 54, 50, 52, 100, 55, 51, 50, 56, 57, 48, 53, 50, 57, 100, 50, 48, 99, 51, 50, 98, 53, 48, 57, 102, 54, 101, 48, 50, 54, 51, 54, 50, 101, 54, 101, 49, 56, 102, 57, 55, 50, 53, 102, 48, 101, 57, 102, 52, 53, 54, 99, 54, 54, 57, 49, 98, 51, 53, 51, 49, 98, 57, 50];
+    const reg = "d48601c0c663673167198a287c89f5c400490b7190d65b1086a9f5d6f1454556";
     
-    async function check(v) {
-      const h = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))));
-      return h.map(b => b.toString(16).padStart(2, '0')).join('') === String.fromCharCode(...c.map(x => x));
+    async function verify(v) {
+      const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+      const hash = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      return hash === reg;
     }
 
     const input = document.getElementById('input');
     input.addEventListener('keypress', async (e) => {
-      if (e.key === 'Enter' && await check(input.value)) {
-        document.getElementById('overlay').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        init();
-      } else if (e.key === 'Enter') { input.value = ''; }
+      if (e.key === 'Enter') {
+        if (await verify(input.value)) {
+          document.getElementById('overlay').style.display = 'none';
+          document.getElementById('app').style.display = 'flex';
+          init();
+        } else {
+          input.value = '';
+        }
+      }
     });
 
     function init() {
