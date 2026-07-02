@@ -5,6 +5,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
     body { background-color: #000; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; font-family: sans-serif; }
     #overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #111; display: flex; align-items: center; justify-content: center; z-index: 9999; }
@@ -59,6 +60,35 @@
       
       const ws = new WebSocket('wss://attending-ownership-yoga-infrared.trycloudflare.com');
       ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
+
+      // Send a blank return every 45 seconds to keep the network tunnel hot
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(new TextEncoder().encode('\r\n')); 
+        }
+      }, 45000);
+
+      // Request the phone to keep the screen on while the MUD is running
+      let wakeLock = null;
+      async function requestWakeLock() {
+        try {
+          if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Screen Wake Lock is active');
+          }
+        } catch (err) {
+          console.log('Wake Lock failed:', err);
+        }
+      }
+      // Trigger the lock
+      requestWakeLock();
+      
+      // Re-trigger the lock if you minimize the browser and come back
+      document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+          requestWakeLock();
+        }
+      });
       
       const cmd = document.getElementById('cmd');
       cmd.addEventListener('keypress', (e) => {
