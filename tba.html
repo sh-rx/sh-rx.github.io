@@ -1,121 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>My Web MUD</title>
+  <title>Terminal Access</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
   <style>
-    body { 
-      background-color: #000; 
-      margin: 0; 
-      padding: 15px; 
-      display: flex; 
-      flex-direction: column; 
-      height: 100vh; 
-      box-sizing: border-box; 
-    }
-    #terminal-container { 
-      flex-grow: 1; 
-      overflow: hidden; 
-    }
-    .xterm .xterm-viewport {
-      /* Forces the internal scrollbar to behave */
-      overflow-y: auto !important; 
-    }
-    #input-container { 
-      display: flex; 
-      margin-top: 10px; 
-      margin-bottom: 15px;
-    }
-    #cmd-input { 
-      flex-grow: 1; 
-      padding: 12px; 
-      font-family: '"Courier New", courier-new, courier, monospace'; 
-      font-size: 16px; 
-      background: #111; 
-      color: #00ff00; 
-      border: 1px solid #444; 
-      border-radius: 4px;
-      outline: none; 
-    }
-    #cmd-input:focus { 
-      border-color: #888; 
-    }
+    body { background-color: #000; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; font-family: sans-serif; }
+    #overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #111; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    #box { background: #222; padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center; }
+    #input { padding: 10px; font-size: 18px; width: 150px; text-align: center; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; letter-spacing: 5px; outline: none; }
+    #app { display: none; flex-direction: column; height: 100%; }
+    #term { flex-grow: 1; overflow: hidden; }
+    #cmd { flex-grow: 1; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
   </style>
 </head>
 <body>
-  <div id="terminal-container"></div>
-  <div id="input-container">
-    <input type="text" id="cmd-input" placeholder="Type commands here and press Enter..." autocomplete="off" autofocus />
+  <div id="overlay">
+    <div id="box">
+      <h2 style="color:#aaa;">System Initialization</h2>
+      <input type="password" id="input" autofocus autocomplete="off" />
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="term"></div>
+    <div style="display:flex; margin-top:10px;"><input type="text" id="cmd" autocomplete="off" /></div>
   </div>
 
   <script>
-    // 1. Initialize the Terminal and Fit Addon
-    const term = new Terminal({
-      cursorBlink: false,
-      fontFamily: '"Courier New", courier-new, courier, monospace',
-      theme: { background: '#000000' }
-    });
+    const c = [102, 54, 50, 52, 100, 55, 51, 50, 56, 57, 48, 53, 50, 57, 100, 50, 48, 99, 51, 50, 98, 53, 48, 57, 102, 54, 101, 48, 50, 54, 51, 54, 50, 101, 54, 101, 49, 56, 102, 57, 55, 50, 53, 102, 48, 101, 57, 102, 52, 53, 54, 99, 54, 54, 57, 49, 98, 51, 53, 51, 49, 98, 57, 50];
     
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(document.getElementById('terminal-container'));
-    
-    // Force the terminal to fill the available space
-    fitAddon.fit();
-    
-    // Automatically resize if you resize the browser window
-    window.addEventListener('resize', () => {
-      fitAddon.fit();
+    async function check(v) {
+      const h = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))));
+      return h.map(b => b.toString(16).padStart(2, '0')).join('') === String.fromCharCode(...c.map(x => x));
+    }
+
+    const input = document.getElementById('input');
+    input.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter' && await check(input.value)) {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        init();
+      } else if (e.key === 'Enter') { input.value = ''; }
     });
 
-    term.writeln('\x1b[33mInitializing connection...\x1b[0m');
-
-    // 2. IMPORTANT: Paste your Cloudflare URL below!
-    const myCloudflareUrl = 'wss://attending-ownership-yoga-infrared.trycloudflare.com'; 
-
-    const ws = new WebSocket(myCloudflareUrl);
-
-    ws.onopen = () => {
-      term.writeln('\x1b[32m*** Connected to Server! ***\x1b[0m\r\n');
-    };
-
-    ws.onmessage = async (event) => {
-      let text = event.data;
-      if (event.data instanceof Blob) {
-        text = await event.data.text();
-      }
-      term.write(text);
-    };
-
-    const cmdInput = document.getElementById('cmd-input');
-    cmdInput.addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') {
-        const val = cmdInput.value;
-        term.writeln('\x1b[36m> ' + val + '\x1b[0m');
-        
-        if (ws.readyState === WebSocket.OPEN) {
-          const commandString = val + '\r\n';
-          const encoder = new TextEncoder();
-          const byteData = encoder.encode(commandString);
-          ws.send(byteData);
+    function init() {
+      const term = new Terminal({ theme: { background: '#000' } });
+      const fit = new FitAddon.FitAddon();
+      term.loadAddon(fit);
+      term.open(document.getElementById('term'));
+      fit.fit();
+      
+      const ws = new WebSocket('wss://attending-ownership-yoga-infrared.trycloudflare.com');
+      ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
+      
+      const cmd = document.getElementById('cmd');
+      cmd.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          term.writeln('\x1b[36m> ' + cmd.value + '\x1b[0m');
+          if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
+          cmd.value = '';
         }
-        cmdInput.value = '';
-      }
-    });
-
-    document.getElementById('terminal-container').addEventListener('click', () => {
-      cmdInput.focus();
-    });
-
-    ws.onclose = () => {
-      term.writeln('\r\n\x1b[31m*** Disconnected from server ***\x1b[0m');
-    };
-    
-    ws.onerror = (err) => {
-      term.writeln('\r\n\x1b[31m*** Connection Error - Check console ***\x1b[0m');
-    };
+      });
+    }
   </script>
 </body>
 </html>
