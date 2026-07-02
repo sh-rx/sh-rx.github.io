@@ -52,11 +52,23 @@
     });
 
     function init() {
-      const term = new Terminal({ theme: { background: '#000' } });
+      // Check if we are on a mobile-sized screen
+      const isMobile = window.innerWidth <= 768;
+
+      // Set font size based on screen size (10 for mobile, 15 for desktop)
+      const term = new Terminal({ 
+        theme: { background: '#000' },
+        fontSize: isMobile ? 10 : 15,
+        fontFamily: 'monospace'
+      });
+      
       const fit = new FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(document.getElementById('term'));
       fit.fit();
+      
+      // Re-calculate the grid if you rotate your phone
+      window.addEventListener('resize', () => fit.fit());
       
       const ws = new WebSocket('wss://attending-ownership-yoga-infrared.trycloudflare.com');
       ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
