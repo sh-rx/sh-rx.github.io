@@ -28,7 +28,7 @@
     const myCloudflareUrl = 'wss://attending-ownership-yoga-infrared.trycloudflare.com/'; 
 
     // Connect to Websockify using the 'binary' protocol it expects
-    const ws = new WebSocket(myCloudflareUrl, ['binary']);
+    const ws = new WebSocket(myCloudflareUrl);
 
     ws.onopen = () => {
       term.writeln('\x1b[32m*** Connected to Server! ***\x1b[0m\r\n');
