@@ -4,32 +4,62 @@
     <meta charset="UTF-8">
     <title>Shift Scheduler</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: auto; background-color: #1e1e1e; color: #e0e0e0; }
-        h1 { color: #ffffff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 1400px; margin: auto; background-color: #1e1e1e; color: #e0e0e0; }
+        h1 { color: #ffffff; margin-top: 0; }
         
+        /* Navigation */
+        .top-nav { background: #2b2b2b; padding: 15px 20px; border-bottom: 1px solid #444; margin-bottom: 20px; display: flex; gap: 15px; border-radius: 8px; }
+        .nav-btn { padding: 10px 15px; background: transparent; border: 1px solid #4a6984; color: #4a6984; font-size: 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .nav-btn.active { background: #4a6984; color: white; cursor: default; }
+
+        /* Form Controls */
         .controls-container { background: #2b2b2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
         .form-group { display: flex; flex-direction: column; }
-        label { font-weight: bold; margin-bottom: 5px; color: #a9b7c6; }
+        label { font-weight: bold; margin-bottom: 5px; color: #a9b7c6; font-size: 14px; }
         input[type="date"] { padding: 8px; background: #3c3f41; color: #fff; border: 1px solid #555; border-radius: 4px; color-scheme: dark; }
-        button { padding: 10px 20px; background: #4a6984; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; }
-        button:hover { background: #354e63; }
+        button.action-btn { padding: 10px 20px; background: #4a6984; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; transition: background 0.2s; }
+        button.action-btn:hover { background: #354e63; }
         
-        #results { margin-top: 20px; font-size: 14px; overflow-x: auto; }
+        /* Results Area */
+        #results { margin-top: 20px; font-size: 14px; }
         .status-msg { padding: 15px; background: #2b2b2b; border-radius: 5px; font-family: monospace; color: #a9b7c6; white-space: pre-wrap; }
+        
+        /* View Toggles */
+        .view-toggles { display: flex; gap: 10px; margin-bottom: 15px; }
+        .toggle-btn { background: transparent; border: 1px solid #555; color: #a9b7c6; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .toggle-btn.active { background: #e0e0e0; color: #1e1e1e; border-color: #e0e0e0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Master Calendar Table */
+        .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 800px; }
         th, td { border: 1px solid #444; padding: 10px; text-align: center; }
         th { background-color: #354e63; color: white; padding: 12px; }
         td.shift-name { font-weight: bold; background-color: #2b2b2b; text-align: right; border-right: 2px solid #555; }
         td.assigned { background-color: #3c3f41; }
         .float-tag { color: #f39c12; font-size: 0.85em; font-weight: bold; margin-left: 4px; }
+
+        /* Employee Cards Grid */
+        .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .emp-card { background: #2b2b2b; border: 1px solid #444; border-radius: 6px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .emp-name { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
+        .emp-shift { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #444; }
+        .emp-shift:last-child { border-bottom: none; }
+        .emp-shift .date { color: #a9b7c6; }
+        .emp-shift .shift { color: #e0e0e0; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Shift Scheduler Engine</h1>
-    <div style="background: #2b2b2b; padding: 15px 20px; border-bottom: 1px solid #444; margin-bottom: 20px; display: flex; gap: 15px;">
-        <button style="background: #4a6984;" disabled>📅 Schedule Generator</button>
-        <button class="outline" style="background: transparent; border: 1px solid #4a6984; color: #4a6984;" onclick="window.location.href='editor.html'">👥 Staff Editor</button>
+
+    <div class="top-nav">
+        <button class="nav-btn active">📅 Schedule Generator</button>
+        <button class="nav-btn" onclick="window.location.href='editor.html'">👥 Staff Editor</button>
     </div>
+
+    <h1>Shift Scheduler Engine</h1>
+    
     <div class="controls-container">
         <div class="form-group">
             <label>Start Date:</label>
@@ -39,11 +69,11 @@
             <label>End Date:</label>
             <input type="date" id="endDate" required>
         </div>
-        <button onclick="generateSchedule()">Generate Schedule</button>
+        <button class="action-btn" onclick="generateSchedule()">Generate Schedule</button>
     </div>
     
     <div id="results">
-        <div class="status-msg">Select dates and click Generate. (Staff data will be loaded directly from the server).</div>
+        <div class="status-msg">Select dates and click Generate.</div>
     </div>
 
     <script>
@@ -57,22 +87,22 @@
                 return;
             }
 
-            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule...</div>';
+            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule... this can take up to 15 seconds.</div>';
 
             try {
-                // 1. Fetch the master staff list from the server
+                // Fetch staff data
                 const staffResponse = await fetch('https://bombmud.vineyard.haus/api/staff');
                 if (!staffResponse.ok) throw new Error("Failed to load staff data from server.");
                 const employees = await staffResponse.json();
                 
-                // 2. Build the payload with the fetched data
+                // Build payload
                 const payload = {
                     start_date: startDate,
                     end_date: endDate,
                     employees: employees
                 };
 
-                // 3. Send it to the solver
+                // Send to solver
                 const generateResponse = await fetch('https://bombmud.vineyard.haus/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -82,7 +112,7 @@
                 const data = await generateResponse.json();
                 
                 if (data.status === "success") {
-                    resultsDiv.innerHTML = buildCalendarHTML(data.schedule);
+                    renderSuccessInterface(data.schedule);
                 } else {
                     let errorMsg = `<strong>Error:</strong> ${data.message}\n\n`;
                     if (data.conflicts) errorMsg += "<strong>Conflicts:</strong>\n" + data.conflicts.join('\n') + "\n\n";
@@ -94,7 +124,41 @@
             }
         }
 
-        function buildCalendarHTML(scheduleData) {
+        // --- Render the dual-view interface ---
+        function renderSuccessInterface(scheduleData) {
+            const resultsDiv = document.getElementById('results');
+            
+            const calendarHTML = buildMasterCalendar(scheduleData);
+            const employeeHTML = buildEmployeeRoster(scheduleData);
+
+            resultsDiv.innerHTML = `
+                <div class="view-toggles">
+                    <button class="toggle-btn active" id="btn-cal" onclick="switchView('cal')">Master Grid</button>
+                    <button class="toggle-btn" id="btn-emp" onclick="switchView('emp')">Individual Schedules</button>
+                </div>
+                
+                <div id="view-cal" class="tab-content active">
+                    <div class="table-container">${calendarHTML}</div>
+                </div>
+                
+                <div id="view-emp" class="tab-content">
+                    ${employeeHTML}
+                </div>
+            `;
+        }
+
+        function switchView(view) {
+            document.getElementById('btn-cal').classList.remove('active');
+            document.getElementById('btn-emp').classList.remove('active');
+            document.getElementById('view-cal').classList.remove('active');
+            document.getElementById('view-emp').classList.remove('active');
+            
+            document.getElementById(`btn-${view}`).classList.add('active');
+            document.getElementById(`view-${view}`).classList.add('active');
+        }
+
+        // --- View 1: Master Calendar ---
+        function buildMasterCalendar(scheduleData) {
             const shiftNames = [];
             scheduleData.forEach(day => {
                 day.shifts.forEach(s => {
@@ -132,8 +196,61 @@
                 });
                 html += `</tr>`;
             });
-
             html += `</tbody></table>`;
+            return html;
+        }
+
+        // --- View 2: Individual Employee Cards ---
+        function buildEmployeeRoster(scheduleData) {
+            const empMap = {};
+
+            // 1. Extract and group shifts by employee
+            scheduleData.forEach(day => {
+                const [year, month, d] = day.date.split('-');
+                const dateObj = new Date(year, month - 1, d);
+                const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+
+                day.shifts.forEach(s => {
+                    if (!empMap[s.employee_name]) {
+                        empMap[s.employee_name] = [];
+                    }
+                    empMap[s.employee_name].push({
+                        date: dateStr,
+                        shift: s.shift,
+                        is_float: s.is_float
+                    });
+                });
+            });
+
+            // 2. Sort names alphabetically
+            const sortedNames = Object.keys(empMap).sort();
+
+            // 3. Build the Grid of Cards
+            let html = `<div class="emp-grid">`;
+            
+            sortedNames.forEach(name => {
+                const shifts = empMap[name];
+                
+                html += `<div class="emp-card">
+                            <div class="emp-name">
+                                ${name} 
+                                <span style="font-size: 12px; color: #a9b7c6; font-weight: normal;">
+                                    ${shifts.length} shift${shifts.length !== 1 ? 's' : ''}
+                                </span>
+                            </div>`;
+                
+                shifts.forEach(s => {
+                    const floatMarker = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
+                    html += `<div class="emp-shift">
+                                <span class="date">${s.date}</span>
+                                <span class="shift">${s.shift}${floatMarker}</span>
+                             </div>`;
+                });
+                
+                html += `</div>`;
+            });
+            
+            html += `</div>`;
             return html;
         }
     </script>
