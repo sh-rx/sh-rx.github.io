@@ -102,19 +102,16 @@
             resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule...</div>';
 
             try {
-                // 1. Fetch Staff Data
                 const staffResponse = await fetch('https://bombmud.vineyard.haus/api/staff');
                 if (!staffResponse.ok) throw new Error("Failed to load staff data from server.");
                 const employees = await staffResponse.json();
                 
-                // 2. Build Payload
                 const payload = {
                     start_date: startDate,
                     end_date: endDate,
                     employees: employees
                 };
 
-                // 3. Send to Solver
                 const generateResponse = await fetch('https://bombmud.vineyard.haus/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -198,7 +195,11 @@
                         html += `<td class="assigned">`;
                         workersForShift.forEach(worker => {
                             const floatMarker = worker.is_float ? `<span class="float-tag">(F)</span>` : ``;
-                            html += `<div>${worker.employee_name}${floatMarker}</div>`;
+                            
+                            // FALLBACK FIX: Check for .name OR .employee_name
+                            const workerName = worker.name || worker.employee_name || "Unknown";
+                            
+                            html += `<div>${workerName}${floatMarker}</div>`;
                         });
                         html += `</td>`;
                     } else {
@@ -249,8 +250,11 @@
                 const dateStr = formatDate(day.date);
                 
                 day.shifts.forEach(s => {
-                    if (empMap[s.employee_name]) {
-                        empMap[s.employee_name].payPeriods[ppIndex].push({
+                    // FALLBACK FIX: Check for .name OR .employee_name
+                    const workerName = s.name || s.employee_name;
+                    
+                    if (empMap[workerName]) {
+                        empMap[workerName].payPeriods[ppIndex].push({
                             date: dateStr,
                             shift: s.shift,
                             is_float: s.is_float
@@ -273,7 +277,7 @@
                     
                     const expectedHours = Math.round((emp.targetHours / 14) * ppInfo.daysInBlock);
                     
-                    // NEW LOGIC: Calculate actual hours based on shift name
+                    // ED Day is 12 hours, all others 10 hours
                     const actualHours = shifts.reduce((total, s) => {
                         return total + (s.shift === "ED Day" ? 12 : 10);
                     }, 0);
