@@ -42,10 +42,22 @@
         .float-tag { color: #f39c12; font-size: 0.85em; font-weight: bold; margin-left: 4px; }
 
         /* Employee Cards Grid */
-        .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .emp-card { background: #2b2b2b; border: 1px solid #444; border-radius: 6px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .emp-name { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
-        .emp-shift { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #444; }
+        .emp-name { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
+        
+        /* Pay Period Sections */
+        .pp-section { margin-bottom: 15px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
+        .pp-section:last-child { margin-bottom: 0; }
+        .pp-header { background: #3c3f41; padding: 8px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4a6984; border-bottom: 1px solid #333; }
+        
+        /* Badges */
+        .hours-badge { font-size: 11px; padding: 3px 6px; border-radius: 3px; font-weight: bold; background: #2b2b2b; border: 1px solid #555; }
+        .hours-badge.ok { background: #2e7d32; color: #fff; border-color: #1b5e20; }
+        .hours-badge.short { background: #c62828; color: #fff; border-color: #b71c1c; }
+        .hours-badge.over { background: #ef6c00; color: #fff; border-color: #e65100; }
+
+        .emp-shift { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 10px; border-bottom: 1px dashed #333; }
         .emp-shift:last-child { border-bottom: none; }
         .emp-shift .date { color: #a9b7c6; }
         .emp-shift .shift { color: #e0e0e0; font-weight: bold; }
@@ -87,22 +99,22 @@
                 return;
             }
 
-            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule... this can take up to 15 seconds.</div>';
+            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule...</div>';
 
             try {
-                // Fetch staff data
+                // 1. Fetch Staff Data
                 const staffResponse = await fetch('https://bombmud.vineyard.haus/api/staff');
                 if (!staffResponse.ok) throw new Error("Failed to load staff data from server.");
                 const employees = await staffResponse.json();
                 
-                // Build payload
+                // 2. Build Payload
                 const payload = {
                     start_date: startDate,
                     end_date: endDate,
                     employees: employees
                 };
 
-                // Send to solver
+                // 3. Send to Solver
                 const generateResponse = await fetch('https://bombmud.vineyard.haus/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -112,7 +124,7 @@
                 const data = await generateResponse.json();
                 
                 if (data.status === "success") {
-                    renderSuccessInterface(data.schedule);
+                    renderSuccessInterface(data.schedule, employees);
                 } else {
                     let errorMsg = `<strong>Error:</strong> ${data.message}\n\n`;
                     if (data.conflicts) errorMsg += "<strong>Conflicts:</strong>\n" + data.conflicts.join('\n') + "\n\n";
@@ -124,17 +136,16 @@
             }
         }
 
-        // --- Render the dual-view interface ---
-        function renderSuccessInterface(scheduleData) {
+        function renderSuccessInterface(scheduleData, employees) {
             const resultsDiv = document.getElementById('results');
             
             const calendarHTML = buildMasterCalendar(scheduleData);
-            const employeeHTML = buildEmployeeRoster(scheduleData);
+            const employeeHTML = buildEmployeeRoster(scheduleData, employees);
 
             resultsDiv.innerHTML = `
                 <div class="view-toggles">
                     <button class="toggle-btn active" id="btn-cal" onclick="switchView('cal')">Master Grid</button>
-                    <button class="toggle-btn" id="btn-emp" onclick="switchView('emp')">Individual Schedules</button>
+                    <button class="toggle-btn" id="btn-emp" onclick="switchView('emp')">Pay Period Breakdowns</button>
                 </div>
                 
                 <div id="view-cal" class="tab-content active">
@@ -200,54 +211,101 @@
             return html;
         }
 
-        // --- View 2: Individual Employee Cards ---
-        function buildEmployeeRoster(scheduleData) {
+        // --- View 2: Individual Pay Period Cards ---
+        function buildEmployeeRoster(scheduleData, employees) {
+            const PAY_PERIOD_LENGTH = 14; 
+            
+            const numPayPeriods = Math.ceil(scheduleData.length / PAY_PERIOD_LENGTH);
+            const ppRanges = [];
+            
+            const formatDate = (dateStr) => {
+                const [y, m, d] = dateStr.split('-');
+                return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            };
+            
+            // 1. Calculate the start/end dates for each pay period block
+            for (let i = 0; i < numPayPeriods; i++) {
+                const startDayIndex = i * PAY_PERIOD_LENGTH;
+                const endDayIndex = Math.min((i + 1) * PAY_PERIOD_LENGTH - 1, scheduleData.length - 1);
+                
+                ppRanges.push({
+                    label: `${formatDate(scheduleData[startDayIndex].date)} - ${formatDate(scheduleData[endDayIndex].date)}`,
+                    daysInBlock: (endDayIndex - startDayIndex) + 1
+                });
+            }
+            
+            // 2. Initialize employee data map from staff list
             const empMap = {};
-
-            // 1. Extract and group shifts by employee
-            scheduleData.forEach(day => {
-                const [year, month, d] = day.date.split('-');
-                const dateObj = new Date(year, month - 1, d);
-                const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
-
+            employees.forEach(e => {
+                empMap[e.name] = {
+                    targetHours: e.target_hours,
+                    payPeriods: Array.from({length: numPayPeriods}, () => [])
+                };
+            });
+            
+            // 3. Populate map with generated schedule shifts
+            scheduleData.forEach((day, index) => {
+                const ppIndex = Math.floor(index / PAY_PERIOD_LENGTH);
+                const dateStr = formatDate(day.date);
+                
                 day.shifts.forEach(s => {
-                    if (!empMap[s.employee_name]) {
-                        empMap[s.employee_name] = [];
+                    if (empMap[s.employee_name]) {
+                        empMap[s.employee_name].payPeriods[ppIndex].push({
+                            date: dateStr,
+                            shift: s.shift,
+                            is_float: s.is_float
+                        });
                     }
-                    empMap[s.employee_name].push({
-                        date: dateStr,
-                        shift: s.shift,
-                        is_float: s.is_float
-                    });
                 });
             });
-
-            // 2. Sort names alphabetically
-            const sortedNames = Object.keys(empMap).sort();
-
-            // 3. Build the Grid of Cards
+            
+            // 4. Build HTML Cards
             let html = `<div class="emp-grid">`;
+            const sortedNames = Object.keys(empMap).sort();
             
             sortedNames.forEach(name => {
-                const shifts = empMap[name];
+                const emp = empMap[name];
                 
-                html += `<div class="emp-card">
-                            <div class="emp-name">
-                                ${name} 
-                                <span style="font-size: 12px; color: #a9b7c6; font-weight: normal;">
-                                    ${shifts.length} shift${shifts.length !== 1 ? 's' : ''}
+                html += `<div class="emp-card"><div class="emp-name">${name}</div>`;
+                
+                emp.payPeriods.forEach((shifts, i) => {
+                    const ppInfo = ppRanges[i];
+                    
+                    const expectedHours = Math.round((emp.targetHours / 14) * ppInfo.daysInBlock);
+                    
+                    // NEW LOGIC: Calculate actual hours based on shift name
+                    const actualHours = shifts.reduce((total, s) => {
+                        return total + (s.shift === "ED Day" ? 12 : 10);
+                    }, 0);
+                    
+                    let badgeClass = 'ok';
+                    if (actualHours < expectedHours) badgeClass = 'short';
+                    if (actualHours > expectedHours) badgeClass = 'over';
+                    
+                    html += `
+                        <div class="pp-section">
+                            <div class="pp-header">
+                                <span>${ppInfo.label}</span>
+                                <span class="hours-badge ${badgeClass}" title="Target: ${expectedHours} hrs">
+                                    ${actualHours} / ${expectedHours} hrs
                                 </span>
                             </div>`;
-                
-                shifts.forEach(s => {
-                    const floatMarker = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
-                    html += `<div class="emp-shift">
-                                <span class="date">${s.date}</span>
-                                <span class="shift">${s.shift}${floatMarker}</span>
-                             </div>`;
+                    
+                    if (shifts.length === 0) {
+                        html += `<div class="emp-shift"><span class="date" style="font-style: italic; color: #666;">No shifts scheduled</span></div>`;
+                    } else {
+                        shifts.forEach(s => {
+                            const floatMarker = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
+                            html += `<div class="emp-shift">
+                                        <span class="date">${s.date}</span>
+                                        <span class="shift">${s.shift}${floatMarker}</span>
+                                     </div>`;
+                        });
+                    }
+                    html += `</div>`; 
                 });
                 
-                html += `</div>`;
+                html += `</div>`; 
             });
             
             html += `</div>`;
