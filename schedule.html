@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shift Scheduler2</title>
+    <title>Shift Scheduler</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 1400px; margin: auto; background-color: #1e1e1e; color: #e0e0e0; }
         h1 { color: #ffffff; margin-top: 0; }
@@ -195,10 +195,7 @@
                         html += `<td class="assigned">`;
                         workersForShift.forEach(worker => {
                             const floatMarker = worker.is_float ? `<span class="float-tag">(F)</span>` : ``;
-                            
-                            // FALLBACK FIX: Check for .name OR .employee_name
                             const workerName = worker.name || worker.employee_name || "Unknown";
-                            
                             html += `<div>${workerName}${floatMarker}</div>`;
                         });
                         html += `</td>`;
@@ -235,7 +232,7 @@
                 });
             }
             
-            // 2. Initialize employee data map from staff list
+            // 2. Initialize employee data map using exact names from staff list
             const empMap = {};
             employees.forEach(e => {
                 empMap[e.name] = {
@@ -244,17 +241,18 @@
                 };
             });
             
-            // 3. Populate map with generated schedule shifts
+            // 3. Populate map with generated schedule shifts using case-insensitive / trimmed matching
             scheduleData.forEach((day, index) => {
                 const ppIndex = Math.floor(index / PAY_PERIOD_LENGTH);
                 const dateStr = formatDate(day.date);
                 
                 day.shifts.forEach(s => {
-                    // FALLBACK FIX: Check for .name OR .employee_name
-                    const workerName = s.name || s.employee_name;
+                    const rawName = s.name || s.employee_name || "";
+                    // Find matching key in empMap ignoring case or extra spacing
+                    const matchedName = Object.keys(empMap).find(k => k.trim().toLowerCase() === rawName.trim().toLowerCase());
                     
-                    if (empMap[workerName]) {
-                        empMap[workerName].payPeriods[ppIndex].push({
+                    if (matchedName) {
+                        empMap[matchedName].payPeriods[ppIndex].push({
                             date: dateStr,
                             shift: s.shift,
                             is_float: s.is_float
