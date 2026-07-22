@@ -2,20 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shift Scheduler2</title>
+    <title>Shift Scheduler</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: auto; background-color: #1e1e1e; color: #e0e0e0; }
         h1 { color: #ffffff; }
         
-        /* Form Controls */
         .controls-container { background: #2b2b2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
         .form-group { display: flex; flex-direction: column; }
         label { font-weight: bold; margin-bottom: 5px; color: #a9b7c6; }
-        input[type="date"], input[type="file"] { padding: 8px; background: #3c3f41; color: #fff; border: 1px solid #555; border-radius: 4px; color-scheme: dark; }
+        input[type="date"] { padding: 8px; background: #3c3f41; color: #fff; border: 1px solid #555; border-radius: 4px; color-scheme: dark; }
         button { padding: 10px 20px; background: #4a6984; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; }
         button:hover { background: #354e63; }
         
-        /* Results Area & Table */
         #results { margin-top: 20px; font-size: 14px; overflow-x: auto; }
         .status-msg { padding: 15px; background: #2b2b2b; border-radius: 5px; font-family: monospace; color: #a9b7c6; white-space: pre-wrap; }
         table { width: 100%; border-collapse: collapse; min-width: 800px; }
@@ -38,73 +36,62 @@
             <label>End Date:</label>
             <input type="date" id="endDate" required>
         </div>
-        <div class="form-group">
-            <label>Upload staff.json:</label>
-            <input type="file" id="staffFile" accept=".json" required>
-        </div>
         <button onclick="generateSchedule()">Generate Schedule</button>
     </div>
     
     <div id="results">
-        <div class="status-msg">Waiting for input...</div>
+        <div class="status-msg">Select dates and click Generate. (Staff data will be loaded directly from the server).</div>
     </div>
 
     <script>
         async function generateSchedule() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
-            const fileInput = document.getElementById('staffFile');
             const resultsDiv = document.getElementById('results');
 
-            if (!startDate || !endDate || !fileInput.files.length) {
-                alert("Please fill out all fields and upload staff.json.");
+            if (!startDate || !endDate) {
+                alert("Please select both a start and end date.");
                 return;
             }
 
-            resultsDiv.innerHTML = '<div class="status-msg">Crunching the schedule... this may take up to 15 seconds.</div>';
+            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule...</div>';
 
-            const fileReader = new FileReader();
-            fileReader.onload = async function(e) {
-                try {
-                    const employees = JSON.parse(e.target.result);
-                    
-                    const payload = {
-                        start_date: startDate,
-                        end_date: endDate,
-                        employees: employees
-                    };
+            try {
+                // 1. Fetch the master staff list from the server
+                const staffResponse = await fetch('https://bombmud.vineyard.haus/api/staff');
+                if (!staffResponse.ok) throw new Error("Failed to load staff data from server.");
+                const employees = await staffResponse.json();
+                
+                // 2. Build the payload with the fetched data
+                const payload = {
+                    start_date: startDate,
+                    end_date: endDate,
+                    employees: employees
+                };
 
-                    const response = await fetch('https://bombmud.vineyard.haus/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+                // 3. Send it to the solver
+                const generateResponse = await fetch('https://bombmud.vineyard.haus/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-                    const data = await response.json();
-                    
-                    if (data.status === "success") {
-                        resultsDiv.innerHTML = buildCalendarHTML(data.schedule);
-                    } else {
-                        // If there's an error or shortage, display it beautifully
-                        let errorMsg = `<strong>Error:</strong> ${data.message}\n\n`;
-                        if (data.conflicts) {
-                            errorMsg += "<strong>Conflicts:</strong>\n" + data.conflicts.join('\n') + "\n\n";
-                        }
-                        if (data.shortages) {
-                            errorMsg += "<strong>Shortages:</strong>\n" + data.shortages.join('\n');
-                        }
-                        resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">${errorMsg}</div>`;
-                    }
-                } catch (error) {
-                    resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">Error: ${error.message}</div>`;
+                const data = await generateResponse.json();
+                
+                if (data.status === "success") {
+                    resultsDiv.innerHTML = buildCalendarHTML(data.schedule);
+                } else {
+                    let errorMsg = `<strong>Error:</strong> ${data.message}\n\n`;
+                    if (data.conflicts) errorMsg += "<strong>Conflicts:</strong>\n" + data.conflicts.join('\n') + "\n\n";
+                    if (data.shortages) errorMsg += "<strong>Shortages:</strong>\n" + data.shortages.join('\n');
+                    resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">${errorMsg}</div>`;
                 }
-            };
-            
-            fileReader.readAsText(fileInput.files[0]);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">Error: ${error.message}</div>`;
+            }
         }
 
         function buildCalendarHTML(scheduleData) {
-            // 1. Gather all unique shifts used in this schedule
             const shiftNames = [];
             scheduleData.forEach(day => {
                 day.shifts.forEach(s => {
@@ -114,13 +101,9 @@
                 });
             });
 
-            // 2. Start building the HTML Table
             let html = `<table>`;
-            
-            // Header Row (Dates)
             html += `<thead><tr><th>Shift</th>`;
             scheduleData.forEach(day => {
-                // Parse date safely to avoid timezone jumping
                 const [year, month, d] = day.date.split('-');
                 const dateObj = new Date(year, month - 1, d);
                 const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
@@ -128,15 +111,11 @@
             });
             html += `</tr></thead><tbody>`;
 
-            // 3. Create a row for each shift
             shiftNames.forEach(shiftName => {
                 html += `<tr>`;
                 html += `<td class="shift-name">${shiftName}</td>`;
-                
-                // Check who is working this shift on each day
                 scheduleData.forEach(day => {
                     const workersForShift = day.shifts.filter(s => s.shift === shiftName);
-                    
                     if (workersForShift.length > 0) {
                         html += `<td class="assigned">`;
                         workersForShift.forEach(worker => {
@@ -145,11 +124,9 @@
                         });
                         html += `</td>`;
                     } else {
-                        // Empty cell if no one is working that shift that day
                         html += `<td></td>`;
                     }
                 });
-                
                 html += `</tr>`;
             });
 
