@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff Editor</title>
+    <style>
+        :root { --bg: #1e1e1e; --panel: #2b2b2b; --input: #3c3f41; --accent: #4a6984; --accent-hover: #354e63; --text: #e0e0e0; --danger: #cc4b4b; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 0; background-color: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Layout */
+        .sidebar { width: 300px; background: var(--panel); display: flex; flex-direction: column; border-right: 1px solid #444; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .employee-list { flex-grow: 1; overflow-y: auto; }
+        .employee-item { padding: 15px 20px; border-bottom: 1px solid #333; cursor: pointer; transition: background 0.2s; }
+        .employee-item:hover { background: var(--input); }
+        .employee-item.active { background: var(--accent); color: white; border-left: 4px solid #fff; }
+        
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background: var(--bg); overflow-y: auto; }
+        .topbar { padding: 20px; background: var(--panel); border-bottom: 1px solid #444; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        .editor-container { padding: 30px; max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box; display: none; }
+        
+        /* Typography & Controls */
+        h2, h3 { margin-top: 0; color: #fff; }
+        button { padding: 10px 15px; background: var(--accent); color: white; border: none; cursor: pointer; font-size: 14px; border-radius: 4px; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: var(--accent-hover); }
+        button.danger { background: var(--danger); }
+        button.outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+        
+        /* Form Grid */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: span 2; }
+        label { font-weight: bold; margin-bottom: 8px; color: #a9b7c6; font-size: 14px; }
+        input[type="text"], input[type="number"], select, input[type="date"] { padding: 10px; background: var(--input); color: #fff; border: 1px solid #555; border-radius: 4px; font-size: 14px; color-scheme: dark; }
+        
+        /* Chips */
+        .chip-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { padding: 6px 12px; background: var(--input); border: 1px solid #555; border-radius: 16px; font-size: 13px; cursor: pointer; user-select: none; transition: all 0.2s; }
+        .chip:hover { background: #4a4d50; }
+        .chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+        
+        /* Dynamic Lists */
+        .dynamic-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .dynamic-row input, .dynamic-row select { flex-grow: 1; }
+        .remove-btn { background: var(--danger); padding: 8px 12px; }
+        
+        /* Status Toast */
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 25px; border-radius: 4px; font-weight: bold; transform: translateY(150%); transition: transform 0.3s; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Staff</h2>
+            <button onclick="addNewEmployee()">+ Add</button>
+        </div>
+        <div class="employee-list" id="employeeList">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <h2 id="topbarName">Select an Employee</h2>
+            <div>
+                <button class="outline" onclick="window.location.href='index.html'" style="margin-right: 10px;">Back to Scheduler</button>
+                <button onclick="saveToServer()">💾 Save to Server</button>
+            </div>
+        </div>
+
+        <div class="editor-container" id="editorContainer">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Full Name</label>
+                    <input type="text" id="empName" oninput="updateField('name', this.value)">
+                </div>
+                <div class="form-group">
+                    <label>Target Hours (Bi-weekly)</label>
+                    <input type="number" id="empHours" oninput="updateField('target_hours', parseInt(this.value) || 0)">
+                </div>
+                <div class="form-group">
+                    <label>Rotation</label>
+                    <select id="empRotation" onchange="updateField('rotation', this.value === 'null' ? null : this.value)">
+                        <option value="null">None</option>
+                        <option value="A">Week A</option>
+                        <option value="B">Week B</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label>Weekend Preference</label>
+                    <select id="empWeekend" onchange="updateField('weekend_preference', this.value)">
+                        <option value="target_equity">Target Equity (Fair Share)</option>
+                        <option value="any">Any (No Preference)</option>
+                        <option value="never">Never</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group full" style="margin-bottom: 20px;">
+                <label>Home Shifts</label>
+                <div class="chip-container" id="homeShiftsContainer"></div>
+            </div>
+
+            <div class="form-group full" style="margin-bottom: 30px;">
+                <label>Backup / Float Shifts</label>
+                <div class="chip-container" id="backupShiftsContainer"></div>
+            </div>
+
+            <div class="form-group full" style="margin-bottom: 30px;">
+                <label>Regular Unavailable Weekdays</label>
+                <div class="chip-container" id="weekdaysContainer"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Requested Days Off <button class="outline" style="padding: 2px 8px; margin-left: 10px;" onclick="addDayOff()">+ Add</button></label>
+                    <div id="daysOffContainer"></div>
+                </div>
+                <div class="form-group">
+                    <label>Bi-weekly Unavailable <button class="outline" style="padding: 2px 8px; margin-left: 10px;" onclick="addBiweekly()">+ Add</button></label>
+                    <div id="biweeklyContainer"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #444;">
+                <button class="danger" onclick="deleteCurrentEmployee()">Delete Employee</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Saved Successfully!</div>
+
+    <script>
+        const API_URL = 'https://bombmud.vineyard.haus/api/staff';
+        const SHIFTS = ["ED Day", "ED Ngt", "ICU", "CVCU", "ICU Swg", "Onc", "Med", "MedSurg", "D5", "FBC", "IP Day", "IWC", "OR", "IV Day", "IV Swg", "IV Ngt", "IP Day Res", "Swg Res", "IP Ngt"];
+        const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        
+        let staffData = [];
+        let currentIndex = -1;
+
+        // --- Initialization ---
+        async function loadData() {
+            try {
+                const response = await fetch(API_URL);
+                staffData = await response.json();
+                renderList();
+            } catch (e) {
+                alert("Failed to load staff data from server. Ensure API is running.");
+            }
+        }
+
+        // --- UI Rendering ---
+        function renderList() {
+            const list = document.getElementById('employeeList');
+            list.innerHTML = '';
+            
+            // Sort alphabetically by name
+            staffData.sort((a, b) => a.name.localeCompare(b.name));
+
+            staffData.forEach((emp, index) => {
+                const div = document.createElement('div');
+                div.className = `employee-item ${index === currentIndex ? 'active' : ''}`;
+                div.textContent = emp.name || "Unnamed Employee";
+                div.onclick = () => selectEmployee(index);
+                list.appendChild(div);
+            });
+        }
+
+        function selectEmployee(index) {
+            currentIndex = index;
+            renderList(); // Update active class
+            
+            const emp = staffData[index];
+            document.getElementById('editorContainer').style.display = 'block';
+            document.getElementById('topbarName').textContent = emp.name || "Edit Employee";
+            
+            // Bind simple fields
+            document.getElementById('empName').value = emp.name;
+            document.getElementById('empHours').value = emp.target_hours;
+            document.getElementById('empRotation').value = emp.rotation || "null";
+            document.getElementById('empWeekend').value = emp.weekend_preference;
+
+            // Render complex fields
+            renderChips('homeShiftsContainer', SHIFTS, emp.home_shifts, 'home_shifts');
+            renderChips('backupShiftsContainer', SHIFTS, emp.backup_shifts, 'backup_shifts');
+            renderChips('weekdaysContainer', WEEKDAYS, emp.unavailable_weekdays, 'unavailable_weekdays');
+            renderDaysOff();
+            renderBiweekly();
+        }
+
+        function renderChips(containerId, options, selectedArray, fieldName) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            options.forEach(opt => {
+                const chip = document.createElement('div');
+                const isSelected = selectedArray.includes(opt);
+                chip.className = `chip ${isSelected ? 'selected' : ''}`;
+                chip.textContent = opt;
+                chip.onclick = () => {
+                    if (isSelected) {
+                        staffData[currentIndex][fieldName] = selectedArray.filter(x => x !== opt);
+                    } else {
+                        staffData[currentIndex][fieldName].push(opt);
+                    }
+                    selectEmployee(currentIndex); // Re-render
+                };
+                container.appendChild(chip);
+            });
+        }
+
+        function renderDaysOff() {
+            const container = document.getElementById('daysOffContainer');
+            container.innerHTML = '';
+            const dates = staffData[currentIndex].requested_days_off;
+            
+            if(dates.length === 0) container.innerHTML = '<span style="color: #666; font-size: 13px;">None</span>';
+            
+            dates.forEach((dateStr, i) => {
+                const row = document.createElement('div');
+                row.className = 'dynamic-row';
+                row.innerHTML = `
+                    <input type="date" value="${dateStr}" onchange="updateArrayField('requested_days_off', ${i}, this.value)">
+                    <button class="remove-btn" onclick="removeArrayItem('requested_days_off', ${i})">X</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function renderBiweekly() {
+            const container = document.getElementById('biweeklyContainer');
+            container.innerHTML = '';
+            const rules = staffData[currentIndex].biweekly_unavailable;
+            
+            if(rules.length === 0) container.innerHTML = '<span style="color: #666; font-size: 13px;">None</span>';
+
+            rules.forEach((rule, i) => {
+                const row = document.createElement('div');
+                row.className = 'dynamic-row';
+                
+                let dayOptions = WEEKDAYS.map(d => `<option value="${d}" ${rule.day === d ? 'selected' : ''}>${d}</option>`).join('');
+                
+                row.innerHTML = `
+                    <select onchange="updateBiweekly(${i}, 'day', this.value)">${dayOptions}</select>
+                    <input type="date" value="${rule.anchor_date}" onchange="updateBiweekly(${i}, 'anchor_date', this.value)">
+                    <button class="remove-btn" onclick="removeArrayItem('biweekly_unavailable', ${i})">X</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // --- Data Mutations ---
+        function updateField(field, value) {
+            staffData[currentIndex][field] = value;
+            if(field === 'name') {
+                document.getElementById('topbarName').textContent = value;
+                renderList(); // Update sidebar live
+            }
+        }
+
+        function updateArrayField(field, index, value) {
+            staffData[currentIndex][field][index] = value;
+        }
+
+        function removeArrayItem(field, index) {
+            staffData[currentIndex][field].splice(index, 1);
+            selectEmployee(currentIndex);
+        }
+
+        function addDayOff() {
+            staffData[currentIndex].requested_days_off.push("");
+            selectEmployee(currentIndex);
+        }
+
+        function addBiweekly() {
+            staffData[currentIndex].biweekly_unavailable.push({ day: "Monday", anchor_date: "" });
+            selectEmployee(currentIndex);
+        }
+
+        function updateBiweekly(index, key, value) {
+            staffData[currentIndex].biweekly_unavailable[index][key] = value;
+        }
+
+        function addNewEmployee() {
+            // Find highest ID to avoid collisions
+            const maxId = staffData.reduce((max, emp) => Math.max(max, emp.id), -1);
+            
+            const newEmp = {
+                id: maxId + 1,
+                name: "New Employee",
+                home_shifts: [],
+                backup_shifts: [],
+                rotation: null,
+                target_hours: 80,
+                weekend_preference: "target_equity",
+                unavailable_weekdays: [],
+                biweekly_unavailable: [],
+                requested_days_off: []
+            };
+            
+            staffData.push(newEmp);
+            selectEmployee(staffData.indexOf(newEmp));
+            // Scroll sidebar to bottom
+            setTimeout(() => document.getElementById('employeeList').scrollTop = 9999, 10);
+        }
+
+        function deleteCurrentEmployee() {
+            if(confirm(`Are you sure you want to delete ${staffData[currentIndex].name}?`)) {
+                staffData.splice(currentIndex, 1);
+                currentIndex = -1;
+                document.getElementById('editorContainer').style.display = 'none';
+                document.getElementById('topbarName').textContent = "Select an Employee";
+                renderList();
+            }
+        }
+
+        // --- Server Sync ---
+        async function saveToServer() {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(staffData)
+                });
+                
+                if(response.ok) {
+                    showToast();
+                } else {
+                    alert("Failed to save to server.");
+                }
+            } catch(e) {
+                alert("Network error while saving.");
+            }
+        }
+
+        function showToast() {
+            const toast = document.getElementById("toast");
+            toast.style.transform = "translateY(0)";
+            setTimeout(() => toast.style.transform = "translateY(150%)", 3000);
+        }
+
+        // Boot
+        window.onload = loadData;
+    </script>
+</body>
+</html>
