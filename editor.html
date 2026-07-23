@@ -3,1205 +3,625 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roster Editor</title>
+<title>Shift Scheduler</title>
 <style>
   :root {
-    --bg:#16181c; --panel:#1e2127; --panel-2:#262a32; --line:#333842;
-    --line-soft:#2a2e36; --text:#e3e6ea; --text-dim:#949cab; --text-mute:#646b78;
-    --accent:#5b8bb8; --accent-dk:#3d6484; --ok:#3f8f4a; --short:#c0392b;
-    --over:#d9822b; --float:#d9a441; --relief:#c98bd4; --danger:#b8433a; --radius:6px;
+    --bg:        #16181c;
+    --panel:     #1e2127;
+    --panel-2:   #262a32;
+    --line:      #333842;
+    --line-soft: #2a2e36;
+    --text:      #e3e6ea;
+    --text-dim:  #949cab;
+    --text-mute: #646b78;
+    --accent:    #5b8bb8;
+    --accent-dk: #3d6484;
+    --ok:        #3f8f4a;
+    --short:     #c0392b;
+    --over:      #d9822b;
+    --float:     #d9a441;
+    --gap:       #c0392b;
+    --radius:    6px;
   }
+
   * { box-sizing: border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-         background:var(--bg); color:var(--text); margin:0; height:100vh; overflow:hidden;
-         display:flex; font-size:14px; line-height:1.5; }
 
-  /* sidebar */
-  .sidebar { width:310px; flex-shrink:0; background:var(--panel);
-             border-right:1px solid var(--line); display:flex; flex-direction:column; }
-  .sidebar-head { padding:14px; border-bottom:1px solid var(--line); }
-  .seg { display:flex; background:var(--panel-2); border:1px solid var(--line);
-         border-radius:5px; padding:2px; margin-bottom:12px; }
-  .seg button { flex:1; background:transparent; border:none; color:var(--text-dim);
-                padding:7px 4px; border-radius:3px; cursor:pointer; font-family:inherit;
-                font-size:12.5px; font-weight:600; }
-  .seg button.on { background:var(--accent-dk); color:#fff; }
-  .seg button .n { opacity:.7; font-weight:500; margin-left:4px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    max-width: 1600px;
+    margin-inline: auto;
+    font-size: 14px;
+    line-height: 1.5;
+  }
 
-  .search { width:100%; padding:8px 10px; background:var(--panel-2); color:var(--text);
-            border:1px solid var(--line); border-radius:4px; font-family:inherit; font-size:13px; }
-  .search::placeholder { color:var(--text-mute); }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-mute); font-size: 13px; margin-bottom: 22px; }
 
-  .list { flex:1; overflow-y:auto; }
-  .item { padding:10px 14px; border-bottom:1px solid var(--line-soft); cursor:pointer;
-          border-left:3px solid transparent; }
-  .item:hover { background:var(--panel-2); }
-  .item.active { background:var(--accent-dk); border-left-color:var(--accent); }
-  .item .nm { font-weight:600; font-size:13.5px; }
-  .item .sub { font-size:11.5px; color:var(--text-mute); margin-top:2px; }
-  .item.active .sub { color:#c4d7e6; }
-  .item.off .nm { opacity:.45; text-decoration:line-through; }
-  .item.flagged .nm::after { content:'!'; display:inline-block; margin-left:6px;
-    background:var(--over); color:#fff; font-size:10px; font-weight:700; width:14px;
-    height:14px; line-height:14px; text-align:center; border-radius:50%; vertical-align:1px; }
-  .group-head { padding:7px 14px; font-size:10.5px; font-weight:700; letter-spacing:.06em;
-                text-transform:uppercase; color:var(--text-mute); background:var(--bg);
-                border-bottom:1px solid var(--line-soft); position:sticky; top:0; z-index:1; }
+  /* ---------- nav ---------- */
+  .top-nav {
+    display: flex; gap: 8px; background: var(--panel);
+    padding: 10px; border-radius: var(--radius);
+    border: 1px solid var(--line); margin-bottom: 22px;
+  }
+  .nav-btn {
+    padding: 8px 14px; background: transparent; border: 1px solid var(--accent-dk);
+    color: var(--accent); font-size: 13px; border-radius: 4px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .nav-btn.active { background: var(--accent-dk); color: #fff; cursor: default; }
 
-  /* main */
-  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
-  .topbar { padding:11px 22px; background:var(--panel); border-bottom:1px solid var(--line);
-            display:flex; justify-content:space-between; align-items:center; gap:14px; }
-  .topbar h2 { margin:0; font-size:16px; font-weight:600; }
-  .dirty-dot { display:none; width:7px; height:7px; border-radius:50%;
-               background:var(--over); margin-left:8px; vertical-align:2px; }
-  body.dirty .dirty-dot { display:inline-block; }
-  .actions { display:flex; gap:8px; align-items:center; }
+  /* ---------- controls ---------- */
+  .controls {
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 18px; border-radius: var(--radius); margin-bottom: 20px;
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label { font-weight: 600; color: var(--text-dim); font-size: 12px;
+          text-transform: uppercase; letter-spacing: 0.04em; }
+  input[type="date"] {
+    padding: 8px 10px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px;
+    color-scheme: dark; font-family: inherit; font-size: 14px;
+  }
+  .btn {
+    padding: 9px 18px; background: var(--accent-dk); color: #fff; border: none;
+    cursor: pointer; font-size: 14px; border-radius: 4px; font-weight: 600;
+    font-family: inherit; transition: background .15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text-dim); }
+  .btn.ghost:hover { background: var(--panel-2); color: var(--text); }
+  .quick-range { display: flex; gap: 6px; }
+  .chip {
+    padding: 7px 11px; background: transparent; border: 1px solid var(--line);
+    color: var(--text-dim); border-radius: 4px; cursor: pointer;
+    font-size: 12px; font-family: inherit; font-weight: 600;
+  }
+  .chip:hover { border-color: var(--accent-dk); color: var(--accent); }
 
-  .tabs { display:flex; gap:6px; padding:12px 22px 0; }
-  .tab { background:transparent; border:1px solid var(--line); color:var(--text-dim);
-         padding:7px 14px; border-radius:4px; cursor:pointer; font-weight:600;
-         font-family:inherit; font-size:13px; }
-  .tab:hover { color:var(--text); }
-  .tab.active { background:var(--text); color:var(--bg); border-color:var(--text); }
-  .tab .count { margin-left:6px; font-weight:700; font-size:11px; padding:1px 5px;
-                border-radius:8px; background:var(--over); color:#fff; }
-  .tab.active .count { background:var(--bg); color:var(--text); }
-  .tab .count.zero { display:none; }
+  /* ---------- status / banners ---------- */
+  .status {
+    padding: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); color: var(--text-dim); white-space: pre-wrap;
+  }
+  .banner {
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+    border: 1px solid; font-size: 13px;
+  }
+  .banner h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700;
+               text-transform: uppercase; letter-spacing: .05em; }
+  .banner ul { margin: 0; padding-left: 18px; }
+  .banner li { margin-bottom: 4px; }
+  .banner li:last-child { margin-bottom: 0; }
+  .banner.err  { background: #2a1618; border-color: #7d2b2b; color: #f0b4b4; }
+  .banner.warn { background: #2a2216; border-color: #7d5c2b; color: #e8cd9a; }
+  .banner.info { background: #16202a; border-color: #2b5c7d; color: #a8c9e0; }
 
-  .scroll { flex:1; overflow-y:auto; }
-  .pane { display:none; padding:20px 22px 60px; max-width:1000px; }
-  .pane.active { display:block; }
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    background: transparent; border: 1px solid var(--line); color: var(--text-dim);
+    padding: 8px 15px; border-radius: 4px; cursor: pointer;
+    font-weight: 600; font-family: inherit; font-size: 13px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .tab .count { opacity: .65; font-weight: 500; margin-left: 5px; }
+  .pane { display: none; }
+  .pane.active { display: block; }
 
-  /* buttons */
-  .btn { padding:8px 15px; background:var(--accent-dk); color:#fff; border:none;
-         cursor:pointer; font-size:13px; border-radius:4px; font-weight:600;
-         font-family:inherit; white-space:nowrap; }
-  .btn:hover:not(:disabled) { background:var(--accent); }
-  .btn:disabled { opacity:.5; cursor:default; }
-  .btn.ghost { background:transparent; border:1px solid var(--line); color:var(--text-dim); }
-  .btn.ghost:hover { background:var(--panel-2); color:var(--text); }
-  .btn.danger { background:transparent; border:1px solid var(--danger); color:#e08a83; }
-  .btn.danger:hover { background:var(--danger); color:#fff; }
-  .btn.tiny { padding:3px 9px; font-size:11.5px; }
+  /* ---------- master grid ---------- */
+  .table-wrap {
+    overflow: auto; max-height: 78vh;
+    border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  th, td { padding: 7px 9px; text-align: center; font-size: 12.5px;
+           border-right: 1px solid var(--line-soft);
+           border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--accent-dk); color: #fff; font-weight: 600;
+  }
+  thead th.wknd { background: #2f4d66; }
+  .row-time { font-size:10.5px; font-weight:500; color:var(--text-mute);
+              margin-top:1px; letter-spacing:.01em; }
+  td.shift-name, thead th.corner {
+    position: sticky; left: 0; z-index: 2;
+    text-align: left; font-weight: 600;
+    background: var(--panel-2);
+    border-right: 2px solid var(--line);
+  }
+  thead th.corner { z-index: 4; background: var(--accent-dk); }
+  td.filled { background: #21252c; }
+  td.wknd-col { background: #1b1e24; }
+  td.gap { background: #331a1a; color: #e88; font-weight: 600; }
+  .cov { font-weight: 700; margin-left: 3px; font-size: 10.5px; }
+  .cov.float    { color: var(--float); }
+  .cov.variable { color: var(--accent); }
+  .cov.relief   { color: #c98bd4; }
+  td.has-relief { box-shadow: inset 0 0 0 1px #7a4d84; }
+  .pill.core     { border-color: var(--accent-dk); color: var(--accent); }
+  .pill.variable { border-color: #4a6b8a; color: #8fb6d6; }
+  .pill.relief   { border-color: #7a4d84; color: #c98bd4; }
 
-  /* form */
-  .section { margin-bottom:26px; }
-  .section > h3 { margin:0 0 9px; font-size:11px; font-weight:700; color:var(--text-dim);
-                  text-transform:uppercase; letter-spacing:.06em;
-                  display:flex; align-items:center; gap:10px; }
-  .hint { font-size:12px; color:var(--text-mute); margin:-3px 0 10px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:15px; }
-  .field { display:flex; flex-direction:column; gap:6px; }
-  .field.full { grid-column:1/-1; }
-  label { font-weight:600; color:var(--text-dim); font-size:12px;
-          text-transform:uppercase; letter-spacing:.04em; }
-  input[type=text], input[type=number], input[type=date], select {
-    padding:9px 10px; background:var(--panel-2); color:var(--text);
-    border:1px solid var(--line); border-radius:4px; font-size:14px;
-    font-family:inherit; color-scheme:dark; width:100%; }
-  input:disabled, select:disabled { opacity:.45; cursor:not-allowed; }
-  input:focus, select:focus, .search:focus { outline:2px solid var(--accent);
-    outline-offset:-1px; border-color:var(--accent); }
-  .toggle { display:flex; align-items:center; gap:9px; font-size:13.5px;
-            color:var(--text); cursor:pointer; padding-top:6px; }
-  .toggle input { width:auto; accent-color:var(--accent); }
+  /* ---------- employee cards ---------- */
+  .card-grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .card-head { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .card-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .card-meta { font-size: 12px; color: var(--text-mute); display: flex;
+               gap: 10px; flex-wrap: wrap; }
+  .pill { font-size: 10.5px; padding: 2px 6px; border-radius: 3px;
+          background: var(--panel-2); border: 1px solid var(--line);
+          color: var(--text-dim); font-weight: 600; letter-spacing: .03em; }
+  .pill.rot { border-color: var(--accent-dk); color: var(--accent); }
 
-  /* chips */
-  .chips { display:flex; flex-wrap:wrap; gap:7px; }
-  .chip { padding:6px 12px; background:var(--panel-2); border:1px solid var(--line);
-          border-radius:14px; font-size:12.5px; cursor:pointer; user-select:none;
-          font-weight:500; }
-  .chip:hover:not(.locked) { border-color:var(--accent-dk); color:#fff; }
-  .chip.on { background:var(--accent-dk); border-color:var(--accent); color:#fff; font-weight:600; }
-  .chip.on.backup { background:#7a5c1e; border-color:var(--float); }
-  .chip.locked { opacity:.3; cursor:not-allowed; }
-  .chip.dead { opacity:.4; text-decoration:line-through; }
-  .chip .hrs { opacity:.6; font-size:11px; margin-left:4px; }
+  .pp { border-bottom: 1px solid var(--line-soft); }
+  .pp:last-child { border-bottom: none; }
+  .pp-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; background: var(--panel-2);
+    font-size: 12px; font-weight: 600; border-left: 3px solid var(--accent-dk);
+  }
+  .pp-label { color: var(--text-dim); }
+  .partial { color: var(--text-mute); font-weight: 500; }
+  .badge { font-size: 11px; padding: 3px 7px; border-radius: 3px;
+           font-weight: 700; border: 1px solid; }
+  .badge.ok    { background: var(--ok);    color: #fff; border-color: #2e6b36; }
+  .badge.short { background: var(--short); color: #fff; border-color: #96281b; }
+  .badge.over  { background: var(--over);  color: #fff; border-color: #a8631f; }
+  .badge.na    { background: transparent;  color: var(--text-mute); border-color: var(--line); }
 
-  .tbadge { display:inline-block; font-size:10px; font-weight:700; padding:1px 6px;
-            border-radius:8px; border:1px solid; letter-spacing:.04em;
-            text-transform:uppercase; margin-right:6px; vertical-align:1px; }
-  .tbadge.core{border-color:var(--accent-dk);color:var(--accent)}
-  .tbadge.rotational{border-color:#6b5c2b;color:var(--float)}
-  .tbadge.variable{border-color:#4a6b8a;color:#8fb6d6}
-  .tbadge.u_status{border-color:#7a4d84;color:var(--relief)}
+  .row { display: flex; justify-content: space-between; gap: 10px;
+         padding: 6px 14px; font-size: 12.5px;
+         border-bottom: 1px dashed var(--line-soft); }
+  .row:last-child { border-bottom: none; }
+  .row.wknd { background: #1a1d23; }
+  .row .date { color: var(--text-dim); }
+  .row .shift { font-weight: 600; }
+  .row .tm { font-weight: 500; color: var(--text-mute); font-size: 11.5px;
+             margin-left: 3px; font-variant-numeric: tabular-nums; }
+  .empty { padding: 8px 14px; font-size: 12.5px; color: var(--text-mute); font-style: italic; }
 
-  .rows { display:flex; flex-direction:column; gap:8px; }
-  .row { display:flex; gap:8px; align-items:center; }
-  .row select { flex:0 0 140px; }
-  .row input { flex:1; }
-  .none { color:var(--text-mute); font-size:12.5px; font-style:italic; }
-  .derived { padding:9px 10px; background:var(--bg); border:1px dashed var(--line);
-             border-radius:4px; font-size:14px; font-variant-numeric:tabular-nums; }
-  .nextday { color:var(--float); font-size:11px; font-weight:700;
-             text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
-  .rest-list { margin:0; padding-left:18px; font-size:12.5px; color:var(--text-dim);
-               columns:2; column-gap:24px; }
-  .rest-list li { margin-bottom:3px; break-inside:avoid; }
-  input[type=time] { padding:8px 10px; background:var(--panel-2); color:var(--text);
-    border:1px solid var(--line); border-radius:4px; font-size:14px;
-    font-family:inherit; color-scheme:dark; width:100%; }
+  /* ---------- capacity ---------- */
+  .stats { display: grid; gap: 12px; margin-bottom: 18px;
+           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .stat { background: var(--panel); border: 1px solid var(--line);
+          border-radius: var(--radius); padding: 14px 16px; }
+  .stat .n { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .stat .k { font-size: 11px; color: var(--text-mute); text-transform: uppercase;
+             letter-spacing: .05em; margin-top: 3px; }
 
-  /* banners + tables */
-  .banner { border-radius:var(--radius); padding:13px 15px; margin-bottom:14px;
-            border:1px solid; font-size:13px; }
-  .banner h4 { margin:0 0 7px; font-size:12px; font-weight:700;
-               text-transform:uppercase; letter-spacing:.05em; }
-  .banner ul { margin:0; padding-left:18px; }
-  .banner li { margin-bottom:4px; }
-  .banner li:last-child { margin-bottom:0; }
-  .banner.err{background:#2a1618;border-color:#7d2b2b;color:#f0b4b4}
-  .banner.warn{background:#2a2216;border-color:#7d5c2b;color:#e8cd9a}
-  .banner.ok{background:#16261a;border-color:#2b6b33;color:#a8d8b0}
-  .banner.info{background:#16202a;border-color:#2b5c7d;color:#a8c9e0}
-  .banner .who { font-weight:700; }
+  .list-table { width: 100%; border-collapse: collapse;
+                border: 1px solid var(--line); border-radius: var(--radius); }
+  .list-table th { background: var(--panel-2); text-align: left; padding: 9px 12px;
+                   font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                   color: var(--text-dim); position: static; }
+  .list-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); }
+  .list-table tr:last-child td { border-bottom: none; }
+  .num { text-align: right !important; font-variant-numeric: tabular-nums; }
+  .neg { color: #e08585; } .pos { color: #e0b385; }
 
-  .stats { display:grid; gap:12px; margin-bottom:18px;
-           grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); }
-  .stat { background:var(--panel); border:1px solid var(--line);
-          border-radius:var(--radius); padding:13px 15px; }
-  .stat .n { font-size:22px; font-weight:600; letter-spacing:-.02em; }
-  .stat .k { font-size:11px; color:var(--text-mute); text-transform:uppercase;
-             letter-spacing:.05em; margin-top:2px; }
-  .neg{color:#e08585} .pos{color:#e0b385}
-
-  table { width:100%; border-collapse:collapse; border:1px solid var(--line);
-          border-radius:var(--radius); overflow:hidden; }
-  th { background:var(--panel-2); text-align:left; padding:9px 12px; font-size:11px;
-       text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
-  td { padding:8px 12px; border-top:1px solid var(--line-soft); font-size:13px; }
-  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
-  tr.risk td { background:#251a1a; }
-  tr.dim td { opacity:.45; }
-
-  #toast { position:fixed; bottom:22px; right:22px; padding:13px 20px;
-           border-radius:var(--radius); font-weight:600; font-size:13.5px;
-           transform:translateY(200%); transition:transform .28s ease; z-index:100;
-           background:var(--ok); color:#fff; max-width:420px; }
-  #toast.show { transform:translateY(0); }
-  #toast.bad { background:var(--danger); }
-  .empty-state { padding:60px 24px; color:var(--text-mute); text-align:center; }
+  @media (prefers-reduced-motion: no-preference) {
+    .pane.active { animation: fade .2s ease; }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  }
 </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-head">
-    <div class="seg">
-      <button id="segStaff"  class="on" onclick="setMode('staff')">Staff<span class="n" id="nStaff"></span></button>
-      <button id="segShifts"          onclick="setMode('shifts')">Shifts<span class="n" id="nShifts"></span></button>
-    </div>
-    <input class="search" id="search" placeholder="Filter" oninput="renderList()">
-    <div style="margin-top:10px"><button class="btn" style="width:100%" id="addBtn" onclick="addRecord()">Add</button></div>
-  </div>
-  <div class="list" id="list"></div>
+<div class="top-nav">
+  <button class="nav-btn active">Schedule generator</button>
+  <button class="nav-btn" onclick="window.location.href='editor.html'">Staff editor</button>
 </div>
 
-<div class="main">
-  <div class="topbar">
-    <h2><span id="title">Roster editor</span><span class="dirty-dot" title="Unsaved changes"></span></h2>
-    <div class="actions">
-      <button class="btn ghost" onclick="goToScheduler()">Schedule generator</button>
-      <button class="btn ghost" onclick="revert()">Revert</button>
-      <button class="btn" id="saveBtn" onclick="save()">Save to server</button>
+<h1>Shift scheduler</h1>
+<div class="subtitle" id="epochNote">Pay periods and shift hours are defined by the server.</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="startDate">Start date</label>
+    <input type="date" id="startDate">
+  </div>
+  <div class="field">
+    <label for="endDate">End date</label>
+    <input type="date" id="endDate">
+  </div>
+  <div class="field">
+    <label>Snap to pay period</label>
+    <div class="quick-range">
+      <button class="chip" onclick="snapRange(1)">1 period</button>
+      <button class="chip" onclick="snapRange(2)">2 periods</button>
+      <button class="chip" onclick="snapRange(3)">3 periods</button>
     </div>
   </div>
-
-  <div class="tabs">
-    <button class="tab active" data-pane="edit" onclick="showPane('edit')" id="tabEdit">Person</button>
-    <button class="tab" data-pane="health" onclick="showPane('health')">Roster health<span class="count zero" id="issueCount">0</span></button>
-    <button class="tab" data-pane="coverage" onclick="showPane('coverage')">Shift coverage</button>
-  </div>
-
-  <div class="scroll">
-    <div class="pane active" id="pane-edit">
-      <div class="empty-state" id="editEmpty">Pick something from the list, or add a new one.</div>
-      <div id="editForm" style="display:none"></div>
-    </div>
-    <div class="pane" id="pane-health"></div>
-    <div class="pane" id="pane-coverage"></div>
-  </div>
+  <button class="btn" id="goBtn" onclick="generateSchedule()">Generate schedule</button>
+  <button class="btn ghost" id="csvBtn" onclick="exportCsv()" style="display:none">Export CSV</button>
 </div>
 
-<div id="toast"></div>
+<div id="results">
+  <div class="status">Pick a start and end date, then generate. Snapping to whole pay
+periods gives the cleanest hour totals — partial periods are prorated.</div>
+</div>
 
 <script>
 const API = 'https://bombmud.vineyard.haus/api';
 
-const WEEKDAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-const WEEKEND  = ["Saturday","Sunday"];
-
-// What each employment type means for the rest of the form.
-const TYPES = {
-  rotational: { label:'Rotational 7/7', short:'7/7',  home:true,  target:true,
-    note:'Works 7 on, 7 off, locked to the first home unit. The hours target and weekly cap do not apply, and any time-off rule punches a hole in that unit.' },
-  core:       { label:'Core',           short:'Core', home:true,  target:true,
-    note:'Has home units and an hours target. Working a backup unit costs a small float penalty, so the solver keeps them on their own unit where it can.' },
-  variable:   { label:'Variable',       short:'Var',  home:false, target:true,
-    note:'No home unit, but a real hours target the solver must hit. This is the flex layer that absorbs PTO across the units.' },
-  u_status:   { label:'U-status relief', short:'U',   home:false, target:false,
-    note:'Unscheduled relief. No hours target and no obligation. The solver uses them only to stop a line going empty, never to top anyone up. Confirm willingness before publishing.' },
-};
-
-// Fallback only. Replaced by GET /shifts at boot.
-let shifts = [];
-let staff  = [];
-let savedShifts = '[]', savedStaff = '[]';
-let DEFAULT_MAX_WEEKLY = 40;
-
-let MIN_REST_HOURS = 10;
-let DEFAULT_LUNCH = 30;
-
-// Clock maths is done in minutes past midnight. An overnight line has an
-// end past 1440, which is what makes the rest arithmetic work.
-const tmin  = t => { const [h,m] = String(t || '07:00').split(':').map(Number);
-                     return (h || 0) * 60 + (m || 0); };
-const thhmm = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' +
-                   String(Math.round(m) % 60).padStart(2,'0');
-const timeLabel = s => `${s.start_time}\u2013${s.end_time}${s.ends_next_day ? '+1' : ''}`;
-// Minutes off between working `a` on some day and `b` the next day.
-const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
-
-let mode = 'staff';
-let currentStaffId = null;
-let currentShift = null;      // shift name
-let issues = { errors:[], warnings:[], byStaff:{}, byShift:{} };
-
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const shiftNames  = () => shifts.map(s => s.name);
-const activeNames = () => shifts.filter(s => s.active).map(s => s.name);
-const shiftMeta   = n => shifts.find(s => s.name === n) || null;
-const curStaff    = () => staff.find(e => e.id === currentStaffId) || null;
-const curShift    = () => shifts.find(s => s.name === currentShift) || null;
-
-function typeOf(e) {
-  if (TYPES[e.employment_type]) return e.employment_type;
-  if (e.rotation) return 'rotational';
-  if ((e.home_shifts || []).length) return 'core';
-  return (e.target_hours || 0) > 0 ? 'variable' : 'u_status';
-}
+let LAST = null;     // full response from /generate
+let CONFIG = null;   // response from /config
 
 // ---------------------------------------------------------------------------
-// Boot
+// Boot: read pay-period config from the server so the UI never hardcodes it.
 // ---------------------------------------------------------------------------
 (async function boot() {
   try {
-    const cfg = await fetch(API + '/config');
-    if (cfg.ok) {
-      const j = await cfg.json();
-      if (j.default_max_weekly_hours) DEFAULT_MAX_WEEKLY = j.default_max_weekly_hours;
-      if (j.min_rest_hours) MIN_REST_HOURS = j.min_rest_hours;
-      if (j.default_lunch_minutes != null) DEFAULT_LUNCH = j.default_lunch_minutes;
+    const r = await fetch(API + '/config');
+    if (r.ok) {
+      CONFIG = await r.json();
+      document.getElementById('epochNote').textContent =
+        `Pay periods are ${CONFIG.pay_period_days} days, anchored to ` +
+        `${fmt(CONFIG.pay_period_epoch, {weekday:'long', month:'long', day:'numeric', year:'numeric'})}.`;
     }
-  } catch (e) { /* optional */ }
-
-  try {
-    const [sh, st] = await Promise.all([fetch(API + '/shifts'), fetch(API + '/staff')]);
-    if (!sh.ok) throw new Error('shifts: ' + sh.status);
-    if (!st.ok) throw new Error('staff: ' + st.status);
-    shifts = (await sh.json()).map(normalizeShift);
-    staff  = (await st.json()).map(normalizeStaff);
-    savedShifts = JSON.stringify(shifts);
-    savedStaff  = JSON.stringify(staff);
-    refresh();
-  } catch (e) {
-    toast('Could not load data: ' + e.message, true);
-    document.getElementById('list').innerHTML =
-      `<div class="empty-state">No connection to the API.</div>`;
-  }
+  } catch (e) { /* config is optional; snapping just gets disabled */ }
 })();
 
-function normalizeShift(r, i) {
-  let days = Array.isArray(r.days) && r.days.length ? r.days
-           : (r.weekends === false ? WEEKDAYS.slice(0,5) : WEEKDAYS.slice());
-  const s = {
-    name: String(r.name || '').trim(),
-    category: String(r.category || 'Uncategorised').trim(),
-    hours: Number(r.hours) || 10,
-    start_time: /^\d{1,2}:\d{2}$/.test(r.start_time || '') ? r.start_time : '07:00',
-    lunch_minutes: Number.isFinite(+r.lunch_minutes) ? +r.lunch_minutes : DEFAULT_LUNCH,
-    required: r.required === 0 ? 0 : (Number(r.required) || 1),
-    days: WEEKDAYS.filter(d => days.includes(d)),
-    active: r.active !== false,
-    order: r.order ?? i,
-  };
-  return recalc(s);
+// Dates from the API are plain YYYY-MM-DD. Parsing them with new Date(str)
+// treats them as UTC midnight and shifts them a day west of Greenwich, so
+// every date string gets a midday local time appended first.
+function fmt(dateStr, opts) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', opts);
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// end_time is always derived, never trusted, so editing hours or the start
-// time can never leave a stale end time behind.
-function recalc(s) {
-  s.start_minutes = tmin(s.start_time);
-  s.start_time = thhmm(s.start_minutes);
-  s.span_minutes = s.hours * 60 + s.lunch_minutes;
-  s.end_minutes = s.start_minutes + s.span_minutes;
-  s.end_time = thhmm(s.end_minutes);
-  s.ends_next_day = s.end_minutes >= 1440;
-  return s;
-}
+function snapRange(periods) {
+  if (!CONFIG) { alert('Server config unavailable, so snapping is off. Enter dates manually.'); return; }
+  const epoch = new Date(CONFIG.pay_period_epoch + 'T12:00:00');
+  const len = CONFIG.pay_period_days;
+  const today = new Date();
+  const elapsed = Math.floor((today - epoch) / 86400000);
+  const currentPeriod = Math.floor(elapsed / len);
 
-// Legacy staff records are missing newer fields. Fill them in once, on load,
-// so no downstream code has to guard against undefined arrays.
-function normalizeStaff(e) {
-  const base = {
-    id: e.id,
-    name: e.name || '',
-    employment_type: null,
-    rotation: e.rotation ?? null,
-    target_hours: Number(e.target_hours) || 0,
-    max_weekly_hours: Number(e.max_weekly_hours) || DEFAULT_MAX_WEEKLY,
-    weekend_preference: e.weekend_preference || 'target_equity',
-    home_shifts: Array.isArray(e.home_shifts) ? e.home_shifts.slice() : [],
-    backup_shifts: Array.isArray(e.backup_shifts) ? e.backup_shifts.slice() : [],
-    unavailable_weekdays: Array.isArray(e.unavailable_weekdays) ? e.unavailable_weekdays.slice() : [],
-    biweekly_unavailable: Array.isArray(e.biweekly_unavailable) ? e.biweekly_unavailable.slice() : [],
-    requested_days_off: Array.isArray(e.requested_days_off) ? e.requested_days_off.slice() : [],
-  };
-  base.employment_type = typeOf({ ...base, employment_type: e.employment_type });
-  return base;
-}
+  const start = new Date(epoch); start.setDate(start.getDate() + currentPeriod * len);
+  const end = new Date(start);   end.setDate(end.getDate() + periods * len - 1);
 
-function dirtyStaff()  { return JSON.stringify(staff)  !== savedStaff; }
-function dirtyShifts() { return JSON.stringify(shifts) !== savedShifts; }
-function isDirty()     { return dirtyStaff() || dirtyShifts(); }
-function markDirty()   { document.body.classList.toggle('dirty', isDirty()); }
-
-function refresh() {
-  validate();
-  renderList();
-  renderEdit();
-  renderHealth();
-  renderCoverage();
-  markDirty();
-}
-
-function setMode(m) {
-  mode = m;
-  document.getElementById('segStaff').classList.toggle('on', m === 'staff');
-  document.getElementById('segShifts').classList.toggle('on', m === 'shifts');
-  document.getElementById('addBtn').textContent = m === 'staff' ? 'Add person' : 'Add shift';
-  document.getElementById('tabEdit').textContent = m === 'staff' ? 'Person' : 'Shift';
-  document.getElementById('search').value = '';
-  renderList(); renderEdit(); showPane('edit');
+  const iso = d => d.toISOString().slice(0, 10);
+  document.getElementById('startDate').value = iso(start);
+  document.getElementById('endDate').value = iso(end);
 }
 
 // ---------------------------------------------------------------------------
-// Validation — mirrors run_prechecks() in app.py so problems surface here,
-// where they can be fixed, instead of at generate time.
+// Generate
 // ---------------------------------------------------------------------------
-function validate() {
-  const errors = [], warnings = [], byStaff = {}, byShift = {};
-  const flagS = (id, msg, lvl) => { (byStaff[id] = byStaff[id] || []).push({msg, level:lvl});
-                                    (lvl === 'error' ? errors : warnings).push({staff:id, msg}); };
-  const flagH = (nm, msg, lvl) => { (byShift[nm] = byShift[nm] || []).push({msg, level:lvl});
-                                    (lvl === 'error' ? errors : warnings).push({shift:nm, msg}); };
+async function generateSchedule() {
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const out = document.getElementById('results');
+  const btn = document.getElementById('goBtn');
+
+  if (!startDate || !endDate) { alert('Pick both a start and an end date.'); return; }
+  if (endDate < startDate) { alert('The end date falls before the start date.'); return; }
 
-  // --- shift catalogue ---
-  const nameCount = {};
-  shifts.forEach(s => { nameCount[s.name] = (nameCount[s.name] || 0) + 1; });
-  shifts.forEach(s => {
-    if (!s.name) errors.push({ msg: 'A shift has no name.' });
-    else if (nameCount[s.name] > 1) flagH(s.name, `The name "${s.name}" is used by more than one shift.`, 'error');
-    if (s.hours <= 0) flagH(s.name, 'Shift length must be at least one hour.', 'error');
-    if (s.active && !s.days.length) flagH(s.name, 'Active but runs on no days. Pick at least one, or switch it off.', 'error');
-    if (s.active && s.required === 0) flagH(s.name, 'Active but needs nobody, so it will never appear on the schedule.', 'warning');
-    if (s.span_minutes > 1440)
-      flagH(s.name, `Occupies ${(s.span_minutes/60).toFixed(1)} hours, which is more than a day.`, 'error');
-    else if (s.active && 1440 - s.span_minutes < MIN_REST_HOURS * 60)
-      flagH(s.name, `Runs ${timeLabel(s)}, leaving ${((1440-s.span_minutes)/60).toFixed(1)} h before the next day's start. That is under the ${MIN_REST_HOURS} h rest rule, so nobody can work it two days running.`, 'warning');
-  });
-  if (!shifts.some(s => s.active)) errors.push({ msg: 'Every shift is switched off.' });
-
-  // --- staff pointing at shifts that no longer exist ---
-  const known = new Set(shiftNames());
-  const orphanOwners = {};
-  staff.forEach(e => {
-    [...e.home_shifts, ...e.backup_shifts].forEach(s => {
-      if (!known.has(s)) (orphanOwners[s] = orphanOwners[s] || []).push(e);
-    });
-  });
-  Object.entries(orphanOwners).forEach(([s, owners]) => {
-    owners.forEach(e => flagS(e.id, `References "${s}", which is not in the shift catalogue.`, 'error'));
-  });
-
-  // --- staff records ---
-  const idCount = {};
-  staff.forEach(e => { idCount[e.id] = (idCount[e.id] || 0) + 1; });
-  const anchors = {};
-
-  staff.forEach(e => {
-    const t = typeOf(e), spec = TYPES[t];
-    const declaredHome = e.home_shifts;
-    const liveHome = declaredHome.filter(s => activeNames().includes(s));
-
-    if (idCount[e.id] > 1) flagS(e.id, `Employee ID ${e.id} is used more than once.`, 'error');
-    if (!e.name.trim()) flagS(e.id, 'This person has no name.', 'error');
-    if (!declaredHome.length && !e.backup_shifts.length)
-      flagS(e.id, 'No shifts at all, so this person can never be scheduled.', 'warning');
-
-    const overlap = e.backup_shifts.filter(s => declaredHome.includes(s));
-    if (overlap.length) flagS(e.id, `${overlap.join(', ')} listed twice. Home wins.`, 'warning');
-
-    if (!spec.home && declaredHome.length)
-      flagS(e.id, `${spec.label} staff have no home unit, but ${declaredHome.join(', ')} is set as one.`, 'warning');
-    if (!spec.target && e.target_hours > 0)
-      flagS(e.id, `${spec.label} staff are never scored against a target, but this one is set to ${e.target_hours} h. Set it to 0.`, 'warning');
-
-    if (t === 'rotational') {
-      if (!declaredHome.length) flagS(e.id, `On rotation ${e.rotation || '?'} but has no home unit to anchor to.`, 'error');
-      else if (!liveHome.length) flagS(e.id, `Anchored to "${declaredHome[0]}", which is switched off. They will not be scheduled at all.`, 'warning');
-      else {
-        const anchor = liveHome[0], m = shiftMeta(anchor);
-        const missing = WEEKDAYS.filter(d => !m.days.includes(d));
-        if (missing.length) flagS(e.id, `Anchored to ${anchor} on a 7-on/7-off rotation, but ${anchor} does not run on ${missing.join(', ')}.`, 'error');
-        // A rotational anchor is forced every on-week day, so a line that
-        // cannot legally repeat makes the whole model infeasible.
-        if (1440 - m.span_minutes < MIN_REST_HOURS * 60)
-          flagS(e.id, `Works ${anchor} seven days running, but it leaves only ${((1440-m.span_minutes)/60).toFixed(1)} h between days, under the ${MIN_REST_HOURS} h rest rule.`, 'error');
-        const key = e.rotation + '|' + anchor;
-        (anchors[key] = anchors[key] || []).push(e);
-        if (declaredHome.length > 1) flagS(e.id, `Rotational staff are locked to their first home unit (${anchor}). The others are ignored.`, 'warning');
-      }
-      if (e.unavailable_weekdays.length || e.biweekly_unavailable.length || e.requested_days_off.length)
-        flagS(e.id, 'Rotational, but also has time-off rules. Those days drop out of the rotation, so the unit needs backup cover on them.', 'warning');
-    } else if (t === 'core') {
-      if (!declaredHome.length) flagS(e.id, 'Core staff need a home unit. Switch them to Variable if they float.', 'error');
-      else if (!liveHome.length) flagS(e.id, `Home unit(s) ${declaredHome.join(', ')} are switched off. They will only work backup units.`, 'warning');
-      if (e.target_hours <= 0) flagS(e.id, 'Core staff need an hours target. Switch them to U-status if they have none.', 'warning');
-    } else if (t === 'variable' && e.target_hours <= 0) {
-      flagS(e.id, 'Variable staff need an hours target. Switch them to U-status if they have none.', 'warning');
-    }
-
-    // reachable hours under the weekly cap
-    if (spec.target && t !== 'rotational' && e.target_hours > 0) {
-      const pool = [...new Set([...declaredHome, ...e.backup_shifts])]
-        .map(shiftMeta).filter(Boolean).filter(m => m.active);
-      if (pool.length) {
-        // Pack the week with whichever single shift length fills the cap best.
-        const ceiling = Math.max(...pool.map(m =>
-          Math.floor(e.max_weekly_hours / m.hours) * m.hours)) * 2;
-        if (ceiling < e.target_hours)
-          flagS(e.id, `Targets ${e.target_hours} h per period, but a ${e.max_weekly_hours} h weekly cap tops out at ${ceiling} h given their shift lengths.`, 'warning');
-      }
-    }
-
-    if (e.requested_days_off.some(d => !d)) flagS(e.id, 'Has a blank day-off entry.', 'warning');
-    if (e.biweekly_unavailable.some(r => !r.anchor_date)) flagS(e.id, 'Has a bi-weekly rule with no anchor date, so it will be ignored.', 'warning');
-    e.biweekly_unavailable.forEach(r => {
-      if (!r.anchor_date) return;
-      const real = new Date(r.anchor_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long' });
-      if (real !== r.day) flagS(e.id, `Bi-weekly anchor ${r.anchor_date} is a ${real}, not a ${r.day}.`, 'error');
-    });
-  });
-
-  Object.entries(anchors).forEach(([key, list]) => {
-    if (list.length > 1) {
-      const [rot, sh] = key.split('|');
-      flagH(sh, `Two rotation-${rot} anchors: ${list.map(e => e.name).join(', ')}.`, 'error');
-    }
-  });
-
-  // --- every active line needs cover from someone who is actually obligated ---
-  shifts.filter(s => s.active && s.required > 0).forEach(s => {
-    const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
-    const obligated = pool.filter(e => typeOf(e) !== 'u_status');
-    if (!pool.length) flagH(s.name, 'Nobody is qualified for this shift. It can never be filled.', 'error');
-    else if (!obligated.length) flagH(s.name, 'Only u-status staff are qualified. Relief pickup is voluntary, so this line has no guaranteed cover.', 'error');
-    else if (s.days.some(d => WEEKEND.includes(d)) && !obligated.some(e => e.weekend_preference !== 'never'))
-      flagH(s.name, 'Runs on weekends, but no obligated staff qualified for it will work weekends.', 'error');
-
-    const present = ['A','B'].filter(r => anchors[r + '|' + s.name]);
-    if (present.length === 1)
-      flagH(s.name, `Has a rotation-${present[0]} anchor but no rotation-${present[0] === 'A' ? 'B' : 'A'} counterpart. Half of all weeks will be uncovered.`, 'warning');
-  });
-
-  issues = { errors, warnings, byStaff, byShift };
-  const n = errors.length + warnings.length;
-  const badge = document.getElementById('issueCount');
-  badge.textContent = n;
-  badge.classList.toggle('zero', n === 0);
-}
-
-function capacity() {
-  const demand = shifts.filter(s => s.active)
-    .reduce((t, s) => t + s.required * s.hours * s.days.length * 2, 0);
-  // Only rotational, core and variable hours are obligated. U-status is a
-  // voluntary bench and must not be counted as though it were guaranteed.
-  const committed = staff.filter(e => typeOf(e) !== 'u_status')
-    .reduce((t, e) => t + (e.target_hours || 0), 0);
-  const bench = staff.filter(e => typeOf(e) === 'u_status')
-    .reduce((t, e) => t + (e.max_weekly_hours || 0) * 2, 0);
-  return { demand, committed, bench, slack: committed - demand,
-           util: committed ? Math.round(1000 * demand / committed) / 10 : 0 };
-}
-
-// ---------------------------------------------------------------------------
-// Sidebar
-// ---------------------------------------------------------------------------
-function renderList() {
-  document.getElementById('nStaff').textContent  = ' ' + staff.length;
-  document.getElementById('nShifts').textContent = ' ' + shifts.length;
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  const list = document.getElementById('list');
-
-  if (mode === 'staff') {
-    const view = [...staff].sort((a,b) => a.name.localeCompare(b.name)).filter(e =>
-      !q || e.name.toLowerCase().includes(q) ||
-      [...e.home_shifts, ...e.backup_shifts].some(s => s.toLowerCase().includes(q)));
-    if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
-    list.innerHTML = view.map(e => {
-      const t = typeOf(e);
-      const bits = [];
-      if (e.rotation) bits.push('Rotation ' + e.rotation);
-      if (e.home_shifts.length) bits.push(e.home_shifts.join(' / '));
-      else bits.push(e.backup_shifts.slice(0,3).join(' / ') + (e.backup_shifts.length > 3 ? ' +' + (e.backup_shifts.length-3) : ''));
-      bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
-      return `<div class="item${e.id === currentStaffId ? ' active':''}${(issues.byStaff[e.id]||[]).length ? ' flagged':''}" onclick="selectStaff(${e.id})">
-        <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
-        <div class="sub">${esc(bits.filter(Boolean).join(' · '))}</div></div>`;
-    }).join('');
-  } else {
-    const view = shifts.filter(s =>
-      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
-    if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
-    let html = '', lastCat = null;
-    view.forEach(s => {
-      if (s.category !== lastCat) { html += `<div class="group-head">${esc(s.category)}</div>`; lastCat = s.category; }
-      const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)).length;
-      const runs = s.days.length === 7 ? '7 days' : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
-      html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
-        <div class="nm">${esc(s.name)}</div>
-        <div class="sub">${esc(timeLabel(s))} · ${s.hours}h · ${s.required}/day · ${runs} · ${pool} qualified</div></div>`;
-    });
-    list.innerHTML = html;
-  }
-}
-
-function selectStaff(id) { currentStaffId = id; renderList(); renderEdit(); showPane('edit'); }
-function selectShift(nm) { currentShift = nm; renderList(); renderEdit(); showPane('edit'); }
-
-// ---------------------------------------------------------------------------
-// Edit pane
-// ---------------------------------------------------------------------------
-function renderEdit() {
-  const empty = document.getElementById('editEmpty');
-  const form = document.getElementById('editForm');
-  const rec = mode === 'staff' ? curStaff() : curShift();
-  if (!rec) {
-    empty.style.display = ''; form.style.display = 'none';
-    document.getElementById('title').textContent = 'Roster editor';
-    return;
-  }
-  empty.style.display = 'none'; form.style.display = '';
-  document.getElementById('title').textContent = mode === 'staff' ? (rec.name || 'Unnamed') : rec.name;
-  form.innerHTML = mode === 'staff' ? staffForm(rec) : shiftForm(rec);
-}
-
-function issueBanner(list) {
-  if (!list || !list.length) return '';
-  return `<div class="banner ${list.some(i => i.level === 'error') ? 'err':'warn'}">
-    <h4>${list.length} issue${list.length > 1 ? 's':''} on this record</h4>
-    <ul>${list.map(i => `<li>${esc(i.msg)}</li>`).join('')}</ul></div>`;
-}
-
-// --- shift form ------------------------------------------------------------
-function shiftForm(s) {
-  const idx = shifts.indexOf(s);
-  const cats = [...new Set(shifts.map(x => x.category))].sort();
-  const home   = staff.filter(e => e.home_shifts.includes(s.name));
-  const backup = staff.filter(e => !e.home_shifts.includes(s.name) && e.backup_shifts.includes(s.name) && typeOf(e) !== 'u_status');
-  const relief = staff.filter(e => typeOf(e) === 'u_status' && (e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)));
-
-  const dayChips = WEEKDAYS.map(d =>
-    `<div class="chip ${s.days.includes(d) ? 'on':''}" onclick="toggleShiftDay('${d}')">${d.slice(0,3)}</div>`).join('');
-
-  const who = arr => arr.length
-    ? arr.map(e => esc(e.name.split(',')[0])).join(', ')
-    : '<span class="none">none</span>';
-
-  return `
-    ${issueBanner(issues.byShift[s.name])}
-
-    <div class="section">
-      <h3>Shift</h3>
-      <div class="grid">
-        <div class="field full">
-          <label for="sName">Name</label>
-          <input type="text" id="sName" value="${esc(s.name)}" onchange="renameShift(this.value)">
-          <div class="hint">Staff records point at this name. Changing it here updates every
-          record that references it, so edit it here rather than in the JSON.</div>
-        </div>
-        <div class="field">
-          <label for="sCat">Category</label>
-          <input type="text" id="sCat" list="catList" value="${esc(s.category)}"
-                 oninput="setShiftField('category', this.value)">
-          <datalist id="catList">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
-        </div>
-        <div class="field">
-          <label for="sHours">Paid hours</label>
-          <input type="number" id="sHours" min="1" max="24" value="${s.hours}"
-                 oninput="setShiftField('hours', parseInt(this.value) || 0)">
-        </div>
-        <div class="field">
-          <label for="sStart">Start time</label>
-          <input type="time" id="sStart" value="${esc(s.start_time)}"
-                 oninput="setShiftField('start_time', this.value)">
-        </div>
-        <div class="field">
-          <label for="sLunch">Unpaid lunch (minutes)</label>
-          <input type="number" id="sLunch" min="0" max="240" step="15" value="${s.lunch_minutes}"
-                 oninput="setShiftField('lunch_minutes', parseInt(this.value) || 0)">
-        </div>
-        <div class="field">
-          <label>End time</label>
-          <div class="derived">${esc(s.end_time)}${s.ends_next_day ? ' <span class="nextday">next day</span>' : ''}</div>
-          <div class="hint" style="margin:0">start + ${s.hours}h paid + ${s.lunch_minutes}m lunch
-          = ${(s.span_minutes/60).toFixed(1)}h on site</div>
-        </div>
-        <div class="field">
-          <label for="sReq">People needed per day</label>
-          <input type="number" id="sReq" min="0" max="10" value="${s.required}"
-                 oninput="setShiftField('required', parseInt(this.value) || 0)">
-        </div>
-        <div class="field">
-          <label>Status</label>
-          <label class="toggle">
-            <input type="checkbox" ${s.active ? 'checked':''} onchange="setShiftField('active', this.checked)">
-            Active${s.active ? '' : ' — excluded from scheduling'}
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Rest</h3>
-      <div class="hint">Minimum ${MIN_REST_HOURS} hours between leaving and coming back.
-      Occupied time is paid hours plus lunch, so this is clock time, not paid time.</div>
-      ${restPanel(s)}
-    </div>
-
-    <div class="section">
-      <h3>Days it runs</h3>
-      <div class="hint">A 7-on/7-off rotation can only be anchored to a shift that runs all seven days.</div>
-      <div class="chips">${dayChips}</div>
-      <div class="hint" style="margin-top:10px">
-        ${s.required * s.hours * s.days.length * 2} hours per pay period
-        (${s.required} &times; ${s.hours}h &times; ${s.days.length} days &times; 2 weeks)
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Who can work it</h3>
-      <div class="grid">
-        <div class="field"><label>Home (${home.length})</label><div>${who(home)}</div></div>
-        <div class="field"><label>Backup (${backup.length})</label><div>${who(backup)}</div></div>
-        <div class="field"><label>U-status relief (${relief.length})</label><div>${who(relief)}</div></div>
-      </div>
-    </div>
-
-    <div class="section" style="border-top:1px solid var(--line); padding-top:18px; display:flex; gap:8px; flex-wrap:wrap">
-      <button class="btn ghost" onclick="moveShift(-1)" ${idx === 0 ? 'disabled':''}>Move up</button>
-      <button class="btn ghost" onclick="moveShift(1)" ${idx === shifts.length-1 ? 'disabled':''}>Move down</button>
-      <button class="btn danger" onclick="deleteShift()">Delete shift</button>
-      <span class="hint" style="margin:0; align-self:center">Order sets the row order on the master grid.</span>
-    </div>`;
-}
-
-function restPanel(s) {
-  const repeat = (1440 - s.span_minutes) / 60;
-  const blocked = shifts.filter(x => x.active && restBetween(s, x) < MIN_REST_HOURS * 60);
-  const rows = blocked.length
-    ? blocked.map(x => `<li>${esc(x.name)} <span class="none">(${esc(timeLabel(x))}, only ${(restBetween(s,x)/60).toFixed(1)} h off)</span></li>`).join('')
-    : '<li>Nothing. Any line can follow this one.</li>';
-  return `
-    <div class="banner ${repeat < MIN_REST_HOURS ? 'warn' : 'info'}">
-      <h4>Worked two days running: ${repeat.toFixed(1)} h off</h4>
-      ${repeat < MIN_REST_HOURS
-        ? `Under the ${MIN_REST_HOURS} h minimum, so nobody can work this line on consecutive days. A 7-on/7-off rotation cannot be anchored to it.`
-        : `Above the ${MIN_REST_HOURS} h minimum, so this line can be worked on consecutive days.`}
-    </div>
-    <div class="hint" style="margin-bottom:6px">Cannot be followed the next day by
-    (${blocked.length}):</div>
-    <ul class="rest-list">${rows}</ul>`;
-}
-
-// --- staff form ------------------------------------------------------------
-function staffForm(e) {
-  const t = typeOf(e), spec = TYPES[t];
-  const chip = (s, field) => {
-    const m = shiftMeta(s);
-    const on = e[field].includes(s);
-    const dead = m && !m.active;
-    const lockedByHome = field === 'backup_shifts' && e.home_shifts.includes(s);
-    return `<div class="chip ${on ? (field === 'backup_shifts' ? 'on backup':'on') : ''} ${lockedByHome ? 'locked':''} ${dead ? 'dead':''}"
-      ${lockedByHome ? 'title="Already a home unit"' : `onclick="toggleStaffShift('${field}','${esc(s).replace(/'/g,"\\'")}')"`}
-      >${esc(s)}<span class="hrs">${m ? m.hours + 'h' : '?'}</span></div>`;
-  };
-
-  const homeChips   = shiftNames().map(s => chip(s, 'home_shifts')).join('');
-  const backupChips = shiftNames().map(s => chip(s, 'backup_shifts')).join('');
-  const weekdayChips = WEEKDAYS.map(d =>
-    `<div class="chip ${e.unavailable_weekdays.includes(d) ? 'on':''}" onclick="toggleStaffShift('unavailable_weekdays','${d}')">${d}</div>`).join('');
-
-  const daysOff = e.requested_days_off.length
-    ? e.requested_days_off.map((d,i) => `<div class="row">
-        <input type="date" value="${esc(d)}" onchange="setStaffArray('requested_days_off',${i},this.value)">
-        <button class="btn danger tiny" onclick="removeStaffAt('requested_days_off',${i})">Remove</button></div>`).join('')
-    : '<div class="none">None</div>';
-
-  const biweekly = e.biweekly_unavailable.length
-    ? e.biweekly_unavailable.map((r,i) => `<div class="row">
-        <select onchange="setBiweekly(${i},'day',this.value)">
-          ${WEEKDAYS.map(d => `<option ${r.day === d ? 'selected':''}>${d}</option>`).join('')}
-        </select>
-        <input type="date" value="${esc(r.anchor_date || '')}" onchange="setBiweekly(${i},'anchor_date',this.value)">
-        <button class="btn danger tiny" onclick="removeStaffAt('biweekly_unavailable',${i})">Remove</button></div>`).join('')
-    : '<div class="none">None</div>';
-
-  return `
-    ${issueBanner(issues.byStaff[e.id])}
-
-    <div class="section">
-      <h3>Basics</h3>
-      <div class="grid">
-        <div class="field full">
-          <label for="fName">Full name</label>
-          <input type="text" id="fName" value="${esc(e.name)}" placeholder="Last, First"
-                 oninput="setStaffField('name', this.value)">
-        </div>
-        <div class="field">
-          <label for="fType">Employment type</label>
-          <select id="fType" onchange="setType(this.value)">
-            ${Object.entries(TYPES).map(([k,v]) =>
-              `<option value="${k}" ${t === k ? 'selected':''}>${v.label}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field">
-          <label for="fTarget">Target hours per pay period</label>
-          <input type="number" id="fTarget" min="0" max="200" step="4" value="${e.target_hours}"
-                 ${spec.target ? '' : 'disabled title="U-status staff have no hours target"'}
-                 oninput="setStaffField('target_hours', parseInt(this.value) || 0)">
-        </div>
-        <div class="field">
-          <label for="fCap">Weekly hour cap</label>
-          <input type="number" id="fCap" min="0" max="84" step="4" value="${e.max_weekly_hours}"
-                 ${t === 'rotational' ? 'disabled title="7-on/7-off sets its own hours"' : ''}
-                 oninput="setStaffField('max_weekly_hours', parseInt(this.value) || 0)">
-        </div>
-        ${t === 'rotational' ? `
-        <div class="field">
-          <label for="fRot">Rotation week</label>
-          <select id="fRot" onchange="setStaffField('rotation', this.value)">
-            <option value="A" ${e.rotation === 'A' ? 'selected':''}>A — week 1 of each period</option>
-            <option value="B" ${e.rotation === 'B' ? 'selected':''}>B — week 2 of each period</option>
-          </select>
-        </div>` : ''}
-        <div class="field">
-          <label for="fWknd">Weekends</label>
-          <select id="fWknd" onchange="setStaffField('weekend_preference', this.value)">
-            <option value="target_equity" ${e.weekend_preference === 'target_equity' ? 'selected':''}>Fair share</option>
-            <option value="any" ${e.weekend_preference === 'any' ? 'selected':''}>No preference</option>
-            <option value="never" ${e.weekend_preference === 'never' ? 'selected':''}>Never</option>
-          </select>
-        </div>
-      </div>
-      <div class="banner info" style="margin-top:14px">${esc(spec.note)}</div>
-    </div>
-
-    ${spec.home ? `
-    <div class="section">
-      <h3>Home units</h3>
-      <div class="hint">The units this person normally covers.${t === 'rotational' ? ' The first one is their rotation anchor.' : ''}</div>
-      <div class="chips">${homeChips}</div>
-    </div>
-    <div class="section">
-      <h3>Backup units</h3>
-      <div class="hint">Units this person can float to. The solver uses these only when a home unit cannot otherwise be covered.</div>
-      <div class="chips">${backupChips}</div>
-    </div>` : `
-    <div class="section">
-      <h3>Units they can work</h3>
-      <div class="hint">${t === 'u_status'
-        ? 'Relief staff pick up only from this list, and only when a line would otherwise go empty.'
-        : 'Variable staff have no home unit. Pick every unit they are signed off on.'}</div>
-      <div class="chips">${backupChips}</div>
-    </div>`}
-
-    <div class="section">
-      <h3>Never available on</h3>
-      <div class="hint">Every week, without exception.</div>
-      <div class="chips">${weekdayChips}</div>
-    </div>
-
-    <div class="section">
-      <div class="grid">
-        <div class="field">
-          <h3>Requested days off <button class="btn ghost tiny" onclick="addDayOff()">Add date</button></h3>
-          <div class="rows">${daysOff}</div>
-        </div>
-        <div class="field">
-          <h3>Every other week <button class="btn ghost tiny" onclick="addBiweekly()">Add rule</button></h3>
-          <div class="hint">Pick a weekday and one date it falls on. That date repeats every 14 days.</div>
-          <div class="rows">${biweekly}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section" style="border-top:1px solid var(--line); padding-top:18px">
-      <button class="btn danger" onclick="removeStaff()">Delete ${esc(e.name || 'this person')}</button>
-    </div>`;
-}
-
-// ---------------------------------------------------------------------------
-// Shift mutations
-// ---------------------------------------------------------------------------
-// Renaming has to cascade. Staff records store shift NAMES, so a rename that
-// only touched the catalogue would silently strand every record pointing at it.
-function renameShift(raw) {
-  const s = curShift(); if (!s) return;
-  const next = String(raw || '').trim();
-  if (!next || next === s.name) { renderEdit(); return; }
-  if (shifts.some(x => x !== s && x.name === next)) {
-    toast(`There is already a shift called "${next}".`, true);
-    renderEdit(); return;
-  }
-  const old = s.name;
-  let touched = 0;
-  staff.forEach(e => {
-    ['home_shifts','backup_shifts'].forEach(f => {
-      const i = e[f].indexOf(old);
-      if (i >= 0) { e[f][i] = next; touched++; }
-    });
-  });
-  s.name = next;
-  currentShift = next;
-  refresh();
-  toast(touched ? `Renamed to "${next}" and updated ${touched} staff reference(s).`
-                : `Renamed to "${next}".`);
-}
-
-function setShiftField(field, value) {
-  const s = curShift(); if (!s) return;
-  s[field] = value;
-  if (['hours', 'start_time', 'lunch_minutes'].includes(field)) {
-    recalc(s);
-    // The end time and rest panel are derived, so the form has to redraw.
-    const active = document.activeElement?.id;
-    renderEdit();
-    if (active) { const el = document.getElementById(active); if (el) el.focus(); }
-    validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
-    return;
-  }
-  if (field === 'active') refresh();
-  else { validate(); renderList(); renderCoverage(); renderHealth(); markDirty(); }
-}
-
-function toggleShiftDay(day) {
-  const s = curShift(); if (!s) return;
-  const i = s.days.indexOf(day);
-  if (i >= 0) s.days.splice(i, 1); else s.days.push(day);
-  s.days = WEEKDAYS.filter(d => s.days.includes(d));
-  refresh();
-}
-
-function moveShift(dir) {
-  const s = curShift(); if (!s) return;
-  const i = shifts.indexOf(s), j = i + dir;
-  if (j < 0 || j >= shifts.length) return;
-  shifts.splice(i, 1); shifts.splice(j, 0, s);
-  shifts.forEach((x, k) => { x.order = k; });
-  refresh();
-}
-
-function deleteShift() {
-  const s = curShift(); if (!s) return;
-  const owners = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
-  const msg = owners.length
-    ? `${owners.length} staff record(s) reference "${s.name}". Deleting it will remove those references too.\n\nConsider switching the shift off instead — that keeps the references intact.\n\nDelete anyway?`
-    : `Delete "${s.name}"?`;
-  if (!confirm(msg)) return;
-  owners.forEach(e => {
-    e.home_shifts = e.home_shifts.filter(x => x !== s.name);
-    e.backup_shifts = e.backup_shifts.filter(x => x !== s.name);
-  });
-  shifts = shifts.filter(x => x !== s);
-  currentShift = null;
-  refresh();
-  toast(`Deleted "${s.name}"${owners.length ? ` and cleared ${owners.length} reference(s)` : ''}.`);
-}
-
-// ---------------------------------------------------------------------------
-// Staff mutations. Text inputs re-validate without rebuilding the form, so
-// focus and caret position survive typing.
-// ---------------------------------------------------------------------------
-function setStaffField(field, value) {
-  const e = curStaff(); if (!e) return;
-  e[field] = value;
-  if (field === 'name') document.getElementById('title').textContent = value || 'Unnamed';
-  validate(); renderList(); markDirty();
-}
-
-// Changing type has to move data, not just relabel it: a core pharmacist made
-// variable keeps their units, but as things they *can* work rather than own.
-function setType(newType) {
-  const e = curStaff(); if (!e) return;
-  const spec = TYPES[newType];
-  e.employment_type = newType;
-
-  if (!spec.home && e.home_shifts.length) {
-    e.home_shifts.forEach(s => { if (!e.backup_shifts.includes(s)) e.backup_shifts.push(s); });
-    e.home_shifts = [];
-  }
-  if (spec.home && !e.home_shifts.length && e.backup_shifts.length) {
-    e.home_shifts = [e.backup_shifts.shift()];
-  }
-  if (!spec.target) e.target_hours = 0;
-  else if (!e.target_hours) e.target_hours = 80;
-
-  if (newType === 'rotational') {
-    if (!e.rotation) e.rotation = 'A';
-    e.target_hours = 70;
-  } else {
-    e.rotation = null;
-  }
-  refresh();
-}
-
-function toggleStaffShift(field, value) {
-  const e = curStaff(); if (!e) return;
-  const i = e[field].indexOf(value);
-  if (i >= 0) e[field].splice(i, 1); else e[field].push(value);
-  // Promoting a unit to home should not leave it duplicated in backup.
-  if (field === 'home_shifts' && i < 0) {
-    const b = e.backup_shifts.indexOf(value);
-    if (b >= 0) e.backup_shifts.splice(b, 1);
-  }
-  refresh();
-}
-
-function setStaffArray(field, index, value) {
-  const e = curStaff(); if (!e) return;
-  e[field][index] = value;
-  validate(); renderList(); renderEdit(); markDirty();
-}
-
-function removeStaffAt(field, index) {
-  const e = curStaff(); if (!e) return;
-  e[field].splice(index, 1);
-  refresh();
-}
-
-function setBiweekly(index, key, value) {
-  const e = curStaff(); if (!e) return;
-  e.biweekly_unavailable[index][key] = value;
-  validate(); renderList(); renderEdit(); markDirty();
-}
-
-function addDayOff()   { const e = curStaff(); if (!e) return; e.requested_days_off.push(''); refresh(); }
-function addBiweekly() { const e = curStaff(); if (!e) return; e.biweekly_unavailable.push({day:'Monday', anchor_date:''}); refresh(); }
-
-function addRecord() {
-  if (mode === 'staff') {
-    const nextId = staff.reduce((m,e) => Math.max(m, e.id), -1) + 1;
-    staff.push(normalizeStaff({ id: nextId, name: '', target_hours: 80, employment_type: 'core' }));
-    currentStaffId = nextId;
-    document.getElementById('search').value = '';
-    refresh(); showPane('edit');
-    setTimeout(() => document.getElementById('fName')?.focus(), 20);
-  } else {
-    let n = 1, name;
-    do { name = 'New Shift ' + n++; } while (shifts.some(s => s.name === name));
-    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10,
-                                 start_time:'07:00', lunch_minutes:DEFAULT_LUNCH,
-                                 required:1 }, shifts.length));
-    currentShift = name;
-    document.getElementById('search').value = '';
-    refresh(); showPane('edit');
-    setTimeout(() => document.getElementById('sName')?.select(), 20);
-  }
-}
-
-function removeStaff() {
-  const e = curStaff(); if (!e) return;
-  if (!confirm(`Delete ${e.name || 'this person'}? Not saved until you press Save.`)) return;
-  staff = staff.filter(x => x.id !== e.id);
-  currentStaffId = null;
-  refresh();
-}
-
-// ---------------------------------------------------------------------------
-// Health + coverage
-// ---------------------------------------------------------------------------
-function renderHealth() {
-  const c = capacity();
-  const nameOf = id => staff.find(e => e.id === id)?.name || '';
-  const line = i => i.staff != null
-    ? `<li><span class="who">${esc(nameOf(i.staff))}</span> — ${esc(i.msg)}</li>`
-    : (i.shift ? `<li><span class="who">${esc(i.shift)}</span> — ${esc(i.msg)}</li>`
-               : `<li>${esc(i.msg)}</li>`);
-
-  let html = `
-    <div class="stats">
-      <div class="stat"><div class="n">${c.demand}</div><div class="k">Hours demanded / period</div></div>
-      <div class="stat"><div class="n">${c.committed}</div><div class="k">Obligated hours</div></div>
-      <div class="stat"><div class="n ${c.slack < 0 ? 'neg':'pos'}">${c.slack > 0 ? '+':''}${c.slack}</div><div class="k">Slack</div></div>
-      <div class="stat"><div class="n">${c.util}%</div><div class="k">Utilization</div></div>
-      <div class="stat"><div class="n">${c.bench}</div><div class="k">U-status bench</div></div>
-    </div>
-    <div class="banner info">Obligated hours count rotational, core and variable targets.
-    The u-status bench sits on top and nobody is required to work any of it, so the
-    schedule should stand up without it.</div>`;
-
-  if (c.slack > c.demand * 0.05) {
-    html += `<div class="banner warn"><h4>More obligated hours than shifts to put them in</h4>
-      Targets exceed demand by ${c.slack} hours per pay period, so some people cannot reach
-      their target however the solver arranges things. Lower some targets, raise the people-per-day
-      on the lines that really run more than one, or move the most flexible people to u-status.</div>`;
-  } else if (c.slack < 0) {
-    html += `<div class="banner warn"><h4>More shifts than obligated hours</h4>
-      Demand exceeds targets by ${-c.slack} hours per pay period. The schedule will have to lean
-      on voluntary u-status pickup, which nobody is required to give.</div>`;
-  }
-
-  if (issues.errors.length)
-    html += `<div class="banner err"><h4>${issues.errors.length} blocking problem${issues.errors.length > 1 ? 's':''}</h4>
-      <ul>${issues.errors.map(line).join('')}</ul></div>`;
-  if (issues.warnings.length)
-    html += `<div class="banner warn"><h4>${issues.warnings.length} thing${issues.warnings.length > 1 ? 's':''} to look at</h4>
-      <ul>${issues.warnings.map(line).join('')}</ul></div>`;
-  if (!issues.errors.length && !issues.warnings.length)
-    html += `<div class="banner ok"><h4>Nothing flagged</h4>
-      Every record passes the same checks the solver runs before it starts.</div>`;
-
-  document.getElementById('pane-health').innerHTML = html;
-}
-
-function renderCoverage() {
-  const rows = shifts.map(s => {
-    const qual   = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
-    const home   = qual.filter(e => e.home_shifts.includes(s.name));
-    const backup = qual.filter(e => !e.home_shifts.includes(s.name) && typeOf(e) !== 'u_status');
-    const relief = qual.filter(e => typeOf(e) === 'u_status');
-    const obligated = qual.filter(e => typeOf(e) !== 'u_status');
-    const rot = staff.filter(e => e.rotation && e.home_shifts[0] === s.name).map(e => e.rotation).sort().join('/');
-    const runsWknd = s.days.some(d => WEEKEND.includes(d));
-    const wkndPool = obligated.filter(e => e.weekend_preference !== 'never');
-    const risky = s.active && s.required > 0 &&
-      (!obligated.length || (runsWknd && !wkndPool.length) || (rot && rot !== 'A/B'));
-    const runs = s.days.length === 7 ? '7 days'
-               : (s.days.length === 5 && !runsWknd ? 'Weekdays' : s.days.map(d => d.slice(0,2)).join(''));
-    return `<tr class="${risky ? 'risk':''} ${s.active ? '':'dim'}" onclick="selectShiftFromTable('${esc(s.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
-      <td><strong>${esc(s.name)}</strong>${s.active ? '' : ' <span class="none">(off)</span>'}</td>
-      <td>${esc(s.category)}</td>
-      <td style="white-space:nowrap">${esc(timeLabel(s))}</td>
-      <td class="num">${s.hours}h</td>
-      <td class="num">${s.required}</td>
-      <td>${runs}</td>
-      <td class="num">${home.length}</td>
-      <td class="num">${backup.length}</td>
-      <td class="num">${relief.length || '—'}</td>
-      <td class="num">${runsWknd ? wkndPool.length : '—'}</td>
-      <td>${rot || '—'}</td>
-      <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('pane-coverage').innerHTML = `
-    <div class="banner info">Backup and weekend counts exclude u-status, since relief pickup is
-    voluntary. Rows in red have no obligated staff, no weekend-eligible obligated staff, or an
-    unpaired rotation. Click a row to edit that shift.</div>
-    <table><thead><tr>
-      <th>Shift</th><th>Category</th><th>Hours</th><th class="num">Paid</th><th class="num">Need</th><th>Runs</th>
-      <th class="num">Home</th><th class="num">Backup</th><th class="num">Relief</th>
-      <th class="num">Wknd</th><th>Rot</th><th class="num">Hrs/pd</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
-}
-
-function selectShiftFromTable(nm) { setMode('shifts'); selectShift(nm); }
-
-function showPane(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
-  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
-}
-
-// ---------------------------------------------------------------------------
-// Save / revert / navigate
-// ---------------------------------------------------------------------------
-async function save() {
-  if (issues.errors.length &&
-      !confirm(`${issues.errors.length} blocking problem(s) remain. Save anyway?`)) return;
-
-  const btn = document.getElementById('saveBtn');
   btn.disabled = true;
-  const done = [];
+  document.getElementById('csvBtn').style.display = 'none';
+  out.innerHTML = '<div class="status">Loading staff and solving. This can take up to 30 seconds.</div>';
+
   try {
-    // Shifts first: if a rename happened, the staff payload already points at
-    // the new names, and saving those against the old catalogue would orphan them.
-    if (dirtyShifts()) {
-      const r = await fetch(API + '/shifts', { method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(shifts.map((s,i) => ({ ...s, order:i }))) });
-      const b = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(b.message || ('shifts: ' + r.status));
-      savedShifts = JSON.stringify(shifts);
-      done.push(`${shifts.length} shifts`);
-    }
-    if (dirtyStaff()) {
-      // Blank dates would be stored and then silently ignored by the solver.
-      const payload = staff.map(e => ({ ...e,
-        name: e.name.trim(),
-        requested_days_off: e.requested_days_off.filter(Boolean).sort(),
-        biweekly_unavailable: e.biweekly_unavailable.filter(r => r.anchor_date) }));
-      const r = await fetch(API + '/staff', { method:'POST',
-        headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      const b = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(b.message || ('staff: ' + r.status));
-      staff = payload.map(normalizeStaff);
-      savedStaff = JSON.stringify(staff);
-      done.push(`${staff.length} staff`);
-    }
-    refresh();
-    toast(done.length ? 'Saved ' + done.join(' and ') + '.' : 'Nothing had changed.');
-  } catch (e) {
-    toast('Save failed: ' + e.message, true);
+    const staffRes = await fetch(API + '/staff');
+    if (!staffRes.ok) throw new Error('Could not load staff from the server.');
+    const employees = await staffRes.json();
+    if (!employees.length) throw new Error('The staff list on the server is empty.');
+
+    const res = await fetch(API + '/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, employees })
+    });
+    const data = await res.json();
+
+    if (data.status !== 'success') { renderFailure(data); return; }
+
+    LAST = data;
+    document.getElementById('csvBtn').style.display = '';
+    render(data);
+  } catch (err) {
+    out.innerHTML = `<div class="banner err"><h4>Request failed</h4>${esc(err.message)}</div>`;
   } finally {
     btn.disabled = false;
   }
 }
 
-function revert() {
-  if (!isDirty()) { toast('Nothing to revert.'); return; }
-  if (!confirm('Discard all unsaved changes to both staff and shifts?')) return;
-  shifts = JSON.parse(savedShifts).map(normalizeShift);
-  staff  = JSON.parse(savedStaff).map(normalizeStaff);
-  if (!staff.some(e => e.id === currentStaffId)) currentStaffId = null;
-  if (!shifts.some(s => s.name === currentShift)) currentShift = null;
-  refresh();
-  toast('Reverted to the last saved version.');
+function renderFailure(data) {
+  let html = `<div class="banner err"><h4>Cannot build a schedule</h4>${esc(data.message || 'Unknown error.')}`;
+  if (data.conflicts?.length) {
+    html += `<ul>${data.conflicts.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`;
+  }
+  html += `</div>`;
+  if (data.warnings?.length) {
+    html += `<div class="banner warn"><h4>Also worth checking</h4><ul>${
+      data.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+  }
+  document.getElementById('results').innerHTML = html;
 }
 
-function goToScheduler() {
-  if (isDirty() && !confirm('You have unsaved changes. Leave without saving?')) return;
-  window.location.href = 'schedule.html';
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function render(data) {
+  const gapCount = data.shortages?.length || 0;
+  const warnCount = data.meta.warnings?.length || 0;
+
+  let banners = '';
+  if (warnCount) {
+    banners += `<div class="banner warn"><h4>${warnCount} thing${warnCount > 1 ? 's' : ''} to look at</h4><ul>${
+      data.meta.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+  }
+
+  document.getElementById('results').innerHTML = `
+    ${banners}
+    <div class="tabs">
+      <button class="tab active" data-pane="grid" onclick="showPane('grid')">Master grid</button>
+      <button class="tab" data-pane="people" onclick="showPane('people')">Pay period breakdown</button>
+      <button class="tab" data-pane="gaps" onclick="showPane('gaps')">Gaps<span class="count">${gapCount}</span></button>
+      <button class="tab" data-pane="capacity" onclick="showPane('capacity')">Capacity</button>
+    </div>
+    <div class="pane active" id="pane-grid">${buildGrid(data)}</div>
+    <div class="pane" id="pane-people">${buildPeople(data)}</div>
+    <div class="pane" id="pane-gaps">${buildGaps(data)}</div>
+    <div class="pane" id="pane-capacity">${buildCapacity(data)}</div>
+  `;
 }
 
-window.addEventListener('beforeunload', ev => {
-  if (isDirty()) { ev.preventDefault(); ev.returnValue = ''; }
-});
-window.addEventListener('keydown', ev => {
-  if ((ev.metaKey || ev.ctrlKey) && ev.key === 's') { ev.preventDefault(); save(); }
-});
+function showPane(name) {
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.pane === name));
+  document.querySelectorAll('.pane').forEach(p =>
+    p.classList.toggle('active', p.id === 'pane-' + name));
+}
 
-let toastTimer;
-function toast(msg, bad) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.toggle('bad', !!bad);
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
+// Home assignments are unmarked. Everything else says why it is not.
+const COV = {
+  float:    ['F', 'Float: core staff covering off their home unit'],
+  variable: ['V', 'Variable staff: no home unit, but a real hours target'],
+  relief:   ['R', 'U-status relief: voluntary pickup, not obligated'],
+};
+function covTag(c) {
+  const m = COV[c];
+  return m ? `<span class="cov ${c}" title="${m[1]}">${m[0]}</span>` : '';
+}
+
+// Times come from the backend already formatted; the frontend never does
+// clock arithmetic of its own.
+function timeLabel(x) {
+  if (!x || !x.start_time) return '';
+  return `${x.start_time}\u2013${x.end_time}${x.ends_next_day ? '+1' : ''}`;
+}
+
+const TYPE_LABEL = {
+  rotational: 'Rotational 7/7',
+  core: 'Core',
+  variable: 'Variable',
+  u_status: 'U-status relief',
+};
+
+// --- Master grid -----------------------------------------------------------
+function buildGrid(data) {
+  const order = data.meta.shift_order;
+  const days = data.schedule;
+
+  let head = '<tr><th class="corner">Shift</th>';
+  days.forEach(d => {
+    head += `<th class="${d.is_weekend ? 'wknd' : ''}">${esc(d.label)}</th>`;
+  });
+  head += '</tr>';
+
+  let body = '';
+  const catalog = {};
+  (data.meta.shift_catalog || []).forEach(c => { catalog[c.name] = c; });
+
+  order.forEach(shiftName => {
+    const c = catalog[shiftName];
+    body += `<tr><td class="shift-name">${esc(shiftName)}${
+      c ? `<div class="row-time">${esc(timeLabel(c))} &middot; ${c.hours}h</div>` : ''}</td>`;
+    days.forEach(d => {
+      const people = d.shifts.filter(s => s.shift === shiftName);
+      const gap = d.gaps.find(g => g.shift === shiftName);
+      const cls = [];
+      if (d.is_weekend) cls.push('wknd-col');
+      if (people.length) cls.push('filled');
+      if (gap) cls.push('gap');
+      if (people.some(p => p.coverage === 'relief')) cls.push('has-relief');
+
+      let cell = '';
+      people.forEach(p => {
+        cell += `<div>${esc(p.display_name)}${covTag(p.coverage)}</div>`;
+      });
+      if (gap) cell += `<div>unfilled</div>`;
+      if (!cell) cell = '<span style="color:var(--text-mute)">&middot;</span>';
+
+      body += `<td class="${cls.join(' ')}">${cell}</td>`;
+    });
+    body += '</tr>';
+  });
+
+  return `<div class="table-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+// --- Pay period breakdown --------------------------------------------------
+// Every number here comes straight from the server. The frontend used to
+// recompute pay periods and shift hours on its own, which is how the two
+// sides drifted apart.
+function buildPeople(data) {
+  const cards = data.employee_summary.map(emp => {
+    const t = emp.employment_type;
+    const typeCls = t === 'u_status' ? 'relief' : (t === 'variable' ? 'variable' : 'core');
+    const typePill = `<span class="pill ${typeCls}">${esc(TYPE_LABEL[t] || t)}${
+      emp.rotation ? ' ' + esc(emp.rotation) : ''}</span>`;
+    const home = emp.home_shifts.length
+      ? `<span class="pill">${esc(emp.home_shifts.join(' / '))}</span>` : '';
+
+    let periods = emp.periods.map(p => {
+      let cls = 'na', text = `${p.scheduled_hours} h`;
+      if (p.scored) {
+        cls = p.delta === 0 ? 'ok' : (p.delta < 0 ? 'short' : 'over');
+        text = `${p.scheduled_hours} / ${p.target_hours} h`;
+      }
+      const why = p.scored
+        ? `Target ${p.target_hours} h` + (p.is_partial ? ', prorated for a partial period' : '')
+        : (emp.employment_type === 'u_status'
+            ? 'U-status relief has no hours target'
+            : 'Fixed 7-on/7-off rotation, so no target is scored');
+
+      const rows = p.shifts.length
+        ? p.shifts.map(s => `
+            <div class="row ${s.is_weekend ? 'wknd' : ''}">
+              <span class="date">${esc(s.label)}</span>
+              <span class="shift">${esc(s.shift)} <span class="tm">${esc(timeLabel(s))}</span>${covTag(s.coverage)}</span>
+            </div>`).join('')
+        : '<div class="empty">No shifts in this period.</div>';
+
+      return `
+        <div class="pp">
+          <div class="pp-head">
+            <span class="pp-label">${esc(p.label)}${
+              p.is_partial ? ` <span class="partial">(${p.days_in_range} of 14 days)</span>` : ''}</span>
+            <span class="badge ${cls}" title="${why}">${text}</span>
+          </div>
+          ${rows}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-name">${esc(emp.name)}</div>
+          <div class="card-meta">
+            ${typePill}${home}
+            <span class="pill">${emp.total_hours} h total</span>
+            <span class="pill">${emp.weekend_days} weekend day${emp.weekend_days === 1 ? '' : 's'}</span>
+            ${emp.float_shifts ? `<span class="pill">${emp.float_shifts} float</span>` : ''}
+          </div>
+        </div>
+        ${periods}
+      </div>`;
+  }).join('');
+
+  return `<div class="card-grid">${cards}</div>`;
+}
+
+// --- Gaps ------------------------------------------------------------------
+function buildGaps(data) {
+  if (!data.shortages?.length) {
+    return `<div class="banner info"><h4>Full coverage</h4>Every required slot in this
+      window has someone assigned to it.</div>`;
+  }
+  return `
+    <div class="banner err"><h4>${data.shortages.length} unfilled slot${
+      data.shortages.length > 1 ? 's' : ''}</h4>
+      No available, qualified person could take these. Widen someone's backup
+      shifts, relax a time-off rule, or lower the required headcount.</div>
+    <table class="list-table"><thead><tr><th>Slot</th></tr></thead><tbody>${
+      data.shortages.map(s => `<tr><td>${esc(s)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// --- Capacity --------------------------------------------------------------
+function buildCapacity(data) {
+  const c = data.meta.capacity;
+  const slackClass = c.slack_hours < 0 ? 'neg' : 'pos';
+  const hc = c.headcount || {};
+  const hcLine = Object.keys(TYPE_LABEL)
+    .filter(k => hc[k])
+    .map(k => `${hc[k]} ${TYPE_LABEL[k].toLowerCase()}`)
+    .join(' &middot; ');
+
+  const rows = [...data.employee_summary]
+    .sort((a, b) => {
+      const da = a.periods.reduce((t, p) => t + (p.scored ? p.delta : 0), 0);
+      const db = b.periods.reduce((t, p) => t + (p.scored ? p.delta : 0), 0);
+      return da - db;
+    })
+    .map(emp => {
+      const scored = emp.periods.filter(p => p.scored);
+      const target = scored.reduce((t, p) => t + p.target_hours, 0);
+      const delta = emp.total_hours - target;
+      const deltaCell = scored.length
+        ? `<td class="num ${delta < 0 ? 'neg' : (delta > 0 ? 'pos' : '')}">${
+            delta > 0 ? '+' : ''}${delta}</td>`
+        : `<td class="num" style="color:var(--text-mute)">fixed</td>`;
+      return `<tr>
+        <td>${esc(emp.name)}</td>
+        <td>${esc(TYPE_LABEL[emp.employment_type] || emp.employment_type)}</td>
+        <td>${esc(emp.home_shifts[0] || '—')}</td>
+        <td class="num">${emp.total_shifts}</td>
+        <td class="num">${emp.total_hours}</td>
+        <td class="num">${scored.length ? target : '—'}</td>
+        ${deltaCell}
+        <td class="num">${emp.weekend_days}</td>
+      </tr>`;
+    }).join('');
+
+  return `
+    <div class="stats">
+      <div class="stat"><div class="n">${c.demand_hours}</div><div class="k">Hours demanded</div></div>
+      <div class="stat"><div class="n">${c.committed_hours}</div><div class="k">Obligated staff hours</div></div>
+      <div class="stat"><div class="n ${slackClass}">${c.slack_hours > 0 ? '+' : ''}${c.slack_hours}</div><div class="k">Slack</div></div>
+      <div class="stat"><div class="n">${c.utilization_pct}%</div><div class="k">Utilization</div></div>
+      <div class="stat"><div class="n">${data.meta.relief_shifts_used}</div><div class="k">Relief shifts used</div></div>
+      <div class="stat"><div class="n">${data.meta.min_rest_hours}h</div><div class="k">Minimum rest enforced</div></div>
+      <div class="stat"><div class="n">${data.meta.solve_seconds}s</div><div class="k">${esc(data.meta.solver_status)}</div></div>
+    </div>
+    <div class="banner info">${hcLine}. Obligated hours count rotational, core and
+    variable targets only. U-status relief adds ${c.relief_bench_hours} h of
+    capacity on top, none of which anyone is required to work.</div>
+    <table class="list-table">
+      <thead><tr>
+        <th>Name</th><th>Type</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
+        <th class="num">Target</th><th class="num">Delta</th><th class="num">Wknd days</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// --- CSV -------------------------------------------------------------------
+function exportCsv() {
+  if (!LAST) return;
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [['Date', 'Day', 'Shift', 'Start', 'End', 'Ends next day', 'Paid hours',
+                  'Employee', 'Coverage', 'Pay period'].join(',')];
+
+  LAST.schedule.forEach(d => {
+    d.shifts.forEach(s => lines.push([
+      q(d.date), q(d.day_of_week), q(s.shift), q(s.start_time), q(s.end_time),
+      s.ends_next_day ? 'Y' : '', s.hours,
+      q(s.employee_name), q(s.coverage), d.pp_index
+    ].join(',')));
+    d.gaps.forEach(g => lines.push([
+      q(d.date), q(d.day_of_week), q(g.shift), '', '', '', '',
+      q('UNFILLED'), '', d.pp_index
+    ].join(',')));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `schedule_${LAST.meta.start_date}_to_${LAST.meta.end_date}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 </script>
 </body>
