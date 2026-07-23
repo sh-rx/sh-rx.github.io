@@ -252,20 +252,20 @@ const API = 'https://bombmud.vineyard.haus/api';
 // Mirrors SHIFT_CONFIG in app.py. Replaced by GET /config at boot so the two
 // never drift; this is only the offline fallback.
 let SHIFT_CONFIG = [
-  { name: "ED Day",     hours: 12, required: 1, weekends: true  },
+  { name: "ED Day",     hours: 12, required: 2, weekends: true  },
   { name: "ED Ngt",     hours: 10, required: 1, weekends: true  },
   { name: "ICU",        hours: 10, required: 1, weekends: true  },
   { name: "CVCU",       hours: 10, required: 1, weekends: true  },
   { name: "ICU Swg",    hours: 10, required: 1, weekends: true  },
   { name: "Onc",        hours: 10, required: 1, weekends: true  },
-  { name: "Med",        hours: 10, required: 1, weekends: false },
+  { name: "Med",        hours: 10, required: 2, weekends: false },
   { name: "MedSurg",    hours: 10, required: 1, weekends: true  },
   { name: "D5",         hours: 10, required: 1, weekends: true  },
   { name: "FBC",        hours: 10, required: 1, weekends: true  },
-  { name: "IP Day",     hours: 10, required: 1, weekends: true  },
+  { name: "IP Day",     hours: 10, required: 2, weekends: true  },
   { name: "IWC",        hours: 10, required: 1, weekends: false },
   { name: "OR",         hours: 10, required: 1, weekends: false },
-  { name: "IV Day",     hours: 10, required: 1, weekends: true  },
+  { name: "IV Day",     hours: 10, required: 2, weekends: true  },
   { name: "IV Swg",     hours: 10, required: 1, weekends: true  },
   { name: "IV Ngt",     hours: 10, required: 1, weekends: true  },
   { name: "IP Day Res", hours: 10, required: 1, weekends: true  },
@@ -390,10 +390,13 @@ function validate() {
       // Reachable hours under the weekly cap
       const pool = [...new Set([...home, ...backup])];
       if (pool.length && e.target_hours > 0) {
-        const shortest = Math.min(...pool.map(s => shiftMeta(s).hours));
-        const ceiling = Math.floor(e.max_weekly_hours / shortest) * shortest * 2;
+        // Pack the week with whichever single shift length fills the cap best.
+        const ceiling = Math.max(...pool.map(s => {
+          const h = shiftMeta(s).hours;
+          return Math.floor(e.max_weekly_hours / h) * h;
+        })) * 2;
         if (ceiling < e.target_hours)
-          flag(e.id, `Targets ${e.target_hours} h per period, but a ${e.max_weekly_hours} h weekly cap with ${shortest} h shifts tops out at ${ceiling} h. Raise the weekly cap or lower the target.`, 'warning');
+          flag(e.id, `Targets ${e.target_hours} h per period, but a ${e.max_weekly_hours} h weekly cap tops out at ${ceiling} h given their shift lengths. Raise the weekly cap or lower the target.`, 'warning');
       }
     }
 
