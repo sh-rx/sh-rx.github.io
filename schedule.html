@@ -257,129 +257,104 @@
 
         // --- View 2: Individual Pay Period Cards ---
         function buildEmployeeRoster(scheduleData, employees) {
-            const PAY_PERIOD_LENGTH = 14; 
-            const numPayPeriods = Math.ceil(scheduleData.length / PAY_PERIOD_LENGTH);
-            const ppRanges = [];
-            let totalShiftsScraped = 0;
-            
-            // Safer date formatter (appends arbitrary time to prevent timezone shift)
-            const formatShortDate = (dateStr) => {
-                return new Date(dateStr + "T12:00:00").toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            };
-            const formatFullDate = (dateStr) => {
-                return new Date(dateStr + "T12:00:00").toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            };
-            
-            // 1. Calculate the start/end dates for each pay period block
-            for (let i = 0; i < numPayPeriods; i++) {
-                const startDayIndex = i * PAY_PERIOD_LENGTH;
-                const endDayIndex = Math.min((i + 1) * PAY_PERIOD_LENGTH - 1, scheduleData.length - 1);
-                ppRanges.push({
-                    label: `${formatShortDate(scheduleData[startDayIndex].date)} - ${formatShortDate(scheduleData[endDayIndex].date)}`,
-                    daysInBlock: (endDayIndex - startDayIndex) + 1
+    const MS_DAY = 86400000;
+    const PP_EPOCH = Date.UTC(2026, 0, 4);  // MUST match PAY_PERIOD_EPOCH in app.py
+    let totalShiftsScraped = 0;
+
+    const toUTC = (ds) => { const [y,m,d] = ds.split('-').map(Number); return Date.UTC(y, m-1, d); };
+    const ppIndexOf = (ds) => Math.floor((toUTC(ds) - PP_EPOCH) / (14 * MS_DAY));
+    const shortDate = (ds) => new Date(ds + "T12:00:00").toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    const fullDate  = (ds) => new Date(ds + "T12:00:00").toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+
+    // 1. Bucket days into the SAME pay periods the solver used
+    const ppMeta = {};
+    scheduleData.forEach(day => {
+        const i = ppIndexOf(day.date);
+        if (!ppMeta[i]) ppMeta[i] = { first: day.date, last: day.date, days: 0 };
+        if (day.date < ppMeta[i].first) ppMeta[i].first = day.date;
+        if (day.date > ppMeta[i].last)  ppMeta[i].last  = day.date;
+        ppMeta[i].days++;
+    });
+    const ppIndices = Object.keys(ppMeta).map(Number).sort((a,b) => a-b);
+
+    // 2. Scrape shifts keyed by employee_id, not by name
+    const scraped = {};
+    scheduleData.forEach(day => {
+        const shiftList = getShiftArrayFromDay(day);
+        totalShiftsScraped += shiftList.length;
+        const pp = ppIndexOf(day.date);
+
+        shiftList.forEach(s => {
+            const rawName = s.employee_name || s.name || s.employee || s.worker || s.staff || "Unknown Worker";
+            const shiftName = s.shift || s.shift_name || s.role || s.type || "Unknown Shift";
+            const key = (s.employee_id !== undefined && s.employee_id !== null)
+                ? `id:${s.employee_id}`
+                : `name:${rawName.trim().toLowerCase()}`;
+
+            if (!scraped[key]) scraped[key] = { label: rawName, shifts: [] };
+            scraped[key].shifts.push({ pp, date: fullDate(day.date), shift: shiftName, is_float: s.is_float || false });
+        });
+    });
+
+    const generateCardHTML = (empName, targetBiweekly, shiftsArray, isUnmatched = false) => {
+        let cardHtml = `<div class="emp-card${isUnmatched ? ' unmatched-card' : ''}">
+                        <div class="emp-name${isUnmatched ? ' unmatched-name' : ''}">${empName}</div>`;
+
+        ppIndices.forEach(i => {
+            const meta = ppMeta[i];
+            const shiftsInPP = shiftsArray.filter(s => s.pp === i);
+            const expectedHours = Math.round((targetBiweekly / 14) * meta.days);
+            const actualHours = shiftsInPP.reduce((t, s) => t + (s.shift === "ED Day" ? 12 : 10), 0);
+
+            let badgeClass = 'ok';
+            if (actualHours < expectedHours) badgeClass = 'short';
+            if (actualHours > expectedHours) badgeClass = 'over';
+
+            const partial = meta.days < 14 ? ` (partial: ${meta.days}d)` : '';
+            cardHtml += `<div class="pp-section">
+                    <div class="pp-header">
+                        <span>${shortDate(meta.first)} - ${shortDate(meta.last)}${partial}</span>
+                        <span class="hours-badge ${badgeClass}" title="Target: ${expectedHours} hrs">
+                            ${actualHours} / ${expectedHours} hrs
+                        </span>
+                    </div>`;
+
+            if (shiftsInPP.length === 0) {
+                cardHtml += `<div class="emp-shift"><span class="date" style="font-style:italic;color:#666;">No shifts scheduled</span></div>`;
+            } else {
+                shiftsInPP.forEach(s => {
+                    const f = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
+                    cardHtml += `<div class="emp-shift"><span class="date">${s.date}</span><span class="shift">${s.shift}${f}</span></div>`;
                 });
             }
-            
-            // 2. SCRAPE ALL SHIFTS using aggressive auto-detection
-            const scrapedShifts = {};
-            scheduleData.forEach((day, index) => {
-                const ppIndex = Math.floor(index / PAY_PERIOD_LENGTH);
-                const niceDate = formatFullDate(day.date);
-                const shiftList = getShiftArrayFromDay(day);
-                
-                totalShiftsScraped += shiftList.length;
+            cardHtml += `</div>`;
+        });
+        return cardHtml + `</div>`;
+    };
 
-                shiftList.forEach(s => {
-                    const rawName = s.employee_name || s.name || s.employee || s.worker || s.staff || s.staff_name || "Unknown Worker";
-                    const shiftName = s.shift || s.shift_name || s.role || s.type || s.assignment || "Unknown Shift";
-                    
-                    if (!scrapedShifts[rawName]) scrapedShifts[rawName] = [];
-                    
-                    scrapedShifts[rawName].push({
-                        ppIndex: ppIndex,
-                        date: niceDate,
-                        shift: shiftName,
-                        is_float: s.is_float || false
-                    });
-                });
-            });
+    let html = `<div class="emp-grid">`;
+    const sortedEmployees = [...employees].sort((a, b) => a.name.localeCompare(b.name));
 
-            // Reusable function to build HTML for a single card
-            const generateCardHTML = (empName, targetHoursBiweekly, shiftsArray, isUnmatched = false) => {
-                const cardClass = isUnmatched ? "emp-card unmatched-card" : "emp-card";
-                const nameClass = isUnmatched ? "emp-name unmatched-name" : "emp-name";
-                
-                let cardHtml = `<div class="${cardClass}"><div class="${nameClass}">${empName}</div>`;
-                
-                for (let i = 0; i < numPayPeriods; i++) {
-                    const ppInfo = ppRanges[i];
-                    const shiftsInPP = shiftsArray.filter(s => s.ppIndex === i);
-                    
-                    const expectedHours = Math.round((targetHoursBiweekly / 14) * ppInfo.daysInBlock);
-                    
-                    // ED Day is 12 hours, all others 10 hours
-                    const actualHours = shiftsInPP.reduce((total, s) => {
-                        return total + (s.shift.includes("ED Day") ? 12 : 10);
-                    }, 0);
-                    
-                    let badgeClass = 'ok';
-                    if (actualHours < expectedHours) badgeClass = 'short';
-                    if (actualHours > expectedHours) badgeClass = 'over';
-                    
-                    cardHtml += `
-                        <div class="pp-section">
-                            <div class="pp-header">
-                                <span>${ppInfo.label}</span>
-                                <span class="hours-badge ${badgeClass}" title="Target: ${expectedHours} hrs">
-                                    ${actualHours} / ${expectedHours} hrs
-                                </span>
-                            </div>`;
-                    
-                    if (shiftsInPP.length === 0) {
-                        cardHtml += `<div class="emp-shift"><span class="date" style="font-style: italic; color: #666;">No shifts scheduled</span></div>`;
-                    } else {
-                        shiftsInPP.forEach(s => {
-                            const floatMarker = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
-                            cardHtml += `<div class="emp-shift">
-                                        <span class="date">${s.date}</span>
-                                        <span class="shift">${s.shift}${floatMarker}</span>
-                                     </div>`;
-                        });
-                    }
-                    cardHtml += `</div>`; 
-                }
-                cardHtml += `</div>`;
-                return cardHtml;
-            };
-
-            let html = `<div class="emp-grid">`;
-            
-            // 3. Render known employees from the JSON master list
-            const sortedEmployees = [...employees].sort((a, b) => a.name.localeCompare(b.name));
-            
-            sortedEmployees.forEach(emp => {
-                let foundKey = null;
-                
-                if (scrapedShifts[emp.name]) {
-                    foundKey = emp.name;
-                } else {
-                    foundKey = Object.keys(scrapedShifts).find(k => k.trim().toLowerCase() === emp.name.trim().toLowerCase());
-                }
-
-                const myShifts = foundKey ? scrapedShifts[foundKey] : [];
-                if (foundKey) delete scrapedShifts[foundKey]; 
-                
-                html += generateCardHTML(emp.name, emp.target_hours || 80, myShifts, false);
-            });
-            
-            // 4. THE CATCH-ALL: Render any shifts that didn't match a master employee
-            Object.keys(scrapedShifts).forEach(leftoverName => {
-                html += generateCardHTML(`${leftoverName} (Naming Mismatch)`, 80, scrapedShifts[leftoverName], true);
-            });
-            
-            html += `</div>`;
-            return { html, totalShiftsFound: totalShiftsScraped };
+    sortedEmployees.forEach(emp => {
+        let key = `id:${emp.id}`;
+        if (!scraped[key]) {
+            // fallbacks: full name, then last-name-only (old backend format)
+            const lastName = emp.name.split(',')[0].trim().toLowerCase();
+            key = Object.keys(scraped).find(k =>
+                k === `name:${emp.name.trim().toLowerCase()}` || k === `name:${lastName}`
+            );
         }
+        const mine = key && scraped[key] ? scraped[key].shifts : [];
+        if (key) delete scraped[key];
+        html += generateCardHTML(emp.name, emp.target_hours || 80, mine, false);
+    });
+
+    Object.values(scraped).forEach(left => {
+        html += generateCardHTML(`${left.label} (Unmatched ID)`, 80, left.shifts, true);
+    });
+
+    return { html: html + `</div>`, totalShiftsFound: totalShiftsScraped };
+}
     </script>
 </body>
 </html>
