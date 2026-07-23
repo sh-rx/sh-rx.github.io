@@ -3,249 +3,211 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Staff Editor</title>
+<title>Roster Editor</title>
 <style>
   :root {
-    --bg:        #16181c;
-    --panel:     #1e2127;
-    --panel-2:   #262a32;
-    --line:      #333842;
-    --line-soft: #2a2e36;
-    --text:      #e3e6ea;
-    --text-dim:  #949cab;
-    --text-mute: #646b78;
-    --accent:    #5b8bb8;
-    --accent-dk: #3d6484;
-    --ok:        #3f8f4a;
-    --short:     #c0392b;
-    --over:      #d9822b;
-    --float:     #d9a441;
-    --danger:    #b8433a;
-    --radius:    6px;
+    --bg:#16181c; --panel:#1e2127; --panel-2:#262a32; --line:#333842;
+    --line-soft:#2a2e36; --text:#e3e6ea; --text-dim:#949cab; --text-mute:#646b78;
+    --accent:#5b8bb8; --accent-dk:#3d6484; --ok:#3f8f4a; --short:#c0392b;
+    --over:#d9822b; --float:#d9a441; --relief:#c98bd4; --danger:#b8433a; --radius:6px;
   }
-
   * { box-sizing: border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+         background:var(--bg); color:var(--text); margin:0; height:100vh; overflow:hidden;
+         display:flex; font-size:14px; line-height:1.5; }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    background: var(--bg); color: var(--text);
-    margin: 0; height: 100vh; overflow: hidden;
-    display: flex; font-size: 14px; line-height: 1.5;
-  }
+  /* sidebar */
+  .sidebar { width:310px; flex-shrink:0; background:var(--panel);
+             border-right:1px solid var(--line); display:flex; flex-direction:column; }
+  .sidebar-head { padding:14px; border-bottom:1px solid var(--line); }
+  .seg { display:flex; background:var(--panel-2); border:1px solid var(--line);
+         border-radius:5px; padding:2px; margin-bottom:12px; }
+  .seg button { flex:1; background:transparent; border:none; color:var(--text-dim);
+                padding:7px 4px; border-radius:3px; cursor:pointer; font-family:inherit;
+                font-size:12.5px; font-weight:600; }
+  .seg button.on { background:var(--accent-dk); color:#fff; }
+  .seg button .n { opacity:.7; font-weight:500; margin-left:4px; }
 
-  /* ---------- sidebar ---------- */
-  .sidebar {
-    width: 300px; flex-shrink: 0; background: var(--panel);
-    border-right: 1px solid var(--line); display: flex; flex-direction: column;
-  }
-  .sidebar-head { padding: 16px; border-bottom: 1px solid var(--line); }
-  .sidebar-title {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 12px;
-  }
-  .sidebar-title h2 { margin: 0; font-size: 16px; font-weight: 600; }
-  .sidebar-title .n { color: var(--text-mute); font-size: 12px; font-weight: 500; }
+  .search { width:100%; padding:8px 10px; background:var(--panel-2); color:var(--text);
+            border:1px solid var(--line); border-radius:4px; font-family:inherit; font-size:13px; }
+  .search::placeholder { color:var(--text-mute); }
 
-  .search {
-    width: 100%; padding: 8px 10px; background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line); border-radius: 4px; font-family: inherit; font-size: 13px;
-  }
-  .search::placeholder { color: var(--text-mute); }
+  .list { flex:1; overflow-y:auto; }
+  .item { padding:10px 14px; border-bottom:1px solid var(--line-soft); cursor:pointer;
+          border-left:3px solid transparent; }
+  .item:hover { background:var(--panel-2); }
+  .item.active { background:var(--accent-dk); border-left-color:var(--accent); }
+  .item .nm { font-weight:600; font-size:13.5px; }
+  .item .sub { font-size:11.5px; color:var(--text-mute); margin-top:2px; }
+  .item.active .sub { color:#c4d7e6; }
+  .item.off .nm { opacity:.45; text-decoration:line-through; }
+  .item.flagged .nm::after { content:'!'; display:inline-block; margin-left:6px;
+    background:var(--over); color:#fff; font-size:10px; font-weight:700; width:14px;
+    height:14px; line-height:14px; text-align:center; border-radius:50%; vertical-align:1px; }
+  .group-head { padding:7px 14px; font-size:10.5px; font-weight:700; letter-spacing:.06em;
+                text-transform:uppercase; color:var(--text-mute); background:var(--bg);
+                border-bottom:1px solid var(--line-soft); position:sticky; top:0; z-index:1; }
 
-  .emp-list { flex: 1; overflow-y: auto; }
-  .emp-item {
-    padding: 11px 16px; border-bottom: 1px solid var(--line-soft);
-    cursor: pointer; border-left: 3px solid transparent;
-  }
-  .emp-item:hover { background: var(--panel-2); }
-  .emp-item.active { background: var(--accent-dk); border-left-color: var(--accent); }
-  .emp-item .nm { font-weight: 600; font-size: 13.5px; }
-  .emp-item .sub { font-size: 11.5px; color: var(--text-mute); margin-top: 2px; }
-  .emp-item.active .sub { color: #c4d7e6; }
-  .emp-item.flagged .nm::after {
-    content: '!'; display: inline-block; margin-left: 6px;
-    background: var(--over); color: #fff; font-size: 10px; font-weight: 700;
-    width: 14px; height: 14px; line-height: 14px; text-align: center;
-    border-radius: 50%; vertical-align: 1px;
-  }
+  /* main */
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar { padding:11px 22px; background:var(--panel); border-bottom:1px solid var(--line);
+            display:flex; justify-content:space-between; align-items:center; gap:14px; }
+  .topbar h2 { margin:0; font-size:16px; font-weight:600; }
+  .dirty-dot { display:none; width:7px; height:7px; border-radius:50%;
+               background:var(--over); margin-left:8px; vertical-align:2px; }
+  body.dirty .dirty-dot { display:inline-block; }
+  .actions { display:flex; gap:8px; align-items:center; }
 
-  /* ---------- main ---------- */
-  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .topbar {
-    padding: 12px 24px; background: var(--panel);
-    border-bottom: 1px solid var(--line);
-    display: flex; justify-content: space-between; align-items: center; gap: 16px;
-  }
-  .topbar h2 { margin: 0; font-size: 16px; font-weight: 600; }
-  .dirty-dot {
-    display: none; width: 7px; height: 7px; border-radius: 50%;
-    background: var(--over); margin-left: 8px; vertical-align: 2px;
-  }
-  body.dirty .dirty-dot { display: inline-block; }
-  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .tabs { display:flex; gap:6px; padding:12px 22px 0; }
+  .tab { background:transparent; border:1px solid var(--line); color:var(--text-dim);
+         padding:7px 14px; border-radius:4px; cursor:pointer; font-weight:600;
+         font-family:inherit; font-size:13px; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .tab .count { margin-left:6px; font-weight:700; font-size:11px; padding:1px 5px;
+                border-radius:8px; background:var(--over); color:#fff; }
+  .tab.active .count { background:var(--bg); color:var(--text); }
+  .tab .count.zero { display:none; }
 
-  .view-tabs { display: flex; gap: 6px; padding: 12px 24px 0; }
-  .tab {
-    background: transparent; border: 1px solid var(--line); color: var(--text-dim);
-    padding: 7px 14px; border-radius: 4px; cursor: pointer;
-    font-weight: 600; font-family: inherit; font-size: 13px;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .tab .count {
-    margin-left: 6px; font-weight: 700; font-size: 11px;
-    padding: 1px 5px; border-radius: 8px; background: var(--over); color: #fff;
-  }
-  .tab.active .count { background: var(--bg); color: var(--text); }
-  .tab .count.zero { display: none; }
+  .scroll { flex:1; overflow-y:auto; }
+  .pane { display:none; padding:20px 22px 60px; max-width:1000px; }
+  .pane.active { display:block; }
 
-  .scroll { flex: 1; overflow-y: auto; }
-  .pane { display: none; padding: 22px 24px 60px; max-width: 980px; }
-  .pane.active { display: block; }
+  /* buttons */
+  .btn { padding:8px 15px; background:var(--accent-dk); color:#fff; border:none;
+         cursor:pointer; font-size:13px; border-radius:4px; font-weight:600;
+         font-family:inherit; white-space:nowrap; }
+  .btn:hover:not(:disabled) { background:var(--accent); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:transparent; border:1px solid var(--line); color:var(--text-dim); }
+  .btn.ghost:hover { background:var(--panel-2); color:var(--text); }
+  .btn.danger { background:transparent; border:1px solid var(--danger); color:#e08a83; }
+  .btn.danger:hover { background:var(--danger); color:#fff; }
+  .btn.tiny { padding:3px 9px; font-size:11.5px; }
 
-  /* ---------- buttons ---------- */
-  .btn {
-    padding: 8px 15px; background: var(--accent-dk); color: #fff; border: none;
-    cursor: pointer; font-size: 13px; border-radius: 4px; font-weight: 600;
-    font-family: inherit; transition: background .15s; white-space: nowrap;
-  }
-  .btn:hover:not(:disabled) { background: var(--accent); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text-dim); }
-  .btn.ghost:hover { background: var(--panel-2); color: var(--text); }
-  .btn.danger { background: transparent; border: 1px solid var(--danger); color: #e08a83; }
-  .btn.danger:hover { background: var(--danger); color: #fff; }
-  .btn.tiny { padding: 3px 9px; font-size: 11.5px; }
+  /* form */
+  .section { margin-bottom:26px; }
+  .section > h3 { margin:0 0 9px; font-size:11px; font-weight:700; color:var(--text-dim);
+                  text-transform:uppercase; letter-spacing:.06em;
+                  display:flex; align-items:center; gap:10px; }
+  .hint { font-size:12px; color:var(--text-mute); margin:-3px 0 10px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:15px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field.full { grid-column:1/-1; }
+  label { font-weight:600; color:var(--text-dim); font-size:12px;
+          text-transform:uppercase; letter-spacing:.04em; }
+  input[type=text], input[type=number], input[type=date], select {
+    padding:9px 10px; background:var(--panel-2); color:var(--text);
+    border:1px solid var(--line); border-radius:4px; font-size:14px;
+    font-family:inherit; color-scheme:dark; width:100%; }
+  input:disabled, select:disabled { opacity:.45; cursor:not-allowed; }
+  input:focus, select:focus, .search:focus { outline:2px solid var(--accent);
+    outline-offset:-1px; border-color:var(--accent); }
+  .toggle { display:flex; align-items:center; gap:9px; font-size:13.5px;
+            color:var(--text); cursor:pointer; padding-top:6px; }
+  .toggle input { width:auto; accent-color:var(--accent); }
 
-  /* ---------- form ---------- */
-  .section { margin-bottom: 28px; }
-  .section > h3 {
-    margin: 0 0 10px; font-size: 11px; font-weight: 700; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: .06em;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .hint { font-size: 12px; color: var(--text-mute); margin: -4px 0 10px; font-weight: 400; }
+  /* chips */
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { padding:6px 12px; background:var(--panel-2); border:1px solid var(--line);
+          border-radius:14px; font-size:12.5px; cursor:pointer; user-select:none;
+          font-weight:500; }
+  .chip:hover:not(.locked) { border-color:var(--accent-dk); color:#fff; }
+  .chip.on { background:var(--accent-dk); border-color:var(--accent); color:#fff; font-weight:600; }
+  .chip.on.backup { background:#7a5c1e; border-color:var(--float); }
+  .chip.locked { opacity:.3; cursor:not-allowed; }
+  .chip.dead { opacity:.4; text-decoration:line-through; }
+  .chip .hrs { opacity:.6; font-size:11px; margin-left:4px; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field.full { grid-column: 1 / -1; }
-  label { font-weight: 600; color: var(--text-dim); font-size: 12px;
-          text-transform: uppercase; letter-spacing: .04em; }
-  input[type="text"], input[type="number"], input[type="date"], select {
-    padding: 9px 10px; background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line); border-radius: 4px;
-    font-size: 14px; font-family: inherit; color-scheme: dark; width: 100%;
-  }
-  input:focus, select:focus, .search:focus {
-    outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent);
-  }
+  .tbadge { display:inline-block; font-size:10px; font-weight:700; padding:1px 6px;
+            border-radius:8px; border:1px solid; letter-spacing:.04em;
+            text-transform:uppercase; margin-right:6px; vertical-align:1px; }
+  .tbadge.core{border-color:var(--accent-dk);color:var(--accent)}
+  .tbadge.rotational{border-color:#6b5c2b;color:var(--float)}
+  .tbadge.variable{border-color:#4a6b8a;color:#8fb6d6}
+  .tbadge.u_status{border-color:#7a4d84;color:var(--relief)}
 
-  /* ---------- chips ---------- */
-  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
-  .chip {
-    padding: 6px 12px; background: var(--panel-2); border: 1px solid var(--line);
-    border-radius: 14px; font-size: 12.5px; cursor: pointer; user-select: none;
-    font-weight: 500; transition: all .12s;
-  }
-  .chip:hover:not(.locked) { border-color: var(--accent-dk); color: #fff; }
-  .chip.on { background: var(--accent-dk); border-color: var(--accent); color: #fff; font-weight: 600; }
-  .chip.on.backup { background: #7a5c1e; border-color: var(--float); }
-  .chip.locked { opacity: .3; cursor: not-allowed; }
-  .chip .hrs { opacity: .6; font-size: 11px; margin-left: 4px; }
+  .rows { display:flex; flex-direction:column; gap:8px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row select { flex:0 0 140px; }
+  .row input { flex:1; }
+  .none { color:var(--text-mute); font-size:12.5px; font-style:italic; }
 
-  .tbadge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px;
-            border-radius: 8px; border: 1px solid; letter-spacing: .04em;
-            text-transform: uppercase; margin-right: 6px; vertical-align: 1px; }
-  .tbadge.core       { border-color: var(--accent-dk); color: var(--accent); }
-  .tbadge.rotational { border-color: #6b5c2b; color: var(--float); }
-  .tbadge.variable   { border-color: #4a6b8a; color: #8fb6d6; }
-  .tbadge.u_status   { border-color: #7a4d84; color: #c98bd4; }
+  /* banners + tables */
+  .banner { border-radius:var(--radius); padding:13px 15px; margin-bottom:14px;
+            border:1px solid; font-size:13px; }
+  .banner h4 { margin:0 0 7px; font-size:12px; font-weight:700;
+               text-transform:uppercase; letter-spacing:.05em; }
+  .banner ul { margin:0; padding-left:18px; }
+  .banner li { margin-bottom:4px; }
+  .banner li:last-child { margin-bottom:0; }
+  .banner.err{background:#2a1618;border-color:#7d2b2b;color:#f0b4b4}
+  .banner.warn{background:#2a2216;border-color:#7d5c2b;color:#e8cd9a}
+  .banner.ok{background:#16261a;border-color:#2b6b33;color:#a8d8b0}
+  .banner.info{background:#16202a;border-color:#2b5c7d;color:#a8c9e0}
+  .banner .who { font-weight:700; }
 
-  /* ---------- dynamic rows ---------- */
-  .rows { display: flex; flex-direction: column; gap: 8px; }
-  .row { display: flex; gap: 8px; align-items: center; }
-  .row select { flex: 0 0 140px; }
-  .row input { flex: 1; }
-  .none { color: var(--text-mute); font-size: 12.5px; font-style: italic; }
+  .stats { display:grid; gap:12px; margin-bottom:18px;
+           grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); }
+  .stat { background:var(--panel); border:1px solid var(--line);
+          border-radius:var(--radius); padding:13px 15px; }
+  .stat .n { font-size:22px; font-weight:600; letter-spacing:-.02em; }
+  .stat .k { font-size:11px; color:var(--text-mute); text-transform:uppercase;
+             letter-spacing:.05em; margin-top:2px; }
+  .neg{color:#e08585} .pos{color:#e0b385}
 
-  /* ---------- banners / tables ---------- */
-  .banner { border-radius: var(--radius); padding: 13px 15px; margin-bottom: 14px;
-            border: 1px solid; font-size: 13px; }
-  .banner h4 { margin: 0 0 7px; font-size: 12px; font-weight: 700;
-               text-transform: uppercase; letter-spacing: .05em; }
-  .banner ul { margin: 0; padding-left: 18px; }
-  .banner li { margin-bottom: 4px; }
-  .banner li:last-child { margin-bottom: 0; }
-  .banner.err  { background: #2a1618; border-color: #7d2b2b; color: #f0b4b4; }
-  .banner.warn { background: #2a2216; border-color: #7d5c2b; color: #e8cd9a; }
-  .banner.ok   { background: #16261a; border-color: #2b6b33; color: #a8d8b0; }
-  .banner.info { background: #16202a; border-color: #2b5c7d; color: #a8c9e0; }
-  .banner .who { font-weight: 700; }
+  table { width:100%; border-collapse:collapse; border:1px solid var(--line);
+          border-radius:var(--radius); overflow:hidden; }
+  th { background:var(--panel-2); text-align:left; padding:9px 12px; font-size:11px;
+       text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+  td { padding:8px 12px; border-top:1px solid var(--line-soft); font-size:13px; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tr.risk td { background:#251a1a; }
+  tr.dim td { opacity:.45; }
 
-  .stats { display: grid; gap: 12px; margin-bottom: 18px;
-           grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-  .stat { background: var(--panel); border: 1px solid var(--line);
-          border-radius: var(--radius); padding: 13px 15px; }
-  .stat .n { font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
-  .stat .k { font-size: 11px; color: var(--text-mute); text-transform: uppercase;
-             letter-spacing: .05em; margin-top: 2px; }
-  .neg { color: #e08585; } .pos { color: #e0b385; }
-
-  table { width: 100%; border-collapse: collapse; border: 1px solid var(--line);
-          border-radius: var(--radius); overflow: hidden; }
-  th { background: var(--panel-2); text-align: left; padding: 9px 12px; font-size: 11px;
-       text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); }
-  td { padding: 8px 12px; border-top: 1px solid var(--line-soft); font-size: 13px; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr.risk td { background: #251a1a; }
-
-  /* ---------- toast ---------- */
-  #toast {
-    position: fixed; bottom: 22px; right: 22px; padding: 13px 20px;
-    border-radius: var(--radius); font-weight: 600; font-size: 13.5px;
-    transform: translateY(180%); transition: transform .28s ease; z-index: 100;
-    background: var(--ok); color: #fff; max-width: 380px;
-  }
-  #toast.show { transform: translateY(0); }
-  #toast.bad { background: var(--danger); }
-
-  .empty-state { padding: 60px 24px; color: var(--text-mute); text-align: center; }
+  #toast { position:fixed; bottom:22px; right:22px; padding:13px 20px;
+           border-radius:var(--radius); font-weight:600; font-size:13.5px;
+           transform:translateY(200%); transition:transform .28s ease; z-index:100;
+           background:var(--ok); color:#fff; max-width:420px; }
+  #toast.show { transform:translateY(0); }
+  #toast.bad { background:var(--danger); }
+  .empty-state { padding:60px 24px; color:var(--text-mute); text-align:center; }
 </style>
 </head>
 <body>
 
 <div class="sidebar">
   <div class="sidebar-head">
-    <div class="sidebar-title">
-      <h2>Staff</h2>
-      <span class="n" id="staffCount"></span>
+    <div class="seg">
+      <button id="segStaff"  class="on" onclick="setMode('staff')">Staff<span class="n" id="nStaff"></span></button>
+      <button id="segShifts"          onclick="setMode('shifts')">Shifts<span class="n" id="nShifts"></span></button>
     </div>
-    <input class="search" id="search" placeholder="Filter by name or shift" oninput="renderList()">
-    <div style="margin-top:10px"><button class="btn" style="width:100%" onclick="addEmployee()">Add person</button></div>
+    <input class="search" id="search" placeholder="Filter" oninput="renderList()">
+    <div style="margin-top:10px"><button class="btn" style="width:100%" id="addBtn" onclick="addRecord()">Add</button></div>
   </div>
-  <div class="emp-list" id="empList"></div>
+  <div class="list" id="list"></div>
 </div>
 
 <div class="main">
   <div class="topbar">
-    <h2><span id="topbarName">Staff editor</span><span class="dirty-dot" title="Unsaved changes"></span></h2>
-    <div class="topbar-actions">
+    <h2><span id="title">Roster editor</span><span class="dirty-dot" title="Unsaved changes"></span></h2>
+    <div class="actions">
       <button class="btn ghost" onclick="goToScheduler()">Schedule generator</button>
       <button class="btn ghost" onclick="revert()">Revert</button>
       <button class="btn" id="saveBtn" onclick="save()">Save to server</button>
     </div>
   </div>
 
-  <div class="view-tabs">
-    <button class="tab active" data-pane="person" onclick="showPane('person')">Person</button>
+  <div class="tabs">
+    <button class="tab active" data-pane="edit" onclick="showPane('edit')" id="tabEdit">Person</button>
     <button class="tab" data-pane="health" onclick="showPane('health')">Roster health<span class="count zero" id="issueCount">0</span></button>
     <button class="tab" data-pane="coverage" onclick="showPane('coverage')">Shift coverage</button>
   </div>
 
   <div class="scroll">
-    <div class="pane active" id="pane-person">
-      <div class="empty-state" id="personEmpty">Pick someone from the list, or add a new person.</div>
-      <div id="personForm" style="display:none"></div>
+    <div class="pane active" id="pane-edit">
+      <div class="empty-state" id="editEmpty">Pick something from the list, or add a new one.</div>
+      <div id="editForm" style="display:none"></div>
     </div>
     <div class="pane" id="pane-health"></div>
     <div class="pane" id="pane-coverage"></div>
@@ -257,44 +219,39 @@
 <script>
 const API = 'https://bombmud.vineyard.haus/api';
 
-// Mirrors SHIFT_CONFIG in app.py. Replaced by GET /config at boot so the two
-// never drift; this is only the offline fallback.
-let SHIFT_CONFIG = [
-  { name: "ED Day",     hours: 12, required: 1, weekends: true  },
-  { name: "ED Ngt",     hours: 10, required: 1, weekends: true  },
-  { name: "ICU",        hours: 10, required: 1, weekends: true  },
-  { name: "CVCU",       hours: 10, required: 1, weekends: true  },
-  { name: "ICU Swg",    hours: 10, required: 1, weekends: true  },
-  { name: "Onc",        hours: 10, required: 1, weekends: true  },
-  { name: "Med",        hours: 10, required: 1, weekends: false },
-  { name: "MedSurg",    hours: 10, required: 1, weekends: true  },
-  { name: "D5",         hours: 10, required: 1, weekends: true  },
-  { name: "FBC",        hours: 10, required: 1, weekends: true  },
-  { name: "IP Day",     hours: 10, required: 1, weekends: true  },
-  { name: "IWC",        hours: 10, required: 1, weekends: false },
-  { name: "OR",         hours: 10, required: 1, weekends: false },
-  { name: "IV Day",     hours: 10, required: 1, weekends: true  },
-  { name: "IV Swg",     hours: 10, required: 1, weekends: true  },
-  { name: "IV Ngt",     hours: 10, required: 1, weekends: true  },
-  { name: "IP Day Res", hours: 10, required: 1, weekends: true  },
-  { name: "Swg Res",    hours: 10, required: 1, weekends: true  },
-  { name: "IP Ngt",     hours: 10, required: 1, weekends: true  },
-];
-let DEFAULT_MAX_WEEKLY = 40;
-
 const WEEKDAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const WEEKEND  = ["Saturday","Sunday"];
 
 // What each employment type means for the rest of the form.
 const TYPES = {
-  rotational: { label: 'Rotational 7/7', short: '7/7',  home: true,  target: true,
-    note: 'Works 7 on, 7 off, locked to the first home unit. The hours target and weekly cap do not apply, and any time-off rule punches a hole in that unit.' },
-  core:       { label: 'Core',           short: 'Core', home: true,  target: true,
-    note: 'Has home units and an hours target. Working a backup unit costs a small float penalty, so the solver keeps them on their own unit where it can.' },
-  variable:   { label: 'Variable',       short: 'Var',  home: false, target: true,
-    note: 'No home unit, but a real hours target the solver must hit. This is the flex layer that absorbs PTO across the pods.' },
-  u_status:   { label: 'U-status relief', short: 'U',   home: false, target: false,
-    note: 'Unscheduled relief. No hours target and no obligation. The solver uses them only to stop a line going empty, never to top anyone up. Confirm willingness before publishing.' },
+  rotational: { label:'Rotational 7/7', short:'7/7',  home:true,  target:true,
+    note:'Works 7 on, 7 off, locked to the first home unit. The hours target and weekly cap do not apply, and any time-off rule punches a hole in that unit.' },
+  core:       { label:'Core',           short:'Core', home:true,  target:true,
+    note:'Has home units and an hours target. Working a backup unit costs a small float penalty, so the solver keeps them on their own unit where it can.' },
+  variable:   { label:'Variable',       short:'Var',  home:false, target:true,
+    note:'No home unit, but a real hours target the solver must hit. This is the flex layer that absorbs PTO across the units.' },
+  u_status:   { label:'U-status relief', short:'U',   home:false, target:false,
+    note:'Unscheduled relief. No hours target and no obligation. The solver uses them only to stop a line going empty, never to top anyone up. Confirm willingness before publishing.' },
 };
+
+// Fallback only. Replaced by GET /shifts at boot.
+let shifts = [];
+let staff  = [];
+let savedShifts = '[]', savedStaff = '[]';
+let DEFAULT_MAX_WEEKLY = 40;
+
+let mode = 'staff';
+let currentStaffId = null;
+let currentShift = null;      // shift name
+let issues = { errors:[], warnings:[], byStaff:{}, byShift:{} };
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shiftNames  = () => shifts.map(s => s.name);
+const activeNames = () => shifts.filter(s => s.active).map(s => s.name);
+const shiftMeta   = n => shifts.find(s => s.name === n) || null;
+const curStaff    = () => staff.find(e => e.id === currentStaffId) || null;
+const curShift    = () => shifts.find(s => s.name === currentShift) || null;
 
 function typeOf(e) {
   if (TYPES[e.employment_type]) return e.employment_type;
@@ -302,17 +259,6 @@ function typeOf(e) {
   if ((e.home_shifts || []).length) return 'core';
   return (e.target_hours || 0) > 0 ? 'variable' : 'u_status';
 }
-
-let staff = [];
-let saved = '[]';       // JSON snapshot of the last server state
-let currentId = null;   // selection is by ID, never by array index
-let issues = { errors: [], warnings: [], byId: {} };
-
-const shiftNames = () => SHIFT_CONFIG.map(s => s.name);
-const shiftMeta  = n => SHIFT_CONFIG.find(s => s.name === n) || { hours: 10, required: 1, weekends: true };
-const current    = () => staff.find(e => e.id === currentId) || null;
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -322,37 +268,53 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
     const cfg = await fetch(API + '/config');
     if (cfg.ok) {
       const j = await cfg.json();
-      if (j.shifts?.length) SHIFT_CONFIG = j.shifts;
       if (j.default_max_weekly_hours) DEFAULT_MAX_WEEKLY = j.default_max_weekly_hours;
     }
-  } catch (e) { /* fall back to the local copy above */ }
+  } catch (e) { /* optional */ }
 
   try {
-    const res = await fetch(API + '/staff');
-    if (!res.ok) throw new Error('Server returned ' + res.status);
-    staff = (await res.json()).map(normalize);
-    saved = JSON.stringify(staff);
+    const [sh, st] = await Promise.all([fetch(API + '/shifts'), fetch(API + '/staff')]);
+    if (!sh.ok) throw new Error('shifts: ' + sh.status);
+    if (!st.ok) throw new Error('staff: ' + st.status);
+    shifts = (await sh.json()).map(normalizeShift);
+    staff  = (await st.json()).map(normalizeStaff);
+    savedShifts = JSON.stringify(shifts);
+    savedStaff  = JSON.stringify(staff);
     refresh();
   } catch (e) {
-    toast('Could not load staff: ' + e.message, true);
-    document.getElementById('empList').innerHTML =
-      `<div class="empty-state">No connection to the staff API.</div>`;
+    toast('Could not load data: ' + e.message, true);
+    document.getElementById('list').innerHTML =
+      `<div class="empty-state">No connection to the API.</div>`;
   }
 })();
 
-// Legacy records are missing newer fields. Fill them in once, on load, so no
-// downstream code has to guard against undefined arrays.
-function normalize(e) {
+function normalizeShift(r, i) {
+  let days = Array.isArray(r.days) && r.days.length ? r.days
+           : (r.weekends === false ? WEEKDAYS.slice(0,5) : WEEKDAYS.slice());
+  return {
+    name: String(r.name || '').trim(),
+    category: String(r.category || 'Uncategorised').trim(),
+    hours: Number(r.hours) || 10,
+    required: r.required === 0 ? 0 : (Number(r.required) || 1),
+    days: WEEKDAYS.filter(d => days.includes(d)),
+    active: r.active !== false,
+    order: r.order ?? i,
+  };
+}
+
+// Legacy staff records are missing newer fields. Fill them in once, on load,
+// so no downstream code has to guard against undefined arrays.
+function normalizeStaff(e) {
   const base = {
     id: e.id,
     name: e.name || '',
     employment_type: null,
-    home_shifts: Array.isArray(e.home_shifts) ? e.home_shifts.slice() : [],
-    backup_shifts: Array.isArray(e.backup_shifts) ? e.backup_shifts.slice() : [],
     rotation: e.rotation ?? null,
     target_hours: Number(e.target_hours) || 0,
     max_weekly_hours: Number(e.max_weekly_hours) || DEFAULT_MAX_WEEKLY,
     weekend_preference: e.weekend_preference || 'target_equity',
+    home_shifts: Array.isArray(e.home_shifts) ? e.home_shifts.slice() : [],
+    backup_shifts: Array.isArray(e.backup_shifts) ? e.backup_shifts.slice() : [],
     unavailable_weekdays: Array.isArray(e.unavailable_weekdays) ? e.unavailable_weekdays.slice() : [],
     biweekly_unavailable: Array.isArray(e.biweekly_unavailable) ? e.biweekly_unavailable.slice() : [],
     requested_days_off: Array.isArray(e.requested_days_off) ? e.requested_days_off.slice() : [],
@@ -361,16 +323,28 @@ function normalize(e) {
   return base;
 }
 
-function isDirty() { return JSON.stringify(staff) !== saved; }
-function markDirty() { document.body.classList.toggle('dirty', isDirty()); }
+function dirtyStaff()  { return JSON.stringify(staff)  !== savedStaff; }
+function dirtyShifts() { return JSON.stringify(shifts) !== savedShifts; }
+function isDirty()     { return dirtyStaff() || dirtyShifts(); }
+function markDirty()   { document.body.classList.toggle('dirty', isDirty()); }
 
 function refresh() {
   validate();
   renderList();
-  renderPerson();
+  renderEdit();
   renderHealth();
   renderCoverage();
   markDirty();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('segStaff').classList.toggle('on', m === 'staff');
+  document.getElementById('segShifts').classList.toggle('on', m === 'shifts');
+  document.getElementById('addBtn').textContent = m === 'staff' ? 'Add person' : 'Add shift';
+  document.getElementById('tabEdit').textContent = m === 'staff' ? 'Person' : 'Shift';
+  document.getElementById('search').value = '';
+  renderList(); renderEdit(); showPane('edit');
 }
 
 // ---------------------------------------------------------------------------
@@ -378,107 +352,124 @@ function refresh() {
 // where they can be fixed, instead of at generate time.
 // ---------------------------------------------------------------------------
 function validate() {
-  const errors = [], warnings = [], byId = {};
-  const flag = (id, msg, level) => {
-    (byId[id] = byId[id] || []).push({ msg, level });
-    (level === 'error' ? errors : warnings).push({ id, msg });
-  };
+  const errors = [], warnings = [], byStaff = {}, byShift = {};
+  const flagS = (id, msg, lvl) => { (byStaff[id] = byStaff[id] || []).push({msg, level:lvl});
+                                    (lvl === 'error' ? errors : warnings).push({staff:id, msg}); };
+  const flagH = (nm, msg, lvl) => { (byShift[nm] = byShift[nm] || []).push({msg, level:lvl});
+                                    (lvl === 'error' ? errors : warnings).push({shift:nm, msg}); };
 
+  // --- shift catalogue ---
+  const nameCount = {};
+  shifts.forEach(s => { nameCount[s.name] = (nameCount[s.name] || 0) + 1; });
+  shifts.forEach(s => {
+    if (!s.name) errors.push({ msg: 'A shift has no name.' });
+    else if (nameCount[s.name] > 1) flagH(s.name, `The name "${s.name}" is used by more than one shift.`, 'error');
+    if (s.hours <= 0) flagH(s.name, 'Shift length must be at least one hour.', 'error');
+    if (s.active && !s.days.length) flagH(s.name, 'Active but runs on no days. Pick at least one, or switch it off.', 'error');
+    if (s.active && s.required === 0) flagH(s.name, 'Active but needs nobody, so it will never appear on the schedule.', 'warning');
+  });
+  if (!shifts.some(s => s.active)) errors.push({ msg: 'Every shift is switched off.' });
+
+  // --- staff pointing at shifts that no longer exist ---
+  const known = new Set(shiftNames());
+  const orphanOwners = {};
+  staff.forEach(e => {
+    [...e.home_shifts, ...e.backup_shifts].forEach(s => {
+      if (!known.has(s)) (orphanOwners[s] = orphanOwners[s] || []).push(e);
+    });
+  });
+  Object.entries(orphanOwners).forEach(([s, owners]) => {
+    owners.forEach(e => flagS(e.id, `References "${s}", which is not in the shift catalogue.`, 'error'));
+  });
+
+  // --- staff records ---
   const idCount = {};
   staff.forEach(e => { idCount[e.id] = (idCount[e.id] || 0) + 1; });
-
-  const anchors = {};   // "rotation|shift" -> [names]
+  const anchors = {};
 
   staff.forEach(e => {
-    if (idCount[e.id] > 1) flag(e.id, `Employee ID ${e.id} is used more than once.`, 'error');
-    if (!e.name.trim()) flag(e.id, 'This person has no name.', 'error');
+    const t = typeOf(e), spec = TYPES[t];
+    const declaredHome = e.home_shifts;
+    const liveHome = declaredHome.filter(s => activeNames().includes(s));
 
-    const home = e.home_shifts, backup = e.backup_shifts;
-    const t = typeOf(e);
-    const spec = TYPES[t];
+    if (idCount[e.id] > 1) flagS(e.id, `Employee ID ${e.id} is used more than once.`, 'error');
+    if (!e.name.trim()) flagS(e.id, 'This person has no name.', 'error');
+    if (!declaredHome.length && !e.backup_shifts.length)
+      flagS(e.id, 'No shifts at all, so this person can never be scheduled.', 'warning');
 
-    if (!home.length && !backup.length)
-      flag(e.id, 'No shifts at all, so this person can never be scheduled.', 'warning');
+    const overlap = e.backup_shifts.filter(s => declaredHome.includes(s));
+    if (overlap.length) flagS(e.id, `${overlap.join(', ')} listed twice. Home wins.`, 'warning');
 
-    const overlap = backup.filter(s => home.includes(s));
-    if (overlap.length)
-      flag(e.id, `${overlap.join(', ')} listed twice. Home wins.`, 'warning');
-
-    if (!spec.home && home.length)
-      flag(e.id, `${spec.label} staff have no home unit, but ${home.join(', ')} is set as one. It will be treated as a shift they can work.`, 'warning');
-    if (spec.home && !home.length && t !== 'rotational')
-      flag(e.id, `${spec.label} staff need at least one home unit. Switch them to Variable if they float.`, 'error');
+    if (!spec.home && declaredHome.length)
+      flagS(e.id, `${spec.label} staff have no home unit, but ${declaredHome.join(', ')} is set as one.`, 'warning');
     if (!spec.target && e.target_hours > 0)
-      flag(e.id, `${spec.label} staff are never scored against a target, but this one is set to ${e.target_hours} h. Set it to 0.`, 'warning');
-    if (spec.target && t !== 'rotational' && e.target_hours <= 0)
-      flag(e.id, `${spec.label} staff need an hours target. Switch them to U-status if they have none.`, 'warning');
+      flagS(e.id, `${spec.label} staff are never scored against a target, but this one is set to ${e.target_hours} h. Set it to 0.`, 'warning');
 
     if (t === 'rotational') {
-      if (!home.length) {
-        flag(e.id, `On rotation ${e.rotation} but has no home shift to anchor to.`, 'error');
-      } else {
-        const anchor = home[0];
+      if (!declaredHome.length) flagS(e.id, `On rotation ${e.rotation || '?'} but has no home unit to anchor to.`, 'error');
+      else if (!liveHome.length) flagS(e.id, `Anchored to "${declaredHome[0]}", which is switched off. They will not be scheduled at all.`, 'warning');
+      else {
+        const anchor = liveHome[0], m = shiftMeta(anchor);
+        const missing = WEEKDAYS.filter(d => !m.days.includes(d));
+        if (missing.length) flagS(e.id, `Anchored to ${anchor} on a 7-on/7-off rotation, but ${anchor} does not run on ${missing.join(', ')}.`, 'error');
         const key = e.rotation + '|' + anchor;
-        (anchors[key] = anchors[key] || []).push(e.name);
-        if (!shiftMeta(anchor).weekends)
-          flag(e.id, `Anchored to ${anchor} on a 7-on/7-off rotation, but ${anchor} does not run weekends.`, 'error');
-        if (home.length > 1)
-          flag(e.id, `Rotational staff are locked to their first home shift (${anchor}). The others are ignored.`, 'warning');
+        (anchors[key] = anchors[key] || []).push(e);
+        if (declaredHome.length > 1) flagS(e.id, `Rotational staff are locked to their first home unit (${anchor}). The others are ignored.`, 'warning');
       }
       if (e.unavailable_weekdays.length || e.biweekly_unavailable.length || e.requested_days_off.length)
-        flag(e.id, 'Rotational, but also has time-off rules. Those days drop out of the rotation, so the unit needs backup cover on them.', 'warning');
-    } else if (spec.target) {
-      // Reachable hours under the weekly cap
-      const pool = [...new Set([...home, ...backup])];
-      if (pool.length && e.target_hours > 0) {
+        flagS(e.id, 'Rotational, but also has time-off rules. Those days drop out of the rotation, so the unit needs backup cover on them.', 'warning');
+    } else if (t === 'core') {
+      if (!declaredHome.length) flagS(e.id, 'Core staff need a home unit. Switch them to Variable if they float.', 'error');
+      else if (!liveHome.length) flagS(e.id, `Home unit(s) ${declaredHome.join(', ')} are switched off. They will only work backup units.`, 'warning');
+      if (e.target_hours <= 0) flagS(e.id, 'Core staff need an hours target. Switch them to U-status if they have none.', 'warning');
+    } else if (t === 'variable' && e.target_hours <= 0) {
+      flagS(e.id, 'Variable staff need an hours target. Switch them to U-status if they have none.', 'warning');
+    }
+
+    // reachable hours under the weekly cap
+    if (spec.target && t !== 'rotational' && e.target_hours > 0) {
+      const pool = [...new Set([...declaredHome, ...e.backup_shifts])]
+        .map(shiftMeta).filter(Boolean).filter(m => m.active);
+      if (pool.length) {
         // Pack the week with whichever single shift length fills the cap best.
-        const ceiling = Math.max(...pool.map(s => {
-          const h = shiftMeta(s).hours;
-          return Math.floor(e.max_weekly_hours / h) * h;
-        })) * 2;
+        const ceiling = Math.max(...pool.map(m =>
+          Math.floor(e.max_weekly_hours / m.hours) * m.hours)) * 2;
         if (ceiling < e.target_hours)
-          flag(e.id, `Targets ${e.target_hours} h per period, but a ${e.max_weekly_hours} h weekly cap tops out at ${ceiling} h given their shift lengths. Raise the weekly cap or lower the target.`, 'warning');
+          flagS(e.id, `Targets ${e.target_hours} h per period, but a ${e.max_weekly_hours} h weekly cap tops out at ${ceiling} h given their shift lengths.`, 'warning');
       }
     }
 
-    if (e.requested_days_off.some(d => !d))
-      flag(e.id, 'Has a blank day-off entry. Fill it in or remove it.', 'warning');
-    if (e.biweekly_unavailable.some(r => !r.anchor_date))
-      flag(e.id, 'Has a bi-weekly rule with no anchor date, so it will be ignored.', 'warning');
-
+    if (e.requested_days_off.some(d => !d)) flagS(e.id, 'Has a blank day-off entry.', 'warning');
+    if (e.biweekly_unavailable.some(r => !r.anchor_date)) flagS(e.id, 'Has a bi-weekly rule with no anchor date, so it will be ignored.', 'warning');
+    e.biweekly_unavailable.forEach(r => {
+      if (!r.anchor_date) return;
+      const real = new Date(r.anchor_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long' });
+      if (real !== r.day) flagS(e.id, `Bi-weekly anchor ${r.anchor_date} is a ${real}, not a ${r.day}.`, 'error');
+    });
   });
 
-  // Two people anchored to the same rotation and shift
-  Object.entries(anchors).forEach(([key, names]) => {
-    if (names.length > 1) {
-      const [rot, shift] = key.split('|');
-      errors.push({ id: null, msg: `Two rotation-${rot} anchors on ${shift}: ${names.join(', ')}.` });
+  Object.entries(anchors).forEach(([key, list]) => {
+    if (list.length > 1) {
+      const [rot, sh] = key.split('|');
+      flagH(sh, `Two rotation-${rot} anchors: ${list.map(e => e.name).join(', ')}.`, 'error');
     }
   });
 
-  // Every shift needs an A and a B, or half the weeks go uncovered
-  shiftNames().forEach(shift => {
-    const present = ['A','B'].filter(r => anchors[r + '|' + shift]);
-    if (present.length === 1) {
-      const missing = present[0] === 'A' ? 'B' : 'A';
-      warnings.push({ id: null, msg: `${shift} has a rotation-${present[0]} anchor but no rotation-${missing} counterpart. Half of all weeks will be uncovered.` });
-    }
-  });
-
-  // Shifts nobody can cover
-  shiftNames().forEach(shift => {
-    const pool = staff.filter(e => e.home_shifts.includes(shift) || e.backup_shifts.includes(shift));
+  // --- every active line needs cover from someone who is actually obligated ---
+  shifts.filter(s => s.active && s.required > 0).forEach(s => {
+    const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
     const obligated = pool.filter(e => typeOf(e) !== 'u_status');
-    if (!pool.length) {
-      errors.push({ id: null, msg: `Nobody is qualified for ${shift}. It can never be filled.` });
-    } else if (!obligated.length) {
-      errors.push({ id: null, msg: `${shift} has only u-status staff qualified for it. Relief pickup is voluntary, so this line has no guaranteed cover.` });
-    } else if (shiftMeta(shift).weekends && !obligated.some(e => e.weekend_preference !== 'never')) {
-      errors.push({ id: null, msg: `${shift} runs on weekends, but no obligated staff qualified for it will work weekends.` });
-    }
+    if (!pool.length) flagH(s.name, 'Nobody is qualified for this shift. It can never be filled.', 'error');
+    else if (!obligated.length) flagH(s.name, 'Only u-status staff are qualified. Relief pickup is voluntary, so this line has no guaranteed cover.', 'error');
+    else if (s.days.some(d => WEEKEND.includes(d)) && !obligated.some(e => e.weekend_preference !== 'never'))
+      flagH(s.name, 'Runs on weekends, but no obligated staff qualified for it will work weekends.', 'error');
+
+    const present = ['A','B'].filter(r => anchors[r + '|' + s.name]);
+    if (present.length === 1)
+      flagH(s.name, `Has a rotation-${present[0]} anchor but no rotation-${present[0] === 'A' ? 'B' : 'A'} counterpart. Half of all weeks will be uncovered.`, 'warning');
   });
 
-  issues = { errors, warnings, byId };
+  issues = { errors, warnings, byStaff, byShift };
   const n = errors.length + warnings.length;
   const badge = document.getElementById('issueCount');
   badge.textContent = n;
@@ -486,128 +477,202 @@ function validate() {
 }
 
 function capacity() {
-  const demand = SHIFT_CONFIG.reduce((t, s) =>
-    t + s.required * s.hours * (s.weekends ? 14 : 10), 0);
+  const demand = shifts.filter(s => s.active)
+    .reduce((t, s) => t + s.required * s.hours * s.days.length * 2, 0);
   // Only rotational, core and variable hours are obligated. U-status is a
   // voluntary bench and must not be counted as though it were guaranteed.
   const committed = staff.filter(e => typeOf(e) !== 'u_status')
     .reduce((t, e) => t + (e.target_hours || 0), 0);
   const bench = staff.filter(e => typeOf(e) === 'u_status')
     .reduce((t, e) => t + (e.max_weekly_hours || 0) * 2, 0);
-  return {
-    demand, committed, bench,
-    slack: committed - demand,
-    util: committed ? Math.round(1000 * demand / committed) / 10 : 0,
-  };
+  return { demand, committed, bench, slack: committed - demand,
+           util: committed ? Math.round(1000 * demand / committed) / 10 : 0 };
 }
 
 // ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
 function renderList() {
+  document.getElementById('nStaff').textContent  = ' ' + staff.length;
+  document.getElementById('nShifts').textContent = ' ' + shifts.length;
   const q = document.getElementById('search').value.trim().toLowerCase();
-  const view = [...staff].sort((a, b) => a.name.localeCompare(b.name)).filter(e =>
-    !q || e.name.toLowerCase().includes(q) ||
-    [...e.home_shifts, ...e.backup_shifts].some(s => s.toLowerCase().includes(q)));
+  const list = document.getElementById('list');
 
-  document.getElementById('staffCount').textContent =
-    q ? `${view.length} of ${staff.length}` : `${staff.length}`;
+  if (mode === 'staff') {
+    const view = [...staff].sort((a,b) => a.name.localeCompare(b.name)).filter(e =>
+      !q || e.name.toLowerCase().includes(q) ||
+      [...e.home_shifts, ...e.backup_shifts].some(s => s.toLowerCase().includes(q)));
+    if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
+    list.innerHTML = view.map(e => {
+      const t = typeOf(e);
+      const bits = [];
+      if (e.rotation) bits.push('Rotation ' + e.rotation);
+      if (e.home_shifts.length) bits.push(e.home_shifts.join(' / '));
+      else bits.push(e.backup_shifts.slice(0,3).join(' / ') + (e.backup_shifts.length > 3 ? ' +' + (e.backup_shifts.length-3) : ''));
+      bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
+      return `<div class="item${e.id === currentStaffId ? ' active':''}${(issues.byStaff[e.id]||[]).length ? ' flagged':''}" onclick="selectStaff(${e.id})">
+        <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
+        <div class="sub">${esc(bits.filter(Boolean).join(' · '))}</div></div>`;
+    }).join('');
+  } else {
+    const view = shifts.filter(s =>
+      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+    if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
+    let html = '', lastCat = null;
+    view.forEach(s => {
+      if (s.category !== lastCat) { html += `<div class="group-head">${esc(s.category)}</div>`; lastCat = s.category; }
+      const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)).length;
+      const runs = s.days.length === 7 ? '7 days' : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
+      html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
+        <div class="nm">${esc(s.name)}</div>
+        <div class="sub">${s.hours}h · ${s.required}/day · ${runs} · ${pool} qualified</div></div>`;
+    });
+    list.innerHTML = html;
+  }
+}
 
-  const list = document.getElementById('empList');
-  if (!view.length) {
-    list.innerHTML = `<div class="empty-state">No matches.</div>`;
+function selectStaff(id) { currentStaffId = id; renderList(); renderEdit(); showPane('edit'); }
+function selectShift(nm) { currentShift = nm; renderList(); renderEdit(); showPane('edit'); }
+
+// ---------------------------------------------------------------------------
+// Edit pane
+// ---------------------------------------------------------------------------
+function renderEdit() {
+  const empty = document.getElementById('editEmpty');
+  const form = document.getElementById('editForm');
+  const rec = mode === 'staff' ? curStaff() : curShift();
+  if (!rec) {
+    empty.style.display = ''; form.style.display = 'none';
+    document.getElementById('title').textContent = 'Roster editor';
     return;
   }
+  empty.style.display = 'none'; form.style.display = '';
+  document.getElementById('title').textContent = mode === 'staff' ? (rec.name || 'Unnamed') : rec.name;
+  form.innerHTML = mode === 'staff' ? staffForm(rec) : shiftForm(rec);
+}
 
-  list.innerHTML = view.map(e => {
-    const t = typeOf(e);
-    const bits = [];
-    if (e.rotation) bits.push('Rotation ' + e.rotation);
-    if (e.home_shifts.length) bits.push(e.home_shifts.join(' / '));
-    else bits.push((e.backup_shifts.slice(0, 3).join(' / ')) + (e.backup_shifts.length > 3 ? ' +' + (e.backup_shifts.length - 3) : ''));
-    bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
-    const flagged = (issues.byId[e.id] || []).length ? ' flagged' : '';
-    return `<div class="emp-item${e.id === currentId ? ' active' : ''}${flagged}" onclick="select(${e.id})">
-      <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
-      <div class="sub">${esc(bits.join(' · '))}</div>
+function issueBanner(list) {
+  if (!list || !list.length) return '';
+  return `<div class="banner ${list.some(i => i.level === 'error') ? 'err':'warn'}">
+    <h4>${list.length} issue${list.length > 1 ? 's':''} on this record</h4>
+    <ul>${list.map(i => `<li>${esc(i.msg)}</li>`).join('')}</ul></div>`;
+}
+
+// --- shift form ------------------------------------------------------------
+function shiftForm(s) {
+  const idx = shifts.indexOf(s);
+  const cats = [...new Set(shifts.map(x => x.category))].sort();
+  const home   = staff.filter(e => e.home_shifts.includes(s.name));
+  const backup = staff.filter(e => !e.home_shifts.includes(s.name) && e.backup_shifts.includes(s.name) && typeOf(e) !== 'u_status');
+  const relief = staff.filter(e => typeOf(e) === 'u_status' && (e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)));
+
+  const dayChips = WEEKDAYS.map(d =>
+    `<div class="chip ${s.days.includes(d) ? 'on':''}" onclick="toggleShiftDay('${d}')">${d.slice(0,3)}</div>`).join('');
+
+  const who = arr => arr.length
+    ? arr.map(e => esc(e.name.split(',')[0])).join(', ')
+    : '<span class="none">none</span>';
+
+  return `
+    ${issueBanner(issues.byShift[s.name])}
+
+    <div class="section">
+      <h3>Shift</h3>
+      <div class="grid">
+        <div class="field full">
+          <label for="sName">Name</label>
+          <input type="text" id="sName" value="${esc(s.name)}" onchange="renameShift(this.value)">
+          <div class="hint">Staff records point at this name. Changing it here updates every
+          record that references it, so edit it here rather than in the JSON.</div>
+        </div>
+        <div class="field">
+          <label for="sCat">Category</label>
+          <input type="text" id="sCat" list="catList" value="${esc(s.category)}"
+                 oninput="setShiftField('category', this.value)">
+          <datalist id="catList">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+        </div>
+        <div class="field">
+          <label for="sHours">Shift length (hours)</label>
+          <input type="number" id="sHours" min="1" max="24" value="${s.hours}"
+                 oninput="setShiftField('hours', parseInt(this.value) || 0)">
+        </div>
+        <div class="field">
+          <label for="sReq">People needed per day</label>
+          <input type="number" id="sReq" min="0" max="10" value="${s.required}"
+                 oninput="setShiftField('required', parseInt(this.value) || 0)">
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <label class="toggle">
+            <input type="checkbox" ${s.active ? 'checked':''} onchange="setShiftField('active', this.checked)">
+            Active${s.active ? '' : ' — excluded from scheduling'}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Days it runs</h3>
+      <div class="hint">A 7-on/7-off rotation can only be anchored to a shift that runs all seven days.</div>
+      <div class="chips">${dayChips}</div>
+      <div class="hint" style="margin-top:10px">
+        ${s.required * s.hours * s.days.length * 2} hours per pay period
+        (${s.required} &times; ${s.hours}h &times; ${s.days.length} days &times; 2 weeks)
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Who can work it</h3>
+      <div class="grid">
+        <div class="field"><label>Home (${home.length})</label><div>${who(home)}</div></div>
+        <div class="field"><label>Backup (${backup.length})</label><div>${who(backup)}</div></div>
+        <div class="field"><label>U-status relief (${relief.length})</label><div>${who(relief)}</div></div>
+      </div>
+    </div>
+
+    <div class="section" style="border-top:1px solid var(--line); padding-top:18px; display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn ghost" onclick="moveShift(-1)" ${idx === 0 ? 'disabled':''}>Move up</button>
+      <button class="btn ghost" onclick="moveShift(1)" ${idx === shifts.length-1 ? 'disabled':''}>Move down</button>
+      <button class="btn danger" onclick="deleteShift()">Delete shift</button>
+      <span class="hint" style="margin:0; align-self:center">Order sets the row order on the master grid.</span>
     </div>`;
-  }).join('');
 }
 
-function select(id) {
-  currentId = id;
-  renderList();
-  renderPerson();
-  showPane('person');
-}
+// --- staff form ------------------------------------------------------------
+function staffForm(e) {
+  const t = typeOf(e), spec = TYPES[t];
+  const chip = (s, field) => {
+    const m = shiftMeta(s);
+    const on = e[field].includes(s);
+    const dead = m && !m.active;
+    const lockedByHome = field === 'backup_shifts' && e.home_shifts.includes(s);
+    return `<div class="chip ${on ? (field === 'backup_shifts' ? 'on backup':'on') : ''} ${lockedByHome ? 'locked':''} ${dead ? 'dead':''}"
+      ${lockedByHome ? 'title="Already a home unit"' : `onclick="toggleStaffShift('${field}','${esc(s).replace(/'/g,"\\'")}')"`}
+      >${esc(s)}<span class="hrs">${m ? m.hours + 'h' : '?'}</span></div>`;
+  };
 
-// ---------------------------------------------------------------------------
-// Person form
-// ---------------------------------------------------------------------------
-function renderPerson() {
-  const e = current();
-  const empty = document.getElementById('personEmpty');
-  const form = document.getElementById('personForm');
-
-  if (!e) {
-    empty.style.display = '';
-    form.style.display = 'none';
-    document.getElementById('topbarName').textContent = 'Staff editor';
-    return;
-  }
-  empty.style.display = 'none';
-  form.style.display = '';
-  document.getElementById('topbarName').textContent = e.name || 'Unnamed';
-
-  const myIssues = issues.byId[e.id] || [];
-  const issueHtml = myIssues.length ? `
-    <div class="banner ${myIssues.some(i => i.level === 'error') ? 'err' : 'warn'}">
-      <h4>${myIssues.length} issue${myIssues.length > 1 ? 's' : ''} on this record</h4>
-      <ul>${myIssues.map(i => `<li>${esc(i.msg)}</li>`).join('')}</ul>
-    </div>` : '';
-
-  const t = typeOf(e);
-  const spec = TYPES[t];
-
-  const homeChips = shiftNames().map(s => {
-    const on = e.home_shifts.includes(s);
-    return `<div class="chip ${on ? 'on' : ''}" onclick="toggleShift('home_shifts','${esc(s)}')">${esc(s)}<span class="hrs">${shiftMeta(s).hours}h</span></div>`;
-  }).join('');
-
-  const backupChips = shiftNames().map(s => {
-    const isHome = e.home_shifts.includes(s);
-    const on = e.backup_shifts.includes(s);
-    return `<div class="chip ${on ? 'on backup' : ''} ${isHome ? 'locked' : ''}"
-      ${isHome ? 'title="Already a home shift"' : `onclick="toggleShift('backup_shifts','${esc(s)}')"`}
-      >${esc(s)}<span class="hrs">${shiftMeta(s).hours}h</span></div>`;
-  }).join('');
-
-  const weekdayChips = WEEKDAYS.map(d => {
-    const on = e.unavailable_weekdays.includes(d);
-    return `<div class="chip ${on ? 'on' : ''}" onclick="toggleShift('unavailable_weekdays','${d}')">${d}</div>`;
-  }).join('');
+  const homeChips   = shiftNames().map(s => chip(s, 'home_shifts')).join('');
+  const backupChips = shiftNames().map(s => chip(s, 'backup_shifts')).join('');
+  const weekdayChips = WEEKDAYS.map(d =>
+    `<div class="chip ${e.unavailable_weekdays.includes(d) ? 'on':''}" onclick="toggleStaffShift('unavailable_weekdays','${d}')">${d}</div>`).join('');
 
   const daysOff = e.requested_days_off.length
-    ? e.requested_days_off.map((d, i) => `
-        <div class="row">
-          <input type="date" value="${esc(d)}" onchange="setArray('requested_days_off',${i},this.value)">
-          <button class="btn danger tiny" onclick="removeAt('requested_days_off',${i})">Remove</button>
-        </div>`).join('')
+    ? e.requested_days_off.map((d,i) => `<div class="row">
+        <input type="date" value="${esc(d)}" onchange="setStaffArray('requested_days_off',${i},this.value)">
+        <button class="btn danger tiny" onclick="removeStaffAt('requested_days_off',${i})">Remove</button></div>`).join('')
     : '<div class="none">None</div>';
 
   const biweekly = e.biweekly_unavailable.length
-    ? e.biweekly_unavailable.map((r, i) => `
-        <div class="row">
-          <select onchange="setBiweekly(${i},'day',this.value)">
-            ${WEEKDAYS.map(d => `<option ${r.day === d ? 'selected' : ''}>${d}</option>`).join('')}
-          </select>
-          <input type="date" value="${esc(r.anchor_date || '')}" onchange="setBiweekly(${i},'anchor_date',this.value)">
-          <button class="btn danger tiny" onclick="removeAt('biweekly_unavailable',${i})">Remove</button>
-        </div>`).join('')
+    ? e.biweekly_unavailable.map((r,i) => `<div class="row">
+        <select onchange="setBiweekly(${i},'day',this.value)">
+          ${WEEKDAYS.map(d => `<option ${r.day === d ? 'selected':''}>${d}</option>`).join('')}
+        </select>
+        <input type="date" value="${esc(r.anchor_date || '')}" onchange="setBiweekly(${i},'anchor_date',this.value)">
+        <button class="btn danger tiny" onclick="removeStaffAt('biweekly_unavailable',${i})">Remove</button></div>`).join('')
     : '<div class="none">None</div>';
 
-  form.innerHTML = `
-    ${issueHtml}
+  return `
+    ${issueBanner(issues.byStaff[e.id])}
 
     <div class="section">
       <h3>Basics</h3>
@@ -615,41 +680,41 @@ function renderPerson() {
         <div class="field full">
           <label for="fName">Full name</label>
           <input type="text" id="fName" value="${esc(e.name)}" placeholder="Last, First"
-                 oninput="setField('name', this.value)">
+                 oninput="setStaffField('name', this.value)">
         </div>
         <div class="field">
           <label for="fType">Employment type</label>
           <select id="fType" onchange="setType(this.value)">
-            ${Object.entries(TYPES).map(([k, v]) =>
-              `<option value="${k}" ${t === k ? 'selected' : ''}>${v.label}</option>`).join('')}
+            ${Object.entries(TYPES).map(([k,v]) =>
+              `<option value="${k}" ${t === k ? 'selected':''}>${v.label}</option>`).join('')}
           </select>
         </div>
         <div class="field">
           <label for="fTarget">Target hours per pay period</label>
           <input type="number" id="fTarget" min="0" max="200" step="4" value="${e.target_hours}"
                  ${spec.target ? '' : 'disabled title="U-status staff have no hours target"'}
-                 oninput="setField('target_hours', parseInt(this.value) || 0)">
+                 oninput="setStaffField('target_hours', parseInt(this.value) || 0)">
         </div>
         <div class="field">
           <label for="fCap">Weekly hour cap</label>
           <input type="number" id="fCap" min="0" max="84" step="4" value="${e.max_weekly_hours}"
                  ${t === 'rotational' ? 'disabled title="7-on/7-off sets its own hours"' : ''}
-                 oninput="setField('max_weekly_hours', parseInt(this.value) || 0)">
+                 oninput="setStaffField('max_weekly_hours', parseInt(this.value) || 0)">
         </div>
         ${t === 'rotational' ? `
         <div class="field">
           <label for="fRot">Rotation week</label>
-          <select id="fRot" onchange="setField('rotation', this.value)">
-            <option value="A" ${e.rotation === 'A' ? 'selected' : ''}>A — week 1 of each period</option>
-            <option value="B" ${e.rotation === 'B' ? 'selected' : ''}>B — week 2 of each period</option>
+          <select id="fRot" onchange="setStaffField('rotation', this.value)">
+            <option value="A" ${e.rotation === 'A' ? 'selected':''}>A — week 1 of each period</option>
+            <option value="B" ${e.rotation === 'B' ? 'selected':''}>B — week 2 of each period</option>
           </select>
         </div>` : ''}
         <div class="field">
           <label for="fWknd">Weekends</label>
-          <select id="fWknd" onchange="setField('weekend_preference', this.value)">
-            <option value="target_equity" ${e.weekend_preference === 'target_equity' ? 'selected' : ''}>Fair share</option>
-            <option value="any" ${e.weekend_preference === 'any' ? 'selected' : ''}>No preference</option>
-            <option value="never" ${e.weekend_preference === 'never' ? 'selected' : ''}>Never</option>
+          <select id="fWknd" onchange="setStaffField('weekend_preference', this.value)">
+            <option value="target_equity" ${e.weekend_preference === 'target_equity' ? 'selected':''}>Fair share</option>
+            <option value="any" ${e.weekend_preference === 'any' ? 'selected':''}>No preference</option>
+            <option value="never" ${e.weekend_preference === 'never' ? 'selected':''}>Never</option>
           </select>
         </div>
       </div>
@@ -659,11 +724,9 @@ function renderPerson() {
     ${spec.home ? `
     <div class="section">
       <h3>Home units</h3>
-      <div class="hint">The units this person normally covers.${
-        t === 'rotational' ? ' The first one is their rotation anchor.' : ''}</div>
+      <div class="hint">The units this person normally covers.${t === 'rotational' ? ' The first one is their rotation anchor.' : ''}</div>
       <div class="chips">${homeChips}</div>
     </div>
-
     <div class="section">
       <h3>Backup units</h3>
       <div class="hint">Units this person can float to. The solver uses these only when a home unit cannot otherwise be covered.</div>
@@ -697,27 +760,95 @@ function renderPerson() {
       </div>
     </div>
 
-    <div class="section" style="border-top:1px solid var(--line); padding-top:20px">
-      <button class="btn danger" onclick="removeEmployee()">Delete ${esc(e.name || 'this person')}</button>
-    </div>
-  `;
+    <div class="section" style="border-top:1px solid var(--line); padding-top:18px">
+      <button class="btn danger" onclick="removeStaff()">Delete ${esc(e.name || 'this person')}</button>
+    </div>`;
 }
 
 // ---------------------------------------------------------------------------
-// Mutations. Text inputs re-validate without rebuilding the form, so focus and
-// caret position survive typing. Everything else does a full refresh.
+// Shift mutations
 // ---------------------------------------------------------------------------
-function setField(field, value) {
-  const e = current(); if (!e) return;
+// Renaming has to cascade. Staff records store shift NAMES, so a rename that
+// only touched the catalogue would silently strand every record pointing at it.
+function renameShift(raw) {
+  const s = curShift(); if (!s) return;
+  const next = String(raw || '').trim();
+  if (!next || next === s.name) { renderEdit(); return; }
+  if (shifts.some(x => x !== s && x.name === next)) {
+    toast(`There is already a shift called "${next}".`, true);
+    renderEdit(); return;
+  }
+  const old = s.name;
+  let touched = 0;
+  staff.forEach(e => {
+    ['home_shifts','backup_shifts'].forEach(f => {
+      const i = e[f].indexOf(old);
+      if (i >= 0) { e[f][i] = next; touched++; }
+    });
+  });
+  s.name = next;
+  currentShift = next;
+  refresh();
+  toast(touched ? `Renamed to "${next}" and updated ${touched} staff reference(s).`
+                : `Renamed to "${next}".`);
+}
+
+function setShiftField(field, value) {
+  const s = curShift(); if (!s) return;
+  s[field] = value;
+  if (field === 'active') refresh();
+  else { validate(); renderList(); renderCoverage(); renderHealth(); markDirty(); }
+}
+
+function toggleShiftDay(day) {
+  const s = curShift(); if (!s) return;
+  const i = s.days.indexOf(day);
+  if (i >= 0) s.days.splice(i, 1); else s.days.push(day);
+  s.days = WEEKDAYS.filter(d => s.days.includes(d));
+  refresh();
+}
+
+function moveShift(dir) {
+  const s = curShift(); if (!s) return;
+  const i = shifts.indexOf(s), j = i + dir;
+  if (j < 0 || j >= shifts.length) return;
+  shifts.splice(i, 1); shifts.splice(j, 0, s);
+  shifts.forEach((x, k) => { x.order = k; });
+  refresh();
+}
+
+function deleteShift() {
+  const s = curShift(); if (!s) return;
+  const owners = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
+  const msg = owners.length
+    ? `${owners.length} staff record(s) reference "${s.name}". Deleting it will remove those references too.\n\nConsider switching the shift off instead — that keeps the references intact.\n\nDelete anyway?`
+    : `Delete "${s.name}"?`;
+  if (!confirm(msg)) return;
+  owners.forEach(e => {
+    e.home_shifts = e.home_shifts.filter(x => x !== s.name);
+    e.backup_shifts = e.backup_shifts.filter(x => x !== s.name);
+  });
+  shifts = shifts.filter(x => x !== s);
+  currentShift = null;
+  refresh();
+  toast(`Deleted "${s.name}"${owners.length ? ` and cleared ${owners.length} reference(s)` : ''}.`);
+}
+
+// ---------------------------------------------------------------------------
+// Staff mutations. Text inputs re-validate without rebuilding the form, so
+// focus and caret position survive typing.
+// ---------------------------------------------------------------------------
+function setStaffField(field, value) {
+  const e = curStaff(); if (!e) return;
   e[field] = value;
-  if (field === 'name') document.getElementById('topbarName').textContent = value || 'Unnamed';
+  if (field === 'name') document.getElementById('title').textContent = value || 'Unnamed';
   validate(); renderList(); markDirty();
 }
 
 // Changing type has to move data, not just relabel it: a core pharmacist made
 // variable keeps their units, but as things they *can* work rather than own.
 function setType(newType) {
-  const e = current(); if (!e) return;
+  const e = curStaff(); if (!e) return;
   const spec = TYPES[newType];
   e.employment_type = newType;
 
@@ -726,7 +857,7 @@ function setType(newType) {
     e.home_shifts = [];
   }
   if (spec.home && !e.home_shifts.length && e.backup_shifts.length) {
-    e.home_shifts = [e.backup_shifts.shift()];   // promote one so they have an anchor
+    e.home_shifts = [e.backup_shifts.shift()];
   }
   if (!spec.target) e.target_hours = 0;
   else if (!e.target_hours) e.target_hours = 80;
@@ -740,11 +871,11 @@ function setType(newType) {
   refresh();
 }
 
-function toggleShift(field, value) {
-  const e = current(); if (!e) return;
+function toggleStaffShift(field, value) {
+  const e = curStaff(); if (!e) return;
   const i = e[field].indexOf(value);
   if (i >= 0) e[field].splice(i, 1); else e[field].push(value);
-  // Dropping a home shift should not silently orphan it in backup.
+  // Promoting a unit to home should not leave it duplicated in backup.
   if (field === 'home_shifts' && i < 0) {
     const b = e.backup_shifts.indexOf(value);
     if (b >= 0) e.backup_shifts.splice(b, 1);
@@ -752,150 +883,142 @@ function toggleShift(field, value) {
   refresh();
 }
 
-function setArray(field, index, value) {
-  const e = current(); if (!e) return;
+function setStaffArray(field, index, value) {
+  const e = curStaff(); if (!e) return;
   e[field][index] = value;
-  validate(); renderList(); markDirty();
+  validate(); renderList(); renderEdit(); markDirty();
 }
 
-function removeAt(field, index) {
-  const e = current(); if (!e) return;
+function removeStaffAt(field, index) {
+  const e = curStaff(); if (!e) return;
   e[field].splice(index, 1);
   refresh();
 }
 
 function setBiweekly(index, key, value) {
-  const e = current(); if (!e) return;
+  const e = curStaff(); if (!e) return;
   e.biweekly_unavailable[index][key] = value;
-  validate(); renderList(); markDirty();
+  validate(); renderList(); renderEdit(); markDirty();
 }
 
-function addDayOff() {
-  const e = current(); if (!e) return;
-  e.requested_days_off.push('');
-  refresh();
+function addDayOff()   { const e = curStaff(); if (!e) return; e.requested_days_off.push(''); refresh(); }
+function addBiweekly() { const e = curStaff(); if (!e) return; e.biweekly_unavailable.push({day:'Monday', anchor_date:''}); refresh(); }
+
+function addRecord() {
+  if (mode === 'staff') {
+    const nextId = staff.reduce((m,e) => Math.max(m, e.id), -1) + 1;
+    staff.push(normalizeStaff({ id: nextId, name: '', target_hours: 80, employment_type: 'core' }));
+    currentStaffId = nextId;
+    document.getElementById('search').value = '';
+    refresh(); showPane('edit');
+    setTimeout(() => document.getElementById('fName')?.focus(), 20);
+  } else {
+    let n = 1, name;
+    do { name = 'New Shift ' + n++; } while (shifts.some(s => s.name === name));
+    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10, required:1 }, shifts.length));
+    currentShift = name;
+    document.getElementById('search').value = '';
+    refresh(); showPane('edit');
+    setTimeout(() => document.getElementById('sName')?.select(), 20);
+  }
 }
 
-function addBiweekly() {
-  const e = current(); if (!e) return;
-  e.biweekly_unavailable.push({ day: 'Monday', anchor_date: '' });
-  refresh();
-}
-
-function addEmployee() {
-  const nextId = staff.reduce((m, e) => Math.max(m, e.id), -1) + 1;
-  const e = normalize({ id: nextId, name: '', target_hours: 80,
-                        employment_type: 'core' });
-  staff.push(e);
-  currentId = nextId;
-  document.getElementById('search').value = '';
-  refresh();
-  showPane('person');
-  setTimeout(() => document.getElementById('fName')?.focus(), 20);
-}
-
-function removeEmployee() {
-  const e = current(); if (!e) return;
-  if (!confirm(`Delete ${e.name || 'this person'}? This is not saved until you press Save.`)) return;
+function removeStaff() {
+  const e = curStaff(); if (!e) return;
+  if (!confirm(`Delete ${e.name || 'this person'}? Not saved until you press Save.`)) return;
   staff = staff.filter(x => x.id !== e.id);
-  currentId = null;
+  currentStaffId = null;
   refresh();
 }
 
 // ---------------------------------------------------------------------------
-// Health + coverage panes
+// Health + coverage
 // ---------------------------------------------------------------------------
 function renderHealth() {
   const c = capacity();
   const nameOf = id => staff.find(e => e.id === id)?.name || '';
-  const line = i => i.id != null
-    ? `<li><span class="who">${esc(nameOf(i.id))}</span> — ${esc(i.msg)}</li>`
-    : `<li>${esc(i.msg)}</li>`;
+  const line = i => i.staff != null
+    ? `<li><span class="who">${esc(nameOf(i.staff))}</span> — ${esc(i.msg)}</li>`
+    : (i.shift ? `<li><span class="who">${esc(i.shift)}</span> — ${esc(i.msg)}</li>`
+               : `<li>${esc(i.msg)}</li>`);
 
   let html = `
     <div class="stats">
       <div class="stat"><div class="n">${c.demand}</div><div class="k">Hours demanded / period</div></div>
       <div class="stat"><div class="n">${c.committed}</div><div class="k">Obligated hours</div></div>
-      <div class="stat"><div class="n ${c.slack < 0 ? 'neg' : 'pos'}">${c.slack > 0 ? '+' : ''}${c.slack}</div><div class="k">Slack</div></div>
+      <div class="stat"><div class="n ${c.slack < 0 ? 'neg':'pos'}">${c.slack > 0 ? '+':''}${c.slack}</div><div class="k">Slack</div></div>
       <div class="stat"><div class="n">${c.util}%</div><div class="k">Utilization</div></div>
       <div class="stat"><div class="n">${c.bench}</div><div class="k">U-status bench</div></div>
     </div>
-    <div class="banner info">Obligated hours count rotational, core and variable
-    targets. The u-status bench sits on top and nobody is required to work any of
-    it, so the schedule should stand up without it.</div>`;
+    <div class="banner info">Obligated hours count rotational, core and variable targets.
+    The u-status bench sits on top and nobody is required to work any of it, so the
+    schedule should stand up without it.</div>`;
 
   if (c.slack > c.demand * 0.05) {
     html += `<div class="banner warn"><h4>More obligated hours than shifts to put them in</h4>
-      Targets exceed demand by ${c.slack} hours per pay period. Every line takes one
-      person a day, so some people cannot reach their target however the solver arranges
-      things. Lower some targets, or move the most flexible people to u-status so their
-      hours stop being counted as obligated.</div>`;
+      Targets exceed demand by ${c.slack} hours per pay period, so some people cannot reach
+      their target however the solver arranges things. Lower some targets, raise the people-per-day
+      on the lines that really run more than one, or move the most flexible people to u-status.</div>`;
   } else if (c.slack < 0) {
     html += `<div class="banner warn"><h4>More shifts than obligated hours</h4>
-      Demand exceeds targets by ${-c.slack} hours per pay period. The schedule will
-      have to lean on voluntary u-status pickup, which nobody is required to give.</div>`;
+      Demand exceeds targets by ${-c.slack} hours per pay period. The schedule will have to lean
+      on voluntary u-status pickup, which nobody is required to give.</div>`;
   }
 
-  if (issues.errors.length) {
-    html += `<div class="banner err"><h4>${issues.errors.length} blocking problem${issues.errors.length > 1 ? 's' : ''}</h4>
+  if (issues.errors.length)
+    html += `<div class="banner err"><h4>${issues.errors.length} blocking problem${issues.errors.length > 1 ? 's':''}</h4>
       <ul>${issues.errors.map(line).join('')}</ul></div>`;
-  }
-  if (issues.warnings.length) {
-    html += `<div class="banner warn"><h4>${issues.warnings.length} thing${issues.warnings.length > 1 ? 's' : ''} to look at</h4>
+  if (issues.warnings.length)
+    html += `<div class="banner warn"><h4>${issues.warnings.length} thing${issues.warnings.length > 1 ? 's':''} to look at</h4>
       <ul>${issues.warnings.map(line).join('')}</ul></div>`;
-  }
-  if (!issues.errors.length && !issues.warnings.length) {
+  if (!issues.errors.length && !issues.warnings.length)
     html += `<div class="banner ok"><h4>Nothing flagged</h4>
       Every record passes the same checks the solver runs before it starts.</div>`;
-  }
 
   document.getElementById('pane-health').innerHTML = html;
 }
 
 function renderCoverage() {
-  const rows = SHIFT_CONFIG.map(s => {
-    const qual = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
-    const home = qual.filter(e => e.home_shifts.includes(s.name));
+  const rows = shifts.map(s => {
+    const qual   = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
+    const home   = qual.filter(e => e.home_shifts.includes(s.name));
     const backup = qual.filter(e => !e.home_shifts.includes(s.name) && typeOf(e) !== 'u_status');
     const relief = qual.filter(e => typeOf(e) === 'u_status');
     const obligated = qual.filter(e => typeOf(e) !== 'u_status');
-    const rot = staff.filter(e => e.rotation && e.home_shifts[0] === s.name)
-                     .map(e => e.rotation).sort().join('/');
+    const rot = staff.filter(e => e.rotation && e.home_shifts[0] === s.name).map(e => e.rotation).sort().join('/');
+    const runsWknd = s.days.some(d => WEEKEND.includes(d));
     const wkndPool = obligated.filter(e => e.weekend_preference !== 'never');
-    const daysPerPeriod = s.weekends ? 14 : 10;
-    const demand = s.required * s.hours * daysPerPeriod;
-
-    const risky = !obligated.length
-      || (s.weekends && !wkndPool.length)
-      || (rot && rot !== 'A/B');
-
-    return `<tr class="${risky ? 'risk' : ''}">
-      <td><strong>${esc(s.name)}</strong></td>
+    const risky = s.active && s.required > 0 &&
+      (!obligated.length || (runsWknd && !wkndPool.length) || (rot && rot !== 'A/B'));
+    const runs = s.days.length === 7 ? '7 days'
+               : (s.days.length === 5 && !runsWknd ? 'Weekdays' : s.days.map(d => d.slice(0,2)).join(''));
+    return `<tr class="${risky ? 'risk':''} ${s.active ? '':'dim'}" onclick="selectShiftFromTable('${esc(s.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
+      <td><strong>${esc(s.name)}</strong>${s.active ? '' : ' <span class="none">(off)</span>'}</td>
+      <td>${esc(s.category)}</td>
       <td class="num">${s.hours}h</td>
       <td class="num">${s.required}</td>
-      <td>${s.weekends ? '7 days' : 'Weekdays'}</td>
+      <td>${runs}</td>
       <td class="num">${home.length}</td>
       <td class="num">${backup.length}</td>
       <td class="num">${relief.length || '—'}</td>
-      <td class="num">${s.weekends ? wkndPool.length : '—'}</td>
-      <td>${rot ? esc(rot) : '—'}</td>
-      <td class="num">${demand}</td>
+      <td class="num">${runsWknd ? wkndPool.length : '—'}</td>
+      <td>${rot || '—'}</td>
+      <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
     </tr>`;
   }).join('');
 
   document.getElementById('pane-coverage').innerHTML = `
-    <div class="banner info">Hours demanded assumes a full 14-day pay period. Backup and
-    weekend counts exclude u-status, since relief pickup is voluntary. Rows in red have no
-    obligated staff, no weekend-eligible obligated staff, or an unpaired rotation.</div>
-    <table>
-      <thead><tr>
-        <th>Shift</th><th class="num">Length</th><th class="num">Need</th><th>Runs</th>
-        <th class="num">Home</th><th class="num">Backup</th><th class="num">Relief</th><th class="num">Wknd pool</th>
-        <th>Rotation</th><th class="num">Hrs / period</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <div class="banner info">Backup and weekend counts exclude u-status, since relief pickup is
+    voluntary. Rows in red have no obligated staff, no weekend-eligible obligated staff, or an
+    unpaired rotation. Click a row to edit that shift.</div>
+    <table><thead><tr>
+      <th>Shift</th><th>Category</th><th class="num">Len</th><th class="num">Need</th><th>Runs</th>
+      <th class="num">Home</th><th class="num">Backup</th><th class="num">Relief</th>
+      <th class="num">Wknd</th><th>Rot</th><th class="num">Hrs/pd</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
 }
+
+function selectShiftFromTable(nm) { setMode('shifts'); selectShift(nm); }
 
 function showPane(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
@@ -909,28 +1032,37 @@ async function save() {
   if (issues.errors.length &&
       !confirm(`${issues.errors.length} blocking problem(s) remain. Save anyway?`)) return;
 
-  // Blank dates would be stored and then silently ignored by the solver.
-  const payload = staff.map(e => ({
-    ...e,
-    name: e.name.trim(),
-    requested_days_off: e.requested_days_off.filter(Boolean).sort(),
-    biweekly_unavailable: e.biweekly_unavailable.filter(r => r.anchor_date),
-  }));
-
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
+  const done = [];
   try {
-    const res = await fetch(API + '/staff', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.message || 'Server returned ' + res.status);
-    staff = payload.map(normalize);
-    saved = JSON.stringify(staff);
+    // Shifts first: if a rename happened, the staff payload already points at
+    // the new names, and saving those against the old catalogue would orphan them.
+    if (dirtyShifts()) {
+      const r = await fetch(API + '/shifts', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(shifts.map((s,i) => ({ ...s, order:i }))) });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(b.message || ('shifts: ' + r.status));
+      savedShifts = JSON.stringify(shifts);
+      done.push(`${shifts.length} shifts`);
+    }
+    if (dirtyStaff()) {
+      // Blank dates would be stored and then silently ignored by the solver.
+      const payload = staff.map(e => ({ ...e,
+        name: e.name.trim(),
+        requested_days_off: e.requested_days_off.filter(Boolean).sort(),
+        biweekly_unavailable: e.biweekly_unavailable.filter(r => r.anchor_date) }));
+      const r = await fetch(API + '/staff', { method:'POST',
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(b.message || ('staff: ' + r.status));
+      staff = payload.map(normalizeStaff);
+      savedStaff = JSON.stringify(staff);
+      done.push(`${staff.length} staff`);
+    }
     refresh();
-    toast(body.message || `Saved ${payload.length} records.`);
+    toast(done.length ? 'Saved ' + done.join(' and ') + '.' : 'Nothing had changed.');
   } catch (e) {
     toast('Save failed: ' + e.message, true);
   } finally {
@@ -940,9 +1072,11 @@ async function save() {
 
 function revert() {
   if (!isDirty()) { toast('Nothing to revert.'); return; }
-  if (!confirm('Discard all unsaved changes?')) return;
-  staff = JSON.parse(saved).map(normalize);
-  if (!staff.some(e => e.id === currentId)) currentId = null;
+  if (!confirm('Discard all unsaved changes to both staff and shifts?')) return;
+  shifts = JSON.parse(savedShifts).map(normalizeShift);
+  staff  = JSON.parse(savedStaff).map(normalizeStaff);
+  if (!staff.some(e => e.id === currentStaffId)) currentStaffId = null;
+  if (!shifts.some(s => s.name === currentShift)) currentShift = null;
   refresh();
   toast('Reverted to the last saved version.');
 }
@@ -955,7 +1089,6 @@ function goToScheduler() {
 window.addEventListener('beforeunload', ev => {
   if (isDirty()) { ev.preventDefault(); ev.returnValue = ''; }
 });
-
 window.addEventListener('keydown', ev => {
   if ((ev.metaKey || ev.ctrlKey) && ev.key === 's') { ev.preventDefault(); save(); }
 });
@@ -967,7 +1100,7 @@ function toast(msg, bad) {
   t.classList.toggle('bad', !!bad);
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3600);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
 }
 </script>
 </body>
