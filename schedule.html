@@ -1,360 +1,569 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Shift Scheduler</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; max-width: 1400px; margin: auto; background-color: #1e1e1e; color: #e0e0e0; }
-        h1 { color: #ffffff; margin-top: 0; }
-        
-        /* Navigation */
-        .top-nav { background: #2b2b2b; padding: 15px 20px; border-bottom: 1px solid #444; margin-bottom: 20px; display: flex; gap: 15px; border-radius: 8px; }
-        .nav-btn { padding: 10px 15px; background: transparent; border: 1px solid #4a6984; color: #4a6984; font-size: 14px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .nav-btn.active { background: #4a6984; color: white; cursor: default; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shift Scheduler</title>
+<style>
+  :root {
+    --bg:        #16181c;
+    --panel:     #1e2127;
+    --panel-2:   #262a32;
+    --line:      #333842;
+    --line-soft: #2a2e36;
+    --text:      #e3e6ea;
+    --text-dim:  #949cab;
+    --text-mute: #646b78;
+    --accent:    #5b8bb8;
+    --accent-dk: #3d6484;
+    --ok:        #3f8f4a;
+    --short:     #c0392b;
+    --over:      #d9822b;
+    --float:     #d9a441;
+    --gap:       #c0392b;
+    --radius:    6px;
+  }
 
-        /* Form Controls */
-        .controls-container { background: #2b2b2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; }
-        label { font-weight: bold; margin-bottom: 5px; color: #a9b7c6; font-size: 14px; }
-        input[type="date"] { padding: 8px; background: #3c3f41; color: #fff; border: 1px solid #555; border-radius: 4px; color-scheme: dark; }
-        button.action-btn { padding: 10px 20px; background: #4a6984; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; transition: background 0.2s; }
-        button.action-btn:hover { background: #354e63; }
-        
-        /* Results Area */
-        #results { margin-top: 20px; font-size: 14px; }
-        .status-msg { padding: 15px; background: #2b2b2b; border-radius: 5px; font-family: monospace; color: #a9b7c6; white-space: pre-wrap; }
-        
-        /* View Toggles */
-        .view-toggles { display: flex; gap: 10px; margin-bottom: 15px; }
-        .toggle-btn { background: transparent; border: 1px solid #555; color: #a9b7c6; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .toggle-btn.active { background: #e0e0e0; color: #1e1e1e; border-color: #e0e0e0; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  * { box-sizing: border-box; }
 
-        /* Master Calendar Table */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        th, td { border: 1px solid #444; padding: 10px; text-align: center; }
-        th { background-color: #354e63; color: white; padding: 12px; }
-        td.shift-name { font-weight: bold; background-color: #2b2b2b; text-align: right; border-right: 2px solid #555; }
-        td.assigned { background-color: #3c3f41; }
-        .float-tag { color: #f39c12; font-size: 0.85em; font-weight: bold; margin-left: 4px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    max-width: 1600px;
+    margin-inline: auto;
+    font-size: 14px;
+    line-height: 1.5;
+  }
 
-        /* Employee Cards Grid */
-        .emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .emp-card { background: #2b2b2b; border: 1px solid #444; border-radius: 6px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-        .emp-name { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
-        
-        /* Pay Period Sections */
-        .pp-section { margin-bottom: 15px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #333; }
-        .pp-section:last-child { margin-bottom: 0; }
-        .pp-header { background: #3c3f41; padding: 8px 10px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4a6984; border-bottom: 1px solid #333; }
-        
-        /* Badges */
-        .hours-badge { font-size: 11px; padding: 3px 6px; border-radius: 3px; font-weight: bold; background: #2b2b2b; border: 1px solid #555; margin-left: 10px; }
-        .hours-badge.ok { background: #2e7d32; color: #fff; border-color: #1b5e20; }
-        .hours-badge.short { background: #c62828; color: #fff; border-color: #b71c1c; }
-        .hours-badge.over { background: #ef6c00; color: #fff; border-color: #e65100; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-mute); font-size: 13px; margin-bottom: 22px; }
 
-        .emp-shift { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 10px; border-bottom: 1px dashed #333; }
-        .emp-shift:last-child { border-bottom: none; }
-        .emp-shift .date { color: #a9b7c6; }
-        .emp-shift .shift { color: #e0e0e0; font-weight: bold; }
-        
-        /* Unmatched Warning */
-        .unmatched-card { border: 1px solid #ef6c00; }
-        .unmatched-name { color: #ef6c00; }
-        
-        /* Diagnostic Box */
-        .diagnostic-box { background: #331414; border: 1px solid #ff4444; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-family: monospace; font-size: 13px; overflow-x: auto; display: none; }
-    </style>
+  /* ---------- nav ---------- */
+  .top-nav {
+    display: flex; gap: 8px; background: var(--panel);
+    padding: 10px; border-radius: var(--radius);
+    border: 1px solid var(--line); margin-bottom: 22px;
+  }
+  .nav-btn {
+    padding: 8px 14px; background: transparent; border: 1px solid var(--accent-dk);
+    color: var(--accent); font-size: 13px; border-radius: 4px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .nav-btn.active { background: var(--accent-dk); color: #fff; cursor: default; }
+
+  /* ---------- controls ---------- */
+  .controls {
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 18px; border-radius: var(--radius); margin-bottom: 20px;
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label { font-weight: 600; color: var(--text-dim); font-size: 12px;
+          text-transform: uppercase; letter-spacing: 0.04em; }
+  input[type="date"] {
+    padding: 8px 10px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px;
+    color-scheme: dark; font-family: inherit; font-size: 14px;
+  }
+  .btn {
+    padding: 9px 18px; background: var(--accent-dk); color: #fff; border: none;
+    cursor: pointer; font-size: 14px; border-radius: 4px; font-weight: 600;
+    font-family: inherit; transition: background .15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text-dim); }
+  .btn.ghost:hover { background: var(--panel-2); color: var(--text); }
+  .quick-range { display: flex; gap: 6px; }
+  .chip {
+    padding: 7px 11px; background: transparent; border: 1px solid var(--line);
+    color: var(--text-dim); border-radius: 4px; cursor: pointer;
+    font-size: 12px; font-family: inherit; font-weight: 600;
+  }
+  .chip:hover { border-color: var(--accent-dk); color: var(--accent); }
+
+  /* ---------- status / banners ---------- */
+  .status {
+    padding: 16px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); color: var(--text-dim); white-space: pre-wrap;
+  }
+  .banner {
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+    border: 1px solid; font-size: 13px;
+  }
+  .banner h4 { margin: 0 0 8px; font-size: 13px; font-weight: 700;
+               text-transform: uppercase; letter-spacing: .05em; }
+  .banner ul { margin: 0; padding-left: 18px; }
+  .banner li { margin-bottom: 4px; }
+  .banner li:last-child { margin-bottom: 0; }
+  .banner.err  { background: #2a1618; border-color: #7d2b2b; color: #f0b4b4; }
+  .banner.warn { background: #2a2216; border-color: #7d5c2b; color: #e8cd9a; }
+  .banner.info { background: #16202a; border-color: #2b5c7d; color: #a8c9e0; }
+
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    background: transparent; border: 1px solid var(--line); color: var(--text-dim);
+    padding: 8px 15px; border-radius: 4px; cursor: pointer;
+    font-weight: 600; font-family: inherit; font-size: 13px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .tab .count { opacity: .65; font-weight: 500; margin-left: 5px; }
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  /* ---------- master grid ---------- */
+  .table-wrap {
+    overflow: auto; max-height: 78vh;
+    border: 1px solid var(--line); border-radius: var(--radius);
+  }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  th, td { padding: 7px 9px; text-align: center; font-size: 12.5px;
+           border-right: 1px solid var(--line-soft);
+           border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--accent-dk); color: #fff; font-weight: 600;
+  }
+  thead th.wknd { background: #2f4d66; }
+  td.shift-name, thead th.corner {
+    position: sticky; left: 0; z-index: 2;
+    text-align: left; font-weight: 600;
+    background: var(--panel-2);
+    border-right: 2px solid var(--line);
+  }
+  thead th.corner { z-index: 4; background: var(--accent-dk); }
+  td.filled { background: #21252c; }
+  td.wknd-col { background: #1b1e24; }
+  td.gap { background: #331a1a; color: #e88; font-weight: 600; }
+  .float-tag { color: var(--float); font-weight: 700; margin-left: 3px; }
+
+  /* ---------- employee cards ---------- */
+  .card-grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .card-head { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .card-name { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .card-meta { font-size: 12px; color: var(--text-mute); display: flex;
+               gap: 10px; flex-wrap: wrap; }
+  .pill { font-size: 10.5px; padding: 2px 6px; border-radius: 3px;
+          background: var(--panel-2); border: 1px solid var(--line);
+          color: var(--text-dim); font-weight: 600; letter-spacing: .03em; }
+  .pill.rot { border-color: var(--accent-dk); color: var(--accent); }
+
+  .pp { border-bottom: 1px solid var(--line-soft); }
+  .pp:last-child { border-bottom: none; }
+  .pp-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; background: var(--panel-2);
+    font-size: 12px; font-weight: 600; border-left: 3px solid var(--accent-dk);
+  }
+  .pp-label { color: var(--text-dim); }
+  .partial { color: var(--text-mute); font-weight: 500; }
+  .badge { font-size: 11px; padding: 3px 7px; border-radius: 3px;
+           font-weight: 700; border: 1px solid; }
+  .badge.ok    { background: var(--ok);    color: #fff; border-color: #2e6b36; }
+  .badge.short { background: var(--short); color: #fff; border-color: #96281b; }
+  .badge.over  { background: var(--over);  color: #fff; border-color: #a8631f; }
+  .badge.na    { background: transparent;  color: var(--text-mute); border-color: var(--line); }
+
+  .row { display: flex; justify-content: space-between; gap: 10px;
+         padding: 6px 14px; font-size: 12.5px;
+         border-bottom: 1px dashed var(--line-soft); }
+  .row:last-child { border-bottom: none; }
+  .row.wknd { background: #1a1d23; }
+  .row .date { color: var(--text-dim); }
+  .row .shift { font-weight: 600; }
+  .empty { padding: 8px 14px; font-size: 12.5px; color: var(--text-mute); font-style: italic; }
+
+  /* ---------- capacity ---------- */
+  .stats { display: grid; gap: 12px; margin-bottom: 18px;
+           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .stat { background: var(--panel); border: 1px solid var(--line);
+          border-radius: var(--radius); padding: 14px 16px; }
+  .stat .n { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .stat .k { font-size: 11px; color: var(--text-mute); text-transform: uppercase;
+             letter-spacing: .05em; margin-top: 3px; }
+
+  .list-table { width: 100%; border-collapse: collapse;
+                border: 1px solid var(--line); border-radius: var(--radius); }
+  .list-table th { background: var(--panel-2); text-align: left; padding: 9px 12px;
+                   font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                   color: var(--text-dim); position: static; }
+  .list-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); }
+  .list-table tr:last-child td { border-bottom: none; }
+  .num { text-align: right !important; font-variant-numeric: tabular-nums; }
+  .neg { color: #e08585; } .pos { color: #e0b385; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pane.active { animation: fade .2s ease; }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  }
+</style>
 </head>
 <body>
 
-    <div class="top-nav">
-        <button class="nav-btn active">📅 Schedule Generator</button>
-        <button class="nav-btn" onclick="window.location.href='editor.html'">👥 Staff Editor</button>
+<div class="top-nav">
+  <button class="nav-btn active">Schedule generator</button>
+  <button class="nav-btn" onclick="window.location.href='editor.html'">Staff editor</button>
+</div>
+
+<h1>Shift scheduler</h1>
+<div class="subtitle" id="epochNote">Pay periods and shift hours are defined by the server.</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="startDate">Start date</label>
+    <input type="date" id="startDate">
+  </div>
+  <div class="field">
+    <label for="endDate">End date</label>
+    <input type="date" id="endDate">
+  </div>
+  <div class="field">
+    <label>Snap to pay period</label>
+    <div class="quick-range">
+      <button class="chip" onclick="snapRange(1)">1 period</button>
+      <button class="chip" onclick="snapRange(2)">2 periods</button>
+      <button class="chip" onclick="snapRange(3)">3 periods</button>
     </div>
+  </div>
+  <button class="btn" id="goBtn" onclick="generateSchedule()">Generate schedule</button>
+  <button class="btn ghost" id="csvBtn" onclick="exportCsv()" style="display:none">Export CSV</button>
+</div>
 
-    <h1>Shift Scheduler Engine</h1>
-    
-    <div class="controls-container">
-        <div class="form-group">
-            <label>Start Date:</label>
-            <input type="date" id="startDate" required>
-        </div>
-        <div class="form-group">
-            <label>End Date:</label>
-            <input type="date" id="endDate" required>
-        </div>
-        <button class="action-btn" onclick="generateSchedule()">Generate Schedule</button>
-    </div>
-    
-    <div id="results">
-        <div class="status-msg">Select dates and click Generate.</div>
-    </div>
+<div id="results">
+  <div class="status">Pick a start and end date, then generate. Snapping to whole pay
+periods gives the cleanest hour totals — partial periods are prorated.</div>
+</div>
 
-    <script>
-        async function generateSchedule() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const resultsDiv = document.getElementById('results');
+<script>
+const API = 'https://bombmud.vineyard.haus/api';
 
-            if (!startDate || !endDate) {
-                alert("Please select both a start and end date.");
-                return;
-            }
+let LAST = null;     // full response from /generate
+let CONFIG = null;   // response from /config
 
-            resultsDiv.innerHTML = '<div class="status-msg">Fetching staff data from server and crunching the schedule...</div>';
+// ---------------------------------------------------------------------------
+// Boot: read pay-period config from the server so the UI never hardcodes it.
+// ---------------------------------------------------------------------------
+(async function boot() {
+  try {
+    const r = await fetch(API + '/config');
+    if (r.ok) {
+      CONFIG = await r.json();
+      document.getElementById('epochNote').textContent =
+        `Pay periods are ${CONFIG.pay_period_days} days, anchored to ` +
+        `${fmt(CONFIG.pay_period_epoch, {weekday:'long', month:'long', day:'numeric', year:'numeric'})}.`;
+    }
+  } catch (e) { /* config is optional; snapping just gets disabled */ }
+})();
 
-            try {
-                const staffResponse = await fetch('https://bombmud.vineyard.haus/api/staff');
-                if (!staffResponse.ok) throw new Error("Failed to load staff data from server.");
-                const employees = await staffResponse.json();
-                
-                const payload = {
-                    start_date: startDate,
-                    end_date: endDate,
-                    employees: employees
-                };
-
-                const generateResponse = await fetch('https://bombmud.vineyard.haus/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await generateResponse.json();
-                
-                if (data.status === "success") {
-                    renderSuccessInterface(data.schedule, employees);
-                } else {
-                    let errorMsg = `<strong>Error:</strong> ${data.message}\n\n`;
-                    if (data.conflicts) errorMsg += "<strong>Conflicts:</strong>\n" + data.conflicts.join('\n') + "\n\n";
-                    if (data.shortages) errorMsg += "<strong>Shortages:</strong>\n" + data.shortages.join('\n');
-                    resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">${errorMsg}</div>`;
-                }
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class="status-msg" style="color: #ff6b6b;">Error: ${error.message}</div>`;
-            }
-        }
-
-        // --- HELPER: Aggressive Array Finder ---
-        // Looks at a day object and finds whatever array holds the shifts, regardless of what Python named it
-        function getShiftArrayFromDay(day) {
-            if (day.shifts && Array.isArray(day.shifts)) return day.shifts;
-            if (day.assignments && Array.isArray(day.assignments)) return day.assignments;
-            if (day.workers && Array.isArray(day.workers)) return day.workers;
-            
-            // If all else fails, grab the first array found in the object
-            for (const key in day) {
-                if (Array.isArray(day[key])) return day[key];
-            }
-            return []; // Nothing found
-        }
-
-        function renderSuccessInterface(scheduleData, employees) {
-            const resultsDiv = document.getElementById('results');
-            
-            // Generate HTML for both views
-            const { html: employeeHTML, totalShiftsFound } = buildEmployeeRoster(scheduleData, employees);
-            const calendarHTML = buildMasterCalendar(scheduleData);
-
-            // Tripwire: Did we find absolutely nothing?
-            let diagnosticHTML = '';
-            if (totalShiftsFound === 0 && scheduleData.length > 0) {
-                diagnosticHTML = `
-                <div class="diagnostic-box" style="display: block;">
-                    <strong style="color: #ff6b6b;">⚠️ CRITICAL: No shifts detected in the backend JSON payload.</strong><br>
-                    <span style="color: #a9b7c6;">The Python backend returned this data for the very first day:</span><br><br>
-                    <span style="color: #fff; white-space: pre-wrap;">${JSON.stringify(scheduleData[0], null, 2)}</span><br><br>
-                    <strong style="color: #ff6b6b;">Please copy and paste this box back to me!</strong>
-                </div>`;
-            }
-
-            resultsDiv.innerHTML = `
-                ${diagnosticHTML}
-                <div class="view-toggles">
-                    <button class="toggle-btn active" id="btn-cal" onclick="switchView('cal')">Master Grid</button>
-                    <button class="toggle-btn" id="btn-emp" onclick="switchView('emp')">Pay Period Breakdowns</button>
-                </div>
-                
-                <div id="view-cal" class="tab-content active">
-                    <div class="table-container">${calendarHTML}</div>
-                </div>
-                
-                <div id="view-emp" class="tab-content">
-                    ${employeeHTML}
-                </div>
-            `;
-        }
-
-        function switchView(view) {
-            document.getElementById('btn-cal').classList.remove('active');
-            document.getElementById('btn-emp').classList.remove('active');
-            document.getElementById('view-cal').classList.remove('active');
-            document.getElementById('view-emp').classList.remove('active');
-            
-            document.getElementById(`btn-${view}`).classList.add('active');
-            document.getElementById(`view-${view}`).classList.add('active');
-        }
-
-        // --- View 1: Master Calendar ---
-        function buildMasterCalendar(scheduleData) {
-            const shiftNames = [];
-            
-            // Find unique shift names using aggressive key detection
-            scheduleData.forEach(day => {
-                const shiftList = getShiftArrayFromDay(day);
-                
-                shiftList.forEach(s => {
-                    const shiftName = s.shift || s.shift_name || s.role || s.type || s.assignment || "Unknown Shift";
-                    if (!shiftNames.includes(shiftName)) shiftNames.push(shiftName);
-                });
-            });
-
-            let html = `<table>`;
-            html += `<thead><tr><th>Shift</th>`;
-            scheduleData.forEach(day => {
-                const [year, month, d] = day.date.split('-');
-                const dateObj = new Date(year, month - 1, d);
-                const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
-                html += `<th>${dateStr}</th>`;
-            });
-            html += `</tr></thead><tbody>`;
-
-            shiftNames.forEach(targetShiftName => {
-                html += `<tr>`;
-                html += `<td class="shift-name">${targetShiftName}</td>`;
-                
-                scheduleData.forEach(day => {
-                    const shiftList = getShiftArrayFromDay(day);
-                    
-                    // Find all workers assigned to this specific shift today
-                    const assignedWorkers = shiftList.filter(s => {
-                        const shiftName = s.shift || s.shift_name || s.role || s.type || s.assignment || "Unknown Shift";
-                        return shiftName === targetShiftName;
-                    });
-
-                    if (assignedWorkers.length > 0) {
-                        html += `<td class="assigned">`;
-                        assignedWorkers.forEach(worker => {
-                            const floatMarker = worker.is_float ? `<span class="float-tag">(F)</span>` : ``;
-                            const workerName = worker.employee_name || worker.name || worker.employee || worker.worker || worker.staff || "Unknown";
-                            html += `<div>${workerName}${floatMarker}</div>`;
-                        });
-                        html += `</td>`;
-                    } else {
-                        html += `<td></td>`;
-                    }
-                });
-                html += `</tr>`;
-            });
-            html += `</tbody></table>`;
-            return html;
-        }
-
-        // --- View 2: Individual Pay Period Cards ---
-        function buildEmployeeRoster(scheduleData, employees) {
-    const MS_DAY = 86400000;
-    const PP_EPOCH = Date.UTC(2026, 0, 4);  // MUST match PAY_PERIOD_EPOCH in app.py
-    let totalShiftsScraped = 0;
-
-    const toUTC = (ds) => { const [y,m,d] = ds.split('-').map(Number); return Date.UTC(y, m-1, d); };
-    const ppIndexOf = (ds) => Math.floor((toUTC(ds) - PP_EPOCH) / (14 * MS_DAY));
-    const shortDate = (ds) => new Date(ds + "T12:00:00").toLocaleDateString('en-US', { month:'short', day:'numeric' });
-    const fullDate  = (ds) => new Date(ds + "T12:00:00").toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-
-    // 1. Bucket days into the SAME pay periods the solver used
-    const ppMeta = {};
-    scheduleData.forEach(day => {
-        const i = ppIndexOf(day.date);
-        if (!ppMeta[i]) ppMeta[i] = { first: day.date, last: day.date, days: 0 };
-        if (day.date < ppMeta[i].first) ppMeta[i].first = day.date;
-        if (day.date > ppMeta[i].last)  ppMeta[i].last  = day.date;
-        ppMeta[i].days++;
-    });
-    const ppIndices = Object.keys(ppMeta).map(Number).sort((a,b) => a-b);
-
-    // 2. Scrape shifts keyed by employee_id, not by name
-    const scraped = {};
-    scheduleData.forEach(day => {
-        const shiftList = getShiftArrayFromDay(day);
-        totalShiftsScraped += shiftList.length;
-        const pp = ppIndexOf(day.date);
-
-        shiftList.forEach(s => {
-            const rawName = s.employee_name || s.name || s.employee || s.worker || s.staff || "Unknown Worker";
-            const shiftName = s.shift || s.shift_name || s.role || s.type || "Unknown Shift";
-            const key = (s.employee_id !== undefined && s.employee_id !== null)
-                ? `id:${s.employee_id}`
-                : `name:${rawName.trim().toLowerCase()}`;
-
-            if (!scraped[key]) scraped[key] = { label: rawName, shifts: [] };
-            scraped[key].shifts.push({ pp, date: fullDate(day.date), shift: shiftName, is_float: s.is_float || false });
-        });
-    });
-
-    const generateCardHTML = (empName, targetBiweekly, shiftsArray, isUnmatched = false) => {
-        let cardHtml = `<div class="emp-card${isUnmatched ? ' unmatched-card' : ''}">
-                        <div class="emp-name${isUnmatched ? ' unmatched-name' : ''}">${empName}</div>`;
-
-        ppIndices.forEach(i => {
-            const meta = ppMeta[i];
-            const shiftsInPP = shiftsArray.filter(s => s.pp === i);
-            const expectedHours = Math.round((targetBiweekly / 14) * meta.days);
-            const actualHours = shiftsInPP.reduce((t, s) => t + (s.shift === "ED Day" ? 12 : 10), 0);
-
-            let badgeClass = 'ok';
-            if (actualHours < expectedHours) badgeClass = 'short';
-            if (actualHours > expectedHours) badgeClass = 'over';
-
-            const partial = meta.days < 14 ? ` (partial: ${meta.days}d)` : '';
-            cardHtml += `<div class="pp-section">
-                    <div class="pp-header">
-                        <span>${shortDate(meta.first)} - ${shortDate(meta.last)}${partial}</span>
-                        <span class="hours-badge ${badgeClass}" title="Target: ${expectedHours} hrs">
-                            ${actualHours} / ${expectedHours} hrs
-                        </span>
-                    </div>`;
-
-            if (shiftsInPP.length === 0) {
-                cardHtml += `<div class="emp-shift"><span class="date" style="font-style:italic;color:#666;">No shifts scheduled</span></div>`;
-            } else {
-                shiftsInPP.forEach(s => {
-                    const f = s.is_float ? `<span class="float-tag" title="Float / Backup">(F)</span>` : ``;
-                    cardHtml += `<div class="emp-shift"><span class="date">${s.date}</span><span class="shift">${s.shift}${f}</span></div>`;
-                });
-            }
-            cardHtml += `</div>`;
-        });
-        return cardHtml + `</div>`;
-    };
-
-    let html = `<div class="emp-grid">`;
-    const sortedEmployees = [...employees].sort((a, b) => a.name.localeCompare(b.name));
-
-    sortedEmployees.forEach(emp => {
-        let key = `id:${emp.id}`;
-        if (!scraped[key]) {
-            // fallbacks: full name, then last-name-only (old backend format)
-            const lastName = emp.name.split(',')[0].trim().toLowerCase();
-            key = Object.keys(scraped).find(k =>
-                k === `name:${emp.name.trim().toLowerCase()}` || k === `name:${lastName}`
-            );
-        }
-        const mine = key && scraped[key] ? scraped[key].shifts : [];
-        if (key) delete scraped[key];
-        html += generateCardHTML(emp.name, emp.target_hours || 80, mine, false);
-    });
-
-    Object.values(scraped).forEach(left => {
-        html += generateCardHTML(`${left.label} (Unmatched ID)`, 80, left.shifts, true);
-    });
-
-    return { html: html + `</div>`, totalShiftsFound: totalShiftsScraped };
+// Dates from the API are plain YYYY-MM-DD. Parsing them with new Date(str)
+// treats them as UTC midnight and shifts them a day west of Greenwich, so
+// every date string gets a midday local time appended first.
+function fmt(dateStr, opts) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', opts);
 }
-    </script>
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function snapRange(periods) {
+  if (!CONFIG) { alert('Server config unavailable, so snapping is off. Enter dates manually.'); return; }
+  const epoch = new Date(CONFIG.pay_period_epoch + 'T12:00:00');
+  const len = CONFIG.pay_period_days;
+  const today = new Date();
+  const elapsed = Math.floor((today - epoch) / 86400000);
+  const currentPeriod = Math.floor(elapsed / len);
+
+  const start = new Date(epoch); start.setDate(start.getDate() + currentPeriod * len);
+  const end = new Date(start);   end.setDate(end.getDate() + periods * len - 1);
+
+  const iso = d => d.toISOString().slice(0, 10);
+  document.getElementById('startDate').value = iso(start);
+  document.getElementById('endDate').value = iso(end);
+}
+
+// ---------------------------------------------------------------------------
+// Generate
+// ---------------------------------------------------------------------------
+async function generateSchedule() {
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const out = document.getElementById('results');
+  const btn = document.getElementById('goBtn');
+
+  if (!startDate || !endDate) { alert('Pick both a start and an end date.'); return; }
+  if (endDate < startDate) { alert('The end date falls before the start date.'); return; }
+
+  btn.disabled = true;
+  document.getElementById('csvBtn').style.display = 'none';
+  out.innerHTML = '<div class="status">Loading staff and solving. This can take up to 30 seconds.</div>';
+
+  try {
+    const staffRes = await fetch(API + '/staff');
+    if (!staffRes.ok) throw new Error('Could not load staff from the server.');
+    const employees = await staffRes.json();
+    if (!employees.length) throw new Error('The staff list on the server is empty.');
+
+    const res = await fetch(API + '/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, employees })
+    });
+    const data = await res.json();
+
+    if (data.status !== 'success') { renderFailure(data); return; }
+
+    LAST = data;
+    document.getElementById('csvBtn').style.display = '';
+    render(data);
+  } catch (err) {
+    out.innerHTML = `<div class="banner err"><h4>Request failed</h4>${esc(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderFailure(data) {
+  let html = `<div class="banner err"><h4>Cannot build a schedule</h4>${esc(data.message || 'Unknown error.')}`;
+  if (data.conflicts?.length) {
+    html += `<ul>${data.conflicts.map(c => `<li>${esc(c)}</li>`).join('')}</ul>`;
+  }
+  html += `</div>`;
+  if (data.warnings?.length) {
+    html += `<div class="banner warn"><h4>Also worth checking</h4><ul>${
+      data.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+  }
+  document.getElementById('results').innerHTML = html;
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function render(data) {
+  const gapCount = data.shortages?.length || 0;
+  const warnCount = data.meta.warnings?.length || 0;
+
+  let banners = '';
+  if (warnCount) {
+    banners += `<div class="banner warn"><h4>${warnCount} thing${warnCount > 1 ? 's' : ''} to look at</h4><ul>${
+      data.meta.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`;
+  }
+
+  document.getElementById('results').innerHTML = `
+    ${banners}
+    <div class="tabs">
+      <button class="tab active" data-pane="grid" onclick="showPane('grid')">Master grid</button>
+      <button class="tab" data-pane="people" onclick="showPane('people')">Pay period breakdown</button>
+      <button class="tab" data-pane="gaps" onclick="showPane('gaps')">Gaps<span class="count">${gapCount}</span></button>
+      <button class="tab" data-pane="capacity" onclick="showPane('capacity')">Capacity</button>
+    </div>
+    <div class="pane active" id="pane-grid">${buildGrid(data)}</div>
+    <div class="pane" id="pane-people">${buildPeople(data)}</div>
+    <div class="pane" id="pane-gaps">${buildGaps(data)}</div>
+    <div class="pane" id="pane-capacity">${buildCapacity(data)}</div>
+  `;
+}
+
+function showPane(name) {
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.pane === name));
+  document.querySelectorAll('.pane').forEach(p =>
+    p.classList.toggle('active', p.id === 'pane-' + name));
+}
+
+// --- Master grid -----------------------------------------------------------
+function buildGrid(data) {
+  const order = data.meta.shift_order;
+  const days = data.schedule;
+
+  let head = '<tr><th class="corner">Shift</th>';
+  days.forEach(d => {
+    head += `<th class="${d.is_weekend ? 'wknd' : ''}">${esc(d.label)}</th>`;
+  });
+  head += '</tr>';
+
+  let body = '';
+  order.forEach(shiftName => {
+    body += `<tr><td class="shift-name">${esc(shiftName)}</td>`;
+    days.forEach(d => {
+      const people = d.shifts.filter(s => s.shift === shiftName);
+      const gap = d.gaps.find(g => g.shift === shiftName);
+      const cls = [];
+      if (d.is_weekend) cls.push('wknd-col');
+      if (people.length) cls.push('filled');
+      if (gap) cls.push('gap');
+
+      let cell = '';
+      people.forEach(p => {
+        cell += `<div>${esc(p.display_name)}${
+          p.is_float ? '<span class="float-tag" title="Float / backup unit">F</span>' : ''}</div>`;
+      });
+      if (gap) cell += `<div>unfilled</div>`;
+      if (!cell) cell = '<span style="color:var(--text-mute)">&middot;</span>';
+
+      body += `<td class="${cls.join(' ')}">${cell}</td>`;
+    });
+    body += '</tr>';
+  });
+
+  return `<div class="table-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+// --- Pay period breakdown --------------------------------------------------
+// Every number here comes straight from the server. The frontend used to
+// recompute pay periods and shift hours on its own, which is how the two
+// sides drifted apart.
+function buildPeople(data) {
+  const cards = data.employee_summary.map(emp => {
+    const rot = emp.rotation
+      ? `<span class="pill rot">Rotation ${esc(emp.rotation)}</span>` : '';
+    const home = emp.home_shifts.length
+      ? `<span class="pill">${esc(emp.home_shifts.join(' / '))}</span>` : '';
+
+    let periods = emp.periods.map(p => {
+      let cls = 'na', text = `${p.scheduled_hours} h`;
+      if (p.scored) {
+        cls = p.delta === 0 ? 'ok' : (p.delta < 0 ? 'short' : 'over');
+        text = `${p.scheduled_hours} / ${p.target_hours} h`;
+      }
+
+      const rows = p.shifts.length
+        ? p.shifts.map(s => `
+            <div class="row ${s.is_weekend ? 'wknd' : ''}">
+              <span class="date">${esc(s.label)}</span>
+              <span class="shift">${esc(s.shift)} &middot; ${s.hours}h${
+                s.is_float ? '<span class="float-tag" title="Float / backup unit">F</span>' : ''}</span>
+            </div>`).join('')
+        : '<div class="empty">No shifts in this period.</div>';
+
+      return `
+        <div class="pp">
+          <div class="pp-head">
+            <span class="pp-label">${esc(p.label)}${
+              p.is_partial ? ` <span class="partial">(${p.days_in_range} of 14 days)</span>` : ''}</span>
+            <span class="badge ${cls}" title="${p.scored
+              ? `Target ${p.target_hours} h` + (p.is_partial ? ', prorated for a partial period' : '')
+              : 'Fixed 7-on/7-off rotation, so no target is scored'}">${text}</span>
+          </div>
+          ${rows}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-name">${esc(emp.name)}</div>
+          <div class="card-meta">
+            ${rot}${home}
+            <span class="pill">${emp.total_hours} h total</span>
+            <span class="pill">${emp.weekend_days} weekend day${emp.weekend_days === 1 ? '' : 's'}</span>
+            ${emp.float_shifts ? `<span class="pill">${emp.float_shifts} float</span>` : ''}
+          </div>
+        </div>
+        ${periods}
+      </div>`;
+  }).join('');
+
+  return `<div class="card-grid">${cards}</div>`;
+}
+
+// --- Gaps ------------------------------------------------------------------
+function buildGaps(data) {
+  if (!data.shortages?.length) {
+    return `<div class="banner info"><h4>Full coverage</h4>Every required slot in this
+      window has someone assigned to it.</div>`;
+  }
+  return `
+    <div class="banner err"><h4>${data.shortages.length} unfilled slot${
+      data.shortages.length > 1 ? 's' : ''}</h4>
+      No available, qualified person could take these. Widen someone's backup
+      shifts, relax a time-off rule, or lower the required headcount.</div>
+    <table class="list-table"><thead><tr><th>Slot</th></tr></thead><tbody>${
+      data.shortages.map(s => `<tr><td>${esc(s)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// --- Capacity --------------------------------------------------------------
+function buildCapacity(data) {
+  const c = data.meta.capacity;
+  const slackClass = c.slack_hours < 0 ? 'neg' : 'pos';
+
+  const rows = [...data.employee_summary]
+    .sort((a, b) => {
+      const da = a.periods.reduce((t, p) => t + (p.scored ? p.delta : 0), 0);
+      const db = b.periods.reduce((t, p) => t + (p.scored ? p.delta : 0), 0);
+      return da - db;
+    })
+    .map(emp => {
+      const scored = emp.periods.filter(p => p.scored);
+      const target = scored.reduce((t, p) => t + p.target_hours, 0);
+      const delta = emp.total_hours - target;
+      const deltaCell = scored.length
+        ? `<td class="num ${delta < 0 ? 'neg' : (delta > 0 ? 'pos' : '')}">${
+            delta > 0 ? '+' : ''}${delta}</td>`
+        : `<td class="num" style="color:var(--text-mute)">fixed</td>`;
+      return `<tr>
+        <td>${esc(emp.name)}</td>
+        <td>${emp.rotation ? 'Rotation ' + esc(emp.rotation) : esc(emp.home_shifts[0] || '—')}</td>
+        <td class="num">${emp.total_shifts}</td>
+        <td class="num">${emp.total_hours}</td>
+        <td class="num">${scored.length ? target : '—'}</td>
+        ${deltaCell}
+        <td class="num">${emp.weekend_days}</td>
+      </tr>`;
+    }).join('');
+
+  return `
+    <div class="stats">
+      <div class="stat"><div class="n">${c.demand_hours}</div><div class="k">Hours demanded</div></div>
+      <div class="stat"><div class="n">${c.supply_hours}</div><div class="k">Hours of staff targets</div></div>
+      <div class="stat"><div class="n ${slackClass}">${c.slack_hours > 0 ? '+' : ''}${c.slack_hours}</div><div class="k">Slack</div></div>
+      <div class="stat"><div class="n">${c.utilization_pct}%</div><div class="k">Utilization</div></div>
+      <div class="stat"><div class="n">${data.meta.solve_seconds}s</div><div class="k">${esc(data.meta.solver_status)}</div></div>
+    </div>
+    <table class="list-table">
+      <thead><tr>
+        <th>Name</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
+        <th class="num">Target</th><th class="num">Delta</th><th class="num">Wknd days</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// --- CSV -------------------------------------------------------------------
+function exportCsv() {
+  if (!LAST) return;
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [['Date', 'Day', 'Shift', 'Hours', 'Employee', 'Float', 'Pay period'].join(',')];
+
+  LAST.schedule.forEach(d => {
+    d.shifts.forEach(s => lines.push([
+      q(d.date), q(d.day_of_week), q(s.shift), s.hours,
+      q(s.employee_name), s.is_float ? 'Y' : '', d.pp_index
+    ].join(',')));
+    d.gaps.forEach(g => lines.push([
+      q(d.date), q(d.day_of_week), q(g.shift), '', q('UNFILLED'), '', d.pp_index
+    ].join(',')));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `schedule_${LAST.meta.start_date}_to_${LAST.meta.end_date}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
 </body>
 </html>
