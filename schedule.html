@@ -270,16 +270,31 @@ let CONFIG = null;   // response from /config
 // ---------------------------------------------------------------------------
 // Boot: read pay-period config from the server so the UI never hardcodes it.
 // ---------------------------------------------------------------------------
+// Pay period settings live under `rules` in /config. Older builds had them at
+// the top level, so both are accepted.
+function ppEpoch() { return CONFIG?.rules?.pay_period_epoch ?? CONFIG?.pay_period_epoch ?? null; }
+function ppDays()  { return CONFIG?.rules?.pay_period_days  ?? CONFIG?.pay_period_days  ?? null; }
+
 (async function boot() {
+  const note = document.getElementById('epochNote');
   try {
     const r = await fetch(API + '/config');
-    if (r.ok) {
-      CONFIG = await r.json();
-      document.getElementById('epochNote').textContent =
-        `Pay periods are ${CONFIG.pay_period_days} days, anchored to ` +
-        `${fmt(CONFIG.pay_period_epoch, {weekday:'long', month:'long', day:'numeric', year:'numeric'})}.`;
+    if (!r.ok) throw new Error('server returned ' + r.status);
+    CONFIG = await safeJson(r, 'config');
+    if (ppEpoch() && ppDays()) {
+      note.textContent =
+        `Pay periods are ${ppDays()} days, anchored to ` +
+        `${fmt(ppEpoch(), {weekday:'long', month:'long', day:'numeric', year:'numeric'})}.` +
+        (CONFIG?.rules?.limits
+          ? ` Minimum rest ${CONFIG.rules.limits.min_rest_hours} h, night recovery ${CONFIG.rules.limits.night_recovery_days} days.`
+          : '');
+    } else {
+      note.textContent = 'Server did not report pay period settings, so the snap buttons are off.';
     }
-  } catch (e) { /* config is optional; snapping just gets disabled */ }
+  } catch (e) {
+    note.textContent = 'Could not read scheduling settings from the server (' + e.message +
+                       '), so the snap buttons are off.';
+  }
 })();
 
 // Dates from the API are plain YYYY-MM-DD. Parsing them with new Date(str)
@@ -288,25 +303,51 @@ let CONFIG = null;   // response from /config
 function fmt(dateStr, opts) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', opts);
 }
+// A crashed backend returns an HTML error page. Parsing that as JSON throws
+// "Unexpected token '<'", which tells the user nothing, so check first.
+async function safeJson(res, what) {
+  const body = await res.text();
+  try {
+    return JSON.parse(body);
+  } catch (e) {
+    const looksHtml = body.trim().startsWith('<');
+    throw new Error(looksHtml
+      ? `the ${what} endpoint returned an error page instead of data (HTTP ${res.status}). ` +
+        `Check the server log for a traceback.`
+      : `the ${what} endpoint returned something that is not JSON (HTTP ${res.status}).`);
+  }
+}
+
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 function snapRange(periods) {
-  if (!CONFIG) { alert('Server config unavailable, so snapping is off. Enter dates manually.'); return; }
-  const epoch = new Date(CONFIG.pay_period_epoch + 'T12:00:00');
-  const len = CONFIG.pay_period_days;
-  const today = new Date();
-  const elapsed = Math.floor((today - epoch) / 86400000);
-  const currentPeriod = Math.floor(elapsed / len);
+  const epochStr = ppEpoch(), len = ppDays();
+  if (!epochStr || !len) {
+    alert('The server did not report pay period settings, so snapping is unavailable. ' +
+          'Enter dates manually.');
+    return;
+  }
+  try {
+    const epoch = new Date(epochStr + 'T12:00:00');
+    if (isNaN(epoch)) throw new Error('epoch "' + epochStr + '" is not a date');
 
-  const start = new Date(epoch); start.setDate(start.getDate() + currentPeriod * len);
-  const end = new Date(start);   end.setDate(end.getDate() + periods * len - 1);
+    const elapsed = Math.floor((new Date() - epoch) / 86400000);
+    // floor, not trunc, so dates before the epoch land in the right period
+    const currentPeriod = Math.floor(elapsed / len);
 
-  const iso = d => d.toISOString().slice(0, 10);
-  document.getElementById('startDate').value = iso(start);
-  document.getElementById('endDate').value = iso(end);
+    const start = new Date(epoch); start.setDate(start.getDate() + currentPeriod * len);
+    const end = new Date(start);   end.setDate(end.getDate() + periods * len - 1);
+
+    // toISOString is UTC; these are local noon, so read the local parts instead
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    document.getElementById('startDate').value = iso(start);
+    document.getElementById('endDate').value = iso(end);
+  } catch (e) {
+    alert('Could not work out the pay period boundaries: ' + e.message);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -327,8 +368,8 @@ async function generateSchedule() {
 
   try {
     const staffRes = await fetch(API + '/staff');
-    if (!staffRes.ok) throw new Error('Could not load staff from the server.');
-    const employees = await staffRes.json();
+    if (!staffRes.ok) throw new Error('Could not load staff from the server (HTTP ' + staffRes.status + ').');
+    const employees = await safeJson(staffRes, 'staff');
     if (!employees.length) throw new Error('The staff list on the server is empty.');
 
     const res = await fetch(API + '/generate', {
@@ -336,7 +377,7 @@ async function generateSchedule() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ start_date: startDate, end_date: endDate, employees })
     });
-    const data = await res.json();
+    const data = await safeJson(res, 'generate');
 
     if (data.status !== 'success') { renderFailure(data); return; }
 
