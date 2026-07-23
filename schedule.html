@@ -481,9 +481,12 @@ function buildGrid(data) {
 
   order.forEach(shiftName => {
     const c = catalog[shiftName];
-    body += `<tr><td class="shift-name">${esc(shiftName)}${
+    body += `<tr><td class="shift-name" title="${c && c.rotation_start_day
+        ? esc('7-on/7-off blocks start on ' + c.rotation_start_day) : ''}">${esc(shiftName)}${
       c ? `<div class="row-time">${esc(timeLabel(c))} &middot; ${c.hours}h${
-        c.is_night ? ' <span class="nbadge">night</span>' : ''}</div>` : ''}</td>`;
+        c.is_night ? ' <span class="nbadge">night</span>' : ''}${
+        c.rotation_start_day && c.rotation_start_day !== 'Sunday'
+          ? ` &middot; ${esc(c.rotation_start_day.slice(0,3))}` : ''}</div>` : ''}</td>`;
     days.forEach(d => {
       const people = d.shifts.filter(s => s.shift === shiftName);
       const gap = d.gaps.find(g => g.shift === shiftName);
