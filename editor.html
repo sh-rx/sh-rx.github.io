@@ -132,6 +132,16 @@
   .row select { flex:0 0 140px; }
   .row input { flex:1; }
   .none { color:var(--text-mute); font-size:12.5px; font-style:italic; }
+  .derived { padding:9px 10px; background:var(--bg); border:1px dashed var(--line);
+             border-radius:4px; font-size:14px; font-variant-numeric:tabular-nums; }
+  .nextday { color:var(--float); font-size:11px; font-weight:700;
+             text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
+  .rest-list { margin:0; padding-left:18px; font-size:12.5px; color:var(--text-dim);
+               columns:2; column-gap:24px; }
+  .rest-list li { margin-bottom:3px; break-inside:avoid; }
+  input[type=time] { padding:8px 10px; background:var(--panel-2); color:var(--text);
+    border:1px solid var(--line); border-radius:4px; font-size:14px;
+    font-family:inherit; color-scheme:dark; width:100%; }
 
   /* banners + tables */
   .banner { border-radius:var(--radius); padding:13px 15px; margin-bottom:14px;
@@ -240,6 +250,19 @@ let staff  = [];
 let savedShifts = '[]', savedStaff = '[]';
 let DEFAULT_MAX_WEEKLY = 40;
 
+let MIN_REST_HOURS = 10;
+let DEFAULT_LUNCH = 30;
+
+// Clock maths is done in minutes past midnight. An overnight line has an
+// end past 1440, which is what makes the rest arithmetic work.
+const tmin  = t => { const [h,m] = String(t || '07:00').split(':').map(Number);
+                     return (h || 0) * 60 + (m || 0); };
+const thhmm = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' +
+                   String(Math.round(m) % 60).padStart(2,'0');
+const timeLabel = s => `${s.start_time}\u2013${s.end_time}${s.ends_next_day ? '+1' : ''}`;
+// Minutes off between working `a` on some day and `b` the next day.
+const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
+
 let mode = 'staff';
 let currentStaffId = null;
 let currentShift = null;      // shift name
@@ -269,6 +292,8 @@ function typeOf(e) {
     if (cfg.ok) {
       const j = await cfg.json();
       if (j.default_max_weekly_hours) DEFAULT_MAX_WEEKLY = j.default_max_weekly_hours;
+      if (j.min_rest_hours) MIN_REST_HOURS = j.min_rest_hours;
+      if (j.default_lunch_minutes != null) DEFAULT_LUNCH = j.default_lunch_minutes;
     }
   } catch (e) { /* optional */ }
 
@@ -291,15 +316,30 @@ function typeOf(e) {
 function normalizeShift(r, i) {
   let days = Array.isArray(r.days) && r.days.length ? r.days
            : (r.weekends === false ? WEEKDAYS.slice(0,5) : WEEKDAYS.slice());
-  return {
+  const s = {
     name: String(r.name || '').trim(),
     category: String(r.category || 'Uncategorised').trim(),
     hours: Number(r.hours) || 10,
+    start_time: /^\d{1,2}:\d{2}$/.test(r.start_time || '') ? r.start_time : '07:00',
+    lunch_minutes: Number.isFinite(+r.lunch_minutes) ? +r.lunch_minutes : DEFAULT_LUNCH,
     required: r.required === 0 ? 0 : (Number(r.required) || 1),
     days: WEEKDAYS.filter(d => days.includes(d)),
     active: r.active !== false,
     order: r.order ?? i,
   };
+  return recalc(s);
+}
+
+// end_time is always derived, never trusted, so editing hours or the start
+// time can never leave a stale end time behind.
+function recalc(s) {
+  s.start_minutes = tmin(s.start_time);
+  s.start_time = thhmm(s.start_minutes);
+  s.span_minutes = s.hours * 60 + s.lunch_minutes;
+  s.end_minutes = s.start_minutes + s.span_minutes;
+  s.end_time = thhmm(s.end_minutes);
+  s.ends_next_day = s.end_minutes >= 1440;
+  return s;
 }
 
 // Legacy staff records are missing newer fields. Fill them in once, on load,
@@ -367,6 +407,10 @@ function validate() {
     if (s.hours <= 0) flagH(s.name, 'Shift length must be at least one hour.', 'error');
     if (s.active && !s.days.length) flagH(s.name, 'Active but runs on no days. Pick at least one, or switch it off.', 'error');
     if (s.active && s.required === 0) flagH(s.name, 'Active but needs nobody, so it will never appear on the schedule.', 'warning');
+    if (s.span_minutes > 1440)
+      flagH(s.name, `Occupies ${(s.span_minutes/60).toFixed(1)} hours, which is more than a day.`, 'error');
+    else if (s.active && 1440 - s.span_minutes < MIN_REST_HOURS * 60)
+      flagH(s.name, `Runs ${timeLabel(s)}, leaving ${((1440-s.span_minutes)/60).toFixed(1)} h before the next day's start. That is under the ${MIN_REST_HOURS} h rest rule, so nobody can work it two days running.`, 'warning');
   });
   if (!shifts.some(s => s.active)) errors.push({ msg: 'Every shift is switched off.' });
 
@@ -412,6 +456,10 @@ function validate() {
         const anchor = liveHome[0], m = shiftMeta(anchor);
         const missing = WEEKDAYS.filter(d => !m.days.includes(d));
         if (missing.length) flagS(e.id, `Anchored to ${anchor} on a 7-on/7-off rotation, but ${anchor} does not run on ${missing.join(', ')}.`, 'error');
+        // A rotational anchor is forced every on-week day, so a line that
+        // cannot legally repeat makes the whole model infeasible.
+        if (1440 - m.span_minutes < MIN_REST_HOURS * 60)
+          flagS(e.id, `Works ${anchor} seven days running, but it leaves only ${((1440-m.span_minutes)/60).toFixed(1)} h between days, under the ${MIN_REST_HOURS} h rest rule.`, 'error');
         const key = e.rotation + '|' + anchor;
         (anchors[key] = anchors[key] || []).push(e);
         if (declaredHome.length > 1) flagS(e.id, `Rotational staff are locked to their first home unit (${anchor}). The others are ignored.`, 'warning');
@@ -525,7 +573,7 @@ function renderList() {
       const runs = s.days.length === 7 ? '7 days' : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
       html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
         <div class="nm">${esc(s.name)}</div>
-        <div class="sub">${s.hours}h · ${s.required}/day · ${runs} · ${pool} qualified</div></div>`;
+        <div class="sub">${esc(timeLabel(s))} · ${s.hours}h · ${s.required}/day · ${runs} · ${pool} qualified</div></div>`;
     });
     list.innerHTML = html;
   }
@@ -592,9 +640,25 @@ function shiftForm(s) {
           <datalist id="catList">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
         </div>
         <div class="field">
-          <label for="sHours">Shift length (hours)</label>
+          <label for="sHours">Paid hours</label>
           <input type="number" id="sHours" min="1" max="24" value="${s.hours}"
                  oninput="setShiftField('hours', parseInt(this.value) || 0)">
+        </div>
+        <div class="field">
+          <label for="sStart">Start time</label>
+          <input type="time" id="sStart" value="${esc(s.start_time)}"
+                 oninput="setShiftField('start_time', this.value)">
+        </div>
+        <div class="field">
+          <label for="sLunch">Unpaid lunch (minutes)</label>
+          <input type="number" id="sLunch" min="0" max="240" step="15" value="${s.lunch_minutes}"
+                 oninput="setShiftField('lunch_minutes', parseInt(this.value) || 0)">
+        </div>
+        <div class="field">
+          <label>End time</label>
+          <div class="derived">${esc(s.end_time)}${s.ends_next_day ? ' <span class="nextday">next day</span>' : ''}</div>
+          <div class="hint" style="margin:0">start + ${s.hours}h paid + ${s.lunch_minutes}m lunch
+          = ${(s.span_minutes/60).toFixed(1)}h on site</div>
         </div>
         <div class="field">
           <label for="sReq">People needed per day</label>
@@ -609,6 +673,13 @@ function shiftForm(s) {
           </label>
         </div>
       </div>
+    </div>
+
+    <div class="section">
+      <h3>Rest</h3>
+      <div class="hint">Minimum ${MIN_REST_HOURS} hours between leaving and coming back.
+      Occupied time is paid hours plus lunch, so this is clock time, not paid time.</div>
+      ${restPanel(s)}
     </div>
 
     <div class="section">
@@ -636,6 +707,24 @@ function shiftForm(s) {
       <button class="btn danger" onclick="deleteShift()">Delete shift</button>
       <span class="hint" style="margin:0; align-self:center">Order sets the row order on the master grid.</span>
     </div>`;
+}
+
+function restPanel(s) {
+  const repeat = (1440 - s.span_minutes) / 60;
+  const blocked = shifts.filter(x => x.active && restBetween(s, x) < MIN_REST_HOURS * 60);
+  const rows = blocked.length
+    ? blocked.map(x => `<li>${esc(x.name)} <span class="none">(${esc(timeLabel(x))}, only ${(restBetween(s,x)/60).toFixed(1)} h off)</span></li>`).join('')
+    : '<li>Nothing. Any line can follow this one.</li>';
+  return `
+    <div class="banner ${repeat < MIN_REST_HOURS ? 'warn' : 'info'}">
+      <h4>Worked two days running: ${repeat.toFixed(1)} h off</h4>
+      ${repeat < MIN_REST_HOURS
+        ? `Under the ${MIN_REST_HOURS} h minimum, so nobody can work this line on consecutive days. A 7-on/7-off rotation cannot be anchored to it.`
+        : `Above the ${MIN_REST_HOURS} h minimum, so this line can be worked on consecutive days.`}
+    </div>
+    <div class="hint" style="margin-bottom:6px">Cannot be followed the next day by
+    (${blocked.length}):</div>
+    <ul class="rest-list">${rows}</ul>`;
 }
 
 // --- staff form ------------------------------------------------------------
@@ -796,6 +885,15 @@ function renameShift(raw) {
 function setShiftField(field, value) {
   const s = curShift(); if (!s) return;
   s[field] = value;
+  if (['hours', 'start_time', 'lunch_minutes'].includes(field)) {
+    recalc(s);
+    // The end time and rest panel are derived, so the form has to redraw.
+    const active = document.activeElement?.id;
+    renderEdit();
+    if (active) { const el = document.getElementById(active); if (el) el.focus(); }
+    validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
+    return;
+  }
   if (field === 'active') refresh();
   else { validate(); renderList(); renderCoverage(); renderHealth(); markDirty(); }
 }
@@ -915,7 +1013,9 @@ function addRecord() {
   } else {
     let n = 1, name;
     do { name = 'New Shift ' + n++; } while (shifts.some(s => s.name === name));
-    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10, required:1 }, shifts.length));
+    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10,
+                                 start_time:'07:00', lunch_minutes:DEFAULT_LUNCH,
+                                 required:1 }, shifts.length));
     currentShift = name;
     document.getElementById('search').value = '';
     refresh(); showPane('edit');
@@ -995,6 +1095,7 @@ function renderCoverage() {
     return `<tr class="${risky ? 'risk':''} ${s.active ? '':'dim'}" onclick="selectShiftFromTable('${esc(s.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
       <td><strong>${esc(s.name)}</strong>${s.active ? '' : ' <span class="none">(off)</span>'}</td>
       <td>${esc(s.category)}</td>
+      <td style="white-space:nowrap">${esc(timeLabel(s))}</td>
       <td class="num">${s.hours}h</td>
       <td class="num">${s.required}</td>
       <td>${runs}</td>
@@ -1012,7 +1113,7 @@ function renderCoverage() {
     voluntary. Rows in red have no obligated staff, no weekend-eligible obligated staff, or an
     unpaired rotation. Click a row to edit that shift.</div>
     <table><thead><tr>
-      <th>Shift</th><th>Category</th><th class="num">Len</th><th class="num">Need</th><th>Runs</th>
+      <th>Shift</th><th>Category</th><th>Hours</th><th class="num">Paid</th><th class="num">Need</th><th>Runs</th>
       <th class="num">Home</th><th class="num">Backup</th><th class="num">Relief</th>
       <th class="num">Wknd</th><th>Rot</th><th class="num">Hrs/pd</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
