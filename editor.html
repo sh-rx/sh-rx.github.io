@@ -24,9 +24,13 @@
          border-radius:5px; padding:2px; margin-bottom:12px; }
   .seg button { flex:1; background:transparent; border:none; color:var(--text-dim);
                 padding:7px 4px; border-radius:3px; cursor:pointer; font-family:inherit;
-                font-size:12.5px; font-weight:600; }
+                font-size:12.5px; font-weight:600; position:relative; }
   .seg button.on { background:var(--accent-dk); color:#fff; }
   .seg button .n { opacity:.7; font-weight:500; margin-left:4px; }
+  /* absolutely positioned so showing it never reflows the button row */
+  .seg button .dot { position:absolute; top:4px; right:5px; width:6px; height:6px;
+                     border-radius:50%; background:var(--over); visibility:hidden; }
+  .seg button .dot.on { visibility:visible; }
 
   .search { width:100%; padding:8px 10px; background:var(--panel-2); color:var(--text);
             border:1px solid var(--line); border-radius:4px; font-family:inherit; font-size:13px; }
@@ -53,9 +57,9 @@
   .topbar { padding:11px 22px; background:var(--panel); border-bottom:1px solid var(--line);
             display:flex; justify-content:space-between; align-items:center; gap:14px; }
   .topbar h2 { margin:0; font-size:16px; font-weight:600; }
-  .dirty-dot { display:none; width:7px; height:7px; border-radius:50%;
-               background:var(--over); margin-left:8px; vertical-align:2px; }
-  body.dirty .dirty-dot { display:inline-block; }
+  .dirty-dot { display:inline-block; width:7px; height:7px; border-radius:50%;
+               background:var(--over); margin-left:8px; vertical-align:2px; visibility:hidden; }
+  body.dirty .dirty-dot { visibility:visible; }
   .actions { display:flex; gap:8px; align-items:center; }
 
   .tabs { display:flex; gap:6px; padding:12px 22px 0; }
@@ -69,9 +73,19 @@
   .tab.active .count { background:var(--bg); color:var(--text); }
   .tab .count.zero { display:none; }
 
-  .scroll { flex:1; overflow-y:auto; }
+  .scroll { flex:1; overflow-y:auto; scroll-behavior:smooth; }
   .pane { display:none; padding:20px 22px 60px; max-width:1000px; }
   .pane.active { display:block; }
+
+  /* A fixed-height strip. Its TEXT changes, never its presence, so toggling
+     saved/unsaved cannot move anything below it. */
+  .statusbar { height:34px; display:flex; align-items:center; gap:8px;
+               font-size:12.5px; margin-bottom:14px; padding:0 12px;
+               border-radius:var(--radius); border:1px solid var(--line);
+               background:var(--panel); color:var(--text-mute); }
+  .statusbar.unsaved { border-color:#7d5c2b; background:#2a2216; color:#e8cd9a; }
+  .statusbar .sdot { width:7px; height:7px; border-radius:50%; background:var(--text-mute); }
+  .statusbar.unsaved .sdot { background:var(--over); }
 
   /* buttons */
   .btn { padding:8px 15px; background:var(--accent-dk); color:#fff; border:none;
@@ -86,7 +100,7 @@
   .btn.tiny { padding:3px 9px; font-size:11.5px; }
 
   /* form */
-  .section { margin-bottom:26px; }
+  .section { margin-bottom:26px; scroll-margin-top:12px; }
   .section > h3 { margin:0 0 9px; font-size:11px; font-weight:700; color:var(--text-dim);
                   text-transform:uppercase; letter-spacing:.06em;
                   display:flex; align-items:center; gap:10px; }
@@ -96,7 +110,7 @@
   .field.full { grid-column:1/-1; }
   label { font-weight:600; color:var(--text-dim); font-size:12px;
           text-transform:uppercase; letter-spacing:.04em; }
-  input[type=text], input[type=number], input[type=date], select {
+  input[type=text], input[type=number], input[type=date], input[type=time], select {
     padding:9px 10px; background:var(--panel-2); color:var(--text);
     border:1px solid var(--line); border-radius:4px; font-size:14px;
     font-family:inherit; color-scheme:dark; width:100%; }
@@ -106,6 +120,13 @@
   .toggle { display:flex; align-items:center; gap:9px; font-size:13.5px;
             color:var(--text); cursor:pointer; padding-top:6px; }
   .toggle input { width:auto; accent-color:var(--accent); }
+  .derived { padding:9px 10px; background:var(--bg); border:1px dashed var(--line);
+             border-radius:4px; font-size:14px; font-variant-numeric:tabular-nums; }
+  .nextday { color:var(--float); font-size:11px; font-weight:700;
+             text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
+  .nbadge { color:var(--relief); font-size:9.5px; font-weight:700; letter-spacing:.05em;
+            text-transform:uppercase; border:1px solid #7a4d84; border-radius:7px;
+            padding:0 4px; vertical-align:1px; }
 
   /* chips */
   .chips { display:flex; flex-wrap:wrap; gap:7px; }
@@ -132,44 +153,6 @@
   .row select { flex:0 0 140px; }
   .row input { flex:1; }
   .none { color:var(--text-mute); font-size:12.5px; font-style:italic; }
-  .derived { padding:9px 10px; background:var(--bg); border:1px dashed var(--line);
-             border-radius:4px; font-size:14px; font-variant-numeric:tabular-nums; }
-  .nbadge { color:var(--relief); font-size:9.5px; font-weight:700; letter-spacing:.05em;
-            text-transform:uppercase; border:1px solid #7a4d84; border-radius:7px;
-            padding:0 4px; vertical-align:1px; }
-  .nextday { color:var(--float); font-size:11px; font-weight:700;
-             text-transform:uppercase; letter-spacing:.04em; margin-left:4px; }
-  .limits { display:flex; flex-direction:column; gap:2px; }
-  .lrow { display:flex; gap:16px; align-items:flex-start; padding:12px 14px;
-          background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); }
-  .lmain { flex:1; min-width:0; }
-  .lname { font-weight:600; font-size:13.5px; margin-bottom:2px; }
-  .ldesc { font-size:12px; color:var(--text-mute); }
-  .lval { display:flex; align-items:center; gap:7px; flex-shrink:0; }
-  .lval input { width:78px; text-align:right; }
-  .lunit { font-size:11.5px; color:var(--text-mute); width:46px; }
-
-  .weights { display:flex; flex-direction:column; gap:2px; }
-  .wrow { display:flex; gap:12px; padding:11px 14px; background:var(--panel);
-          border:1px solid var(--line); border-radius:var(--radius); }
-  .wrank { font-size:11px; font-weight:700; color:var(--text-mute); width:16px;
-           padding-top:3px; font-variant-numeric:tabular-nums; }
-  .wmain { flex:1; min-width:0; }
-  .wtop { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-  .wname { font-weight:600; font-size:13.5px; }
-  .winput { width:110px; text-align:right; padding:5px 8px; font-size:13px; }
-  .wbar { height:4px; background:var(--panel-2); border-radius:2px; margin:7px 0 5px;
-          overflow:hidden; }
-  .wfill { height:100%; background:linear-gradient(90deg,var(--accent-dk),var(--accent));
-           border-radius:2px; }
-  .wdesc { font-size:12px; color:var(--text-mute); }
-
-  .rest-list { margin:0; padding-left:18px; font-size:12.5px; color:var(--text-dim);
-               columns:2; column-gap:24px; }
-  .rest-list li { margin-bottom:3px; break-inside:avoid; }
-  input[type=time] { padding:8px 10px; background:var(--panel-2); color:var(--text);
-    border:1px solid var(--line); border-radius:4px; font-size:14px;
-    font-family:inherit; color-scheme:dark; width:100%; }
 
   /* banners + tables */
   .banner { border-radius:var(--radius); padding:13px 15px; margin-bottom:14px;
@@ -203,6 +186,36 @@
   tr.risk td { background:#251a1a; }
   tr.dim td { opacity:.45; }
 
+  .rest-list { margin:0; padding-left:18px; font-size:12.5px; color:var(--text-dim);
+               columns:2; column-gap:24px; }
+  .rest-list li { margin-bottom:3px; break-inside:avoid; }
+
+  /* rules pane */
+  .limits { display:flex; flex-direction:column; gap:2px; }
+  .lrow { display:flex; gap:16px; align-items:flex-start; padding:12px 14px;
+          background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); }
+  .lmain { flex:1; min-width:0; }
+  .lname { font-weight:600; font-size:13.5px; margin-bottom:2px; }
+  .ldesc { font-size:12px; color:var(--text-mute); }
+  .lval { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+  .lval input { width:78px; text-align:right; }
+  .lunit { font-size:11.5px; color:var(--text-mute); width:46px; }
+
+  .weights { display:flex; flex-direction:column; gap:2px; }
+  .wrow { display:flex; gap:12px; padding:11px 14px; background:var(--panel);
+          border:1px solid var(--line); border-radius:var(--radius); }
+  .wrank { font-size:11px; font-weight:700; color:var(--text-mute); width:20px;
+           padding-top:3px; font-variant-numeric:tabular-nums; text-align:right; }
+  .wmain { flex:1; min-width:0; }
+  .wtop { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .wname { font-weight:600; font-size:13.5px; }
+  .winput { width:112px; text-align:right; padding:5px 8px; font-size:13px; }
+  .wbar { height:4px; background:var(--panel-2); border-radius:2px; margin:7px 0 5px;
+          overflow:hidden; }
+  .wfill { height:100%; background:linear-gradient(90deg,var(--accent-dk),var(--accent));
+           border-radius:2px; transition:width .12s linear; }
+  .wdesc { font-size:12px; color:var(--text-mute); }
+
   #toast { position:fixed; bottom:22px; right:22px; padding:13px 20px;
            border-radius:var(--radius); font-weight:600; font-size:13.5px;
            transform:translateY(200%); transition:transform .28s ease; z-index:100;
@@ -217,8 +230,9 @@
 <div class="sidebar">
   <div class="sidebar-head">
     <div class="seg">
-      <button id="segStaff"  class="on" onclick="setMode('staff')">Staff<span class="n" id="nStaff"></span></button>
-      <button id="segShifts"          onclick="setMode('shifts')">Shifts<span class="n" id="nShifts"></span></button>
+      <button id="segStaff"  class="on" onclick="setMode('staff')">Staff<span class="n" id="nStaff"></span><span class="dot" id="dotStaff"></span></button>
+      <button id="segShifts"          onclick="setMode('shifts')">Shifts<span class="n" id="nShifts"></span><span class="dot" id="dotShifts"></span></button>
+      <button id="segRules"           onclick="setMode('rules')">Rules<span class="dot" id="dotRules"></span></button>
     </div>
     <input class="search" id="search" placeholder="Filter" oninput="renderList()">
     <div style="margin-top:10px"><button class="btn" style="width:100%" id="addBtn" onclick="addRecord()">Add</button></div>
@@ -238,17 +252,15 @@
 
   <div class="tabs">
     <button class="tab active" data-pane="edit" onclick="showPane('edit')" id="tabEdit">Person</button>
-    <button class="tab" data-pane="rules" onclick="showPane('rules')">Rules<span class="count zero" id="rulesDirty">•</span></button>
     <button class="tab" data-pane="health" onclick="showPane('health')">Roster health<span class="count zero" id="issueCount">0</span></button>
     <button class="tab" data-pane="coverage" onclick="showPane('coverage')">Shift coverage</button>
   </div>
 
-  <div class="scroll">
+  <div class="scroll" id="scroller">
     <div class="pane active" id="pane-edit">
       <div class="empty-state" id="editEmpty">Pick something from the list, or add a new one.</div>
       <div id="editForm" style="display:none"></div>
     </div>
-    <div class="pane" id="pane-rules"></div>
     <div class="pane" id="pane-health"></div>
     <div class="pane" id="pane-coverage"></div>
   </div>
@@ -274,25 +286,6 @@ const TYPES = {
     note:'Unscheduled relief. No hours target and no obligation. The solver uses them only to stop a line going empty, never to top anyone up. Confirm willingness before publishing.' },
 };
 
-// Fallback only. Replaced by GET /shifts at boot.
-let shifts = [];
-let staff  = [];
-let rules  = null;
-let ruleDefaults = null;
-let savedShifts = '[]', savedStaff = '[]', savedRules = '{}';
-let DEFAULT_MAX_WEEKLY = 40;
-
-let MIN_REST_HOURS = 10;
-let DEFAULT_LUNCH = 30;
-
-// Everything the rest of the UI reads out of rules.json.
-function applyRuleGlobals() {
-  if (!rules) return;
-  MIN_REST_HOURS = rules.limits?.min_rest_hours ?? 10;
-  DEFAULT_LUNCH = rules.default_lunch_minutes ?? 30;
-  DEFAULT_MAX_WEEKLY = rules.default_max_weekly_hours ?? 40;
-}
-
 // Plain-English copy for the rules editor. Keys match rules.json exactly.
 const LIMIT_INFO = {
   min_rest_hours:         ['Minimum rest', 'hours', 0, 24,
@@ -307,6 +300,7 @@ const LIMIT_INFO = {
     'Longest run of worked days of any kind. Bounds a run that mixes days and nights.'],
 };
 
+// Declaration order is the display order and never changes while you type.
 const WEIGHT_INFO = {
   unfilled_slot:            ['Leave a slot empty', 'Must stay the largest number here. The solver will accept almost anything else rather than leave a line uncovered.'],
   relief_pickup:            ['Call in u-status relief', 'Cost of using a voluntary pickup. High enough to be a last resort, far below leaving a gap.'],
@@ -320,19 +314,22 @@ const WEIGHT_INFO = {
   variable_assignment:      ['Use a variable staffer', 'Kept low: variable staff exist to be used. Set below the float cost so the solver reaches for them before pulling core staff off their unit.'],
 };
 
-// Clock maths is done in minutes past midnight. An overnight line has an
-// end past 1440, which is what makes the rest arithmetic work.
-const tmin  = t => { const [h,m] = String(t || '07:00').split(':').map(Number);
-                     return (h || 0) * 60 + (m || 0); };
-const thhmm = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' +
-                   String(Math.round(m) % 60).padStart(2,'0');
-const timeLabel = s => `${s.start_time}\u2013${s.end_time}${s.ends_next_day ? '+1' : ''}`;
-// Minutes off between working `a` on some day and `b` the next day.
-const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
+const RULE_GROUPS = [
+  { id:'rg-periods', name:'Pay periods',  sub:'Epoch, period length, defaults' },
+  { id:'rg-limits',  name:'Hard limits',  sub:'Rest, night recovery, consecutive days' },
+  { id:'rg-weights', name:'Priorities',   sub:'Relative importance of soft rules' },
+  { id:'rg-solver',  name:'Solver',       sub:'Time limit and workers' },
+];
+
+let shifts = [], staff = [], rules = null, ruleDefaults = null;
+let savedShifts = '[]', savedStaff = '[]', savedRules = '{}';
+let MIN_REST_HOURS = 10, DEFAULT_LUNCH = 30, DEFAULT_MAX_WEEKLY = 40;
 
 let mode = 'staff';
 let currentStaffId = null;
-let currentShift = null;      // shift name
+let currentShift = null;
+let weightOrder = Object.keys(WEIGHT_INFO);
+let rulesBuilt = false;
 let issues = { errors:[], warnings:[], byStaff:{}, byShift:{} };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -343,11 +340,27 @@ const shiftMeta   = n => shifts.find(s => s.name === n) || null;
 const curStaff    = () => staff.find(e => e.id === currentStaffId) || null;
 const curShift    = () => shifts.find(s => s.name === currentShift) || null;
 
+// Clock maths is done in minutes past midnight. An overnight line has an end
+// past 1440, which is what makes the rest arithmetic work.
+const tmin  = t => { const [h,m] = String(t || '07:00').split(':').map(Number);
+                     return (h || 0) * 60 + (m || 0); };
+const thhmm = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' +
+                   String(Math.round(m) % 60).padStart(2,'0');
+const timeLabel = s => `${s.start_time}\u2013${s.end_time}${s.ends_next_day ? '+1' : ''}`;
+const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
+
 function typeOf(e) {
   if (TYPES[e.employment_type]) return e.employment_type;
   if (e.rotation) return 'rotational';
   if ((e.home_shifts || []).length) return 'core';
   return (e.target_hours || 0) > 0 ? 'variable' : 'u_status';
+}
+
+function applyRuleGlobals() {
+  if (!rules) return;
+  MIN_REST_HOURS = rules.limits?.min_rest_hours ?? 10;
+  DEFAULT_LUNCH = rules.default_lunch_minutes ?? 30;
+  DEFAULT_MAX_WEEKLY = rules.default_max_weekly_hours ?? 40;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,10 +369,7 @@ function typeOf(e) {
 (async function boot() {
   try {
     const cfg = await fetch(API + '/config');
-    if (cfg.ok) {
-      const j = await cfg.json();
-      ruleDefaults = j.rule_defaults || null;
-    }
+    if (cfg.ok) ruleDefaults = (await cfg.json()).rule_defaults || null;
   } catch (e) { /* optional */ }
 
   try {
@@ -416,8 +426,7 @@ function recalc(s) {
   return s;
 }
 
-// Legacy staff records are missing newer fields. Fill them in once, on load,
-// so no downstream code has to guard against undefined arrays.
+// Legacy staff records are missing newer fields. Fill them in once, on load.
 function normalizeStaff(e) {
   const base = {
     id: e.id,
@@ -439,28 +448,45 @@ function normalizeStaff(e) {
 
 function dirtyStaff()  { return JSON.stringify(staff)  !== savedStaff; }
 function dirtyShifts() { return JSON.stringify(shifts) !== savedShifts; }
-function dirtyRules()  { return JSON.stringify(rules)  !== savedRules; }
+function dirtyRules()  { return rules && JSON.stringify(rules) !== savedRules; }
 function isDirty()     { return dirtyStaff() || dirtyShifts() || dirtyRules(); }
-function markDirty()   { document.body.classList.toggle('dirty', isDirty()); }
+
+// Every dirty indicator toggles visibility only, never layout.
+function markDirty() {
+  document.body.classList.toggle('dirty', isDirty());
+  document.getElementById('dotStaff').classList.toggle('on', dirtyStaff());
+  document.getElementById('dotShifts').classList.toggle('on', dirtyShifts());
+  document.getElementById('dotRules').classList.toggle('on', !!dirtyRules());
+  const bar = document.getElementById('rulesStatus');
+  if (bar) {
+    const d = dirtyRules();
+    bar.classList.toggle('unsaved', d);
+    bar.querySelector('.stext').textContent = d
+      ? 'Unsaved rule changes. These take effect on the next schedule once saved.'
+      : 'Rules match what is saved on the server.';
+  }
+}
 
 function refresh() {
   validate();
   renderList();
   renderEdit();
-  renderRules();
   renderHealth();
   renderCoverage();
   markDirty();
-  document.getElementById('rulesDirty').classList.toggle('zero', !dirtyRules());
 }
 
 function setMode(m) {
   mode = m;
-  document.getElementById('segStaff').classList.toggle('on', m === 'staff');
-  document.getElementById('segShifts').classList.toggle('on', m === 'shifts');
+  ['staff','shifts','rules'].forEach(k =>
+    document.getElementById('seg' + k[0].toUpperCase() + k.slice(1)).classList.toggle('on', m === k));
+  document.getElementById('addBtn').style.display = m === 'rules' ? 'none' : '';
   document.getElementById('addBtn').textContent = m === 'staff' ? 'Add person' : 'Add shift';
-  document.getElementById('tabEdit').textContent = m === 'staff' ? 'Person' : 'Shift';
+  document.getElementById('search').style.display = m === 'rules' ? 'none' : '';
+  document.getElementById('tabEdit').textContent =
+    m === 'staff' ? 'Person' : (m === 'shifts' ? 'Shift' : 'Rules');
   document.getElementById('search').value = '';
+  rulesBuilt = false;              // rebuild once on entry, then leave it alone
   renderList(); renderEdit(); showPane('edit');
 }
 
@@ -474,8 +500,9 @@ function validate() {
                                     (lvl === 'error' ? errors : warnings).push({staff:id, msg}); };
   const flagH = (nm, msg, lvl) => { (byShift[nm] = byShift[nm] || []).push({msg, level:lvl});
                                     (lvl === 'error' ? errors : warnings).push({shift:nm, msg}); };
+  const maxNights = rules?.limits?.max_consecutive_nights ?? 7;
+  const recovery  = rules?.limits?.night_recovery_days ?? 3;
 
-  // --- shift catalogue ---
   const nameCount = {};
   shifts.forEach(s => { nameCount[s.name] = (nameCount[s.name] || 0) + 1; });
   shifts.forEach(s => {
@@ -490,20 +517,17 @@ function validate() {
       flagH(s.name, `Runs ${timeLabel(s)}, leaving ${((1440-s.span_minutes)/60).toFixed(1)} h before the next day's start. That is under the ${MIN_REST_HOURS} h rest rule, so nobody can work it two days running.`, 'warning');
   });
   if (!shifts.some(s => s.active)) errors.push({ msg: 'Every shift is switched off.' });
+  if (shifts.some(s => s.active) && !shifts.some(s => s.active && s.is_night))
+    warnings.push({ msg: 'No active shift is flagged as a night, so night recovery and night blocking have nothing to act on.' });
 
-  // --- staff pointing at shifts that no longer exist ---
+  // staff pointing at shifts that no longer exist
   const known = new Set(shiftNames());
-  const orphanOwners = {};
   staff.forEach(e => {
     [...e.home_shifts, ...e.backup_shifts].forEach(s => {
-      if (!known.has(s)) (orphanOwners[s] = orphanOwners[s] || []).push(e);
+      if (!known.has(s)) flagS(e.id, `References "${s}", which is not in the shift catalogue.`, 'error');
     });
   });
-  Object.entries(orphanOwners).forEach(([s, owners]) => {
-    owners.forEach(e => flagS(e.id, `References "${s}", which is not in the shift catalogue.`, 'error'));
-  });
 
-  // --- staff records ---
   const idCount = {};
   staff.forEach(e => { idCount[e.id] = (idCount[e.id] || 0) + 1; });
   const anchors = {};
@@ -537,8 +561,8 @@ function validate() {
         // cannot legally repeat makes the whole model infeasible.
         if (1440 - m.span_minutes < MIN_REST_HOURS * 60)
           flagS(e.id, `Works ${anchor} seven days running, but it leaves only ${((1440-m.span_minutes)/60).toFixed(1)} h between days, under the ${MIN_REST_HOURS} h rest rule.`, 'error');
-        if (m.is_night && (rules?.limits?.max_consecutive_nights ?? 7) < 7)
-          flagS(e.id, `Works ${anchor} seven nights running, but the consecutive-night limit is ${rules.limits.max_consecutive_nights}. Raise it to 7.`, 'error');
+        if (m.is_night && maxNights < 7)
+          flagS(e.id, `Works ${anchor} seven nights running, but the consecutive-night limit is ${maxNights}. Raise it to 7.`, 'error');
         const key = e.rotation + '|' + anchor;
         (anchors[key] = anchors[key] || []).push(e);
         if (declaredHome.length > 1) flagS(e.id, `Rotational staff are locked to their first home unit (${anchor}). The others are ignored.`, 'warning');
@@ -553,7 +577,6 @@ function validate() {
       flagS(e.id, 'Variable staff need an hours target. Switch them to U-status if they have none.', 'warning');
     }
 
-    // reachable hours under the weekly cap
     if (spec.target && t !== 'rotational' && e.target_hours > 0) {
       const pool = [...new Set([...declaredHome, ...e.backup_shifts])]
         .map(shiftMeta).filter(Boolean).filter(m => m.active);
@@ -582,7 +605,6 @@ function validate() {
     }
   });
 
-  // --- every active line needs cover from someone who is actually obligated ---
   shifts.filter(s => s.active && s.required > 0).forEach(s => {
     const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
     const obligated = pool.filter(e => typeOf(e) !== 'u_status');
@@ -597,10 +619,10 @@ function validate() {
         flagH(s.name, 'Night line with no obligated backup outside its rotation. Any time off taken by the anchors leaves it uncovered.', 'warning');
       // A 40 h cap allows only four 10 h nights a week, so a 7-night gap needs
       // at least two people no matter how the solver is weighted.
-      const canDoAWeek = backup.filter(e => e.max_weekly_hours >= s.hours * 7);
-      if (backup.length && !canDoAWeek.length)
+      else if (!backup.some(e => e.max_weekly_hours >= s.hours * 7))
         flagH(s.name, `No backup has a weekly cap of ${s.hours*7} h, so a full 7-night gap must be split between at least two people. Raise a cap if you want one unbroken block.`, 'warning');
     }
+
     const present = ['A','B'].filter(r => anchors[r + '|' + s.name]);
     if (present.length === 1)
       flagH(s.name, `Has a rotation-${present[0]} anchor but no rotation-${present[0] === 'A' ? 'B' : 'A'} counterpart. Half of all weeks will be uncovered.`, 'warning');
@@ -635,6 +657,15 @@ function renderList() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const list = document.getElementById('list');
 
+  if (mode === 'rules') {
+    list.innerHTML = RULE_GROUPS.map(g => `
+      <div class="item" onclick="jumpToRuleGroup('${g.id}')">
+        <div class="nm">${esc(g.name)}</div>
+        <div class="sub">${esc(g.sub)}</div>
+      </div>`).join('');
+    return;
+  }
+
   if (mode === 'staff') {
     const view = [...staff].sort((a,b) => a.name.localeCompare(b.name)).filter(e =>
       !q || e.name.toLowerCase().includes(q) ||
@@ -649,27 +680,33 @@ function renderList() {
       bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
       return `<div class="item${e.id === currentStaffId ? ' active':''}${(issues.byStaff[e.id]||[]).length ? ' flagged':''}" onclick="selectStaff(${e.id})">
         <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
-        <div class="sub">${esc(bits.filter(Boolean).join(' · '))}</div></div>`;
+        <div class="sub">${esc(bits.filter(Boolean).join(' \u00b7 '))}</div></div>`;
     }).join('');
-  } else {
-    const view = shifts.filter(s =>
-      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
-    if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
-    let html = '', lastCat = null;
-    view.forEach(s => {
-      if (s.category !== lastCat) { html += `<div class="group-head">${esc(s.category)}</div>`; lastCat = s.category; }
-      const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)).length;
-      const runs = s.days.length === 7 ? '7 days' : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
-      html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
-        <div class="nm">${esc(s.name)}</div>
-        <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} · ${s.hours}h · ${s.required}/day · ${runs} · ${pool} qualified</div></div>`;
-    });
-    list.innerHTML = html;
+    return;
   }
+
+  const view = shifts.filter(s =>
+    !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+  if (!view.length) { list.innerHTML = `<div class="empty-state">No matches.</div>`; return; }
+  let html = '', lastCat = null;
+  view.forEach(s => {
+    if (s.category !== lastCat) { html += `<div class="group-head">${esc(s.category)}</div>`; lastCat = s.category; }
+    const pool = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)).length;
+    const runs = s.days.length === 7 ? '7 days'
+               : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
+    html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
+      <div class="nm">${esc(s.name)}</div>
+      <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} \u00b7 ${s.hours}h \u00b7 ${s.required}/day \u00b7 ${runs} \u00b7 ${pool} qualified</div></div>`;
+  });
+  list.innerHTML = html;
 }
 
 function selectStaff(id) { currentStaffId = id; renderList(); renderEdit(); showPane('edit'); }
 function selectShift(nm) { currentShift = nm; renderList(); renderEdit(); showPane('edit'); }
+function jumpToRuleGroup(id) {
+  showPane('edit');
+  document.getElementById(id)?.scrollIntoView({ block:'start' });
+}
 
 // ---------------------------------------------------------------------------
 // Edit pane
@@ -677,6 +714,14 @@ function selectShift(nm) { currentShift = nm; renderList(); renderEdit(); showPa
 function renderEdit() {
   const empty = document.getElementById('editEmpty');
   const form = document.getElementById('editForm');
+
+  if (mode === 'rules') {
+    empty.style.display = 'none'; form.style.display = '';
+    document.getElementById('title').textContent = 'Scheduling rules';
+    if (!rulesBuilt) { form.innerHTML = rulesForm(); rulesBuilt = true; markDirty(); }
+    return;
+  }
+
   const rec = mode === 'staff' ? curStaff() : curShift();
   if (!rec) {
     empty.style.display = ''; form.style.display = 'none';
@@ -695,20 +740,165 @@ function issueBanner(list) {
     <ul>${list.map(i => `<li>${esc(i.msg)}</li>`).join('')}</ul></div>`;
 }
 
-// --- shift form ------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Rules form. Built once per entry into the pane. Typing updates values and
+// bar widths in place, so nothing reflows and rows never reorder underneath
+// the cursor while a spinner is held down.
+// ---------------------------------------------------------------------------
+function rulesForm() {
+  const num = (path, val, min, max, step, label) => `
+    <div class="field">
+      <label for="r_${path.replace(/\./g,'_')}">${label}</label>
+      <input type="number" id="r_${path.replace(/\./g,'_')}" min="${min}" max="${max}" step="${step || 1}"
+             value="${val}" oninput="setRule('${path}', parseInt(this.value) || 0)">
+    </div>`;
+
+  const limitRows = Object.entries(LIMIT_INFO).map(([k, [label, unit, min, max, desc]]) => `
+    <div class="lrow">
+      <div class="lmain">
+        <div class="lname">${esc(label)}</div>
+        <div class="ldesc">${esc(desc)}</div>
+      </div>
+      <div class="lval">
+        <input type="number" min="${min}" max="${max}" value="${rules.limits[k]}"
+               oninput="setRule('limits.${k}', parseInt(this.value) || 0)">
+        <span class="lunit">${esc(unit)}</span>
+      </div>
+    </div>`).join('');
+
+  const weightRows = weightOrder.map(k => {
+    const info = WEIGHT_INFO[k] || [k, ''];
+    return `
+      <div class="wrow" data-w="${k}">
+        <div class="wrank"></div>
+        <div class="wmain">
+          <div class="wtop">
+            <span class="wname">${esc(info[0])}</span>
+            <input type="number" class="winput" min="0" max="10000000" value="${rules.weights[k]}"
+                   oninput="setRule('weights.${k}', parseInt(this.value) || 0)">
+          </div>
+          <div class="wbar"><div class="wfill"></div></div>
+          <div class="wdesc">${esc(info[1])}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const epochDay = new Date(rules.pay_period_epoch + 'T12:00:00')
+    .toLocaleDateString('en-US', { weekday: 'long' });
+
+  return `
+    <div class="statusbar" id="rulesStatus"><span class="sdot"></span><span class="stext"></span></div>
+
+    <div class="section" id="rg-periods">
+      <h3>Pay periods</h3>
+      <div class="hint">Changing the epoch moves every pay period boundary, which changes how
+      hours targets are counted. Only touch it if the real cycle has shifted.</div>
+      <div class="grid">
+        <div class="field">
+          <label for="rEpoch">Epoch (start of a known pay period)</label>
+          <input type="date" id="rEpoch" value="${esc(rules.pay_period_epoch)}"
+                 onchange="setRule('pay_period_epoch', this.value)">
+          <div class="hint" id="epochNote" style="margin:4px 0 0">${esc(epochDay)}${
+            epochDay !== 'Sunday' ? ' \u2014 not a Sunday, so pay periods will not line up with calendar weeks' : ''}</div>
+        </div>
+        ${num('pay_period_days', rules.pay_period_days, 1, 56, 7, 'Days per pay period')}
+        ${num('default_max_weekly_hours', rules.default_max_weekly_hours, 0, 168, 4, 'Default weekly hour cap')}
+        ${num('default_lunch_minutes', rules.default_lunch_minutes, 0, 240, 15, 'Default unpaid lunch (min)')}
+      </div>
+    </div>
+
+    <div class="section" id="rg-limits">
+      <h3>Hard limits</h3>
+      <div class="hint">Never traded away. If they cannot all be met the schedule fails to
+      build, rather than quietly bending one of them.</div>
+      <div class="limits">${limitRows}</div>
+    </div>
+
+    <div class="section" id="rg-weights">
+      <h3>Priorities <button class="btn ghost tiny" onclick="sortWeights()">Sort by value</button></h3>
+      <div class="hint">Soft preferences. The solver minimises total cost, so only the ratios
+      between these matter, not their absolute size. Doubling every number changes nothing;
+      doubling one changes how often it wins. Rows keep a fixed order while you edit; use
+      Sort by value to re-rank.</div>
+      <div class="weights" id="weightRows">${weightRows}</div>
+    </div>
+
+    <div class="section" id="rg-solver">
+      <h3>Solver</h3>
+      <div class="grid">
+        ${num('solver.time_limit_seconds', Math.round(rules.solver.time_limit_seconds), 1, 600, 5, 'Time limit (seconds)')}
+        ${num('solver.workers', rules.solver.workers, 1, 32, 1, 'Parallel workers')}
+      </div>
+      <div class="hint" style="margin-top:8px">A longer limit gives the solver more chance to
+      improve on its first answer. It stops early once it proves the answer optimal.</div>
+    </div>
+
+    <div class="section" style="border-top:1px solid var(--line); padding-top:18px">
+      <button class="btn danger" onclick="resetRules()">Reset all rules to defaults</button>
+    </div>`;
+}
+
+// Direct style writes only. No innerHTML, so focus, caret and scroll survive.
+function updateWeightVisuals() {
+  const rows = document.querySelectorAll('#weightRows .wrow');
+  if (!rows.length) return;
+  const vals = Object.values(rules.weights);
+  const top = Math.max(...vals, 1);
+  const ranked = Object.entries(rules.weights).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  rows.forEach(row => {
+    const k = row.dataset.w, v = rules.weights[k] || 0;
+    // log scale, or 100000 next to 8 renders as a full bar next to nothing
+    row.querySelector('.wfill').style.width =
+      (v > 0 ? Math.max(2, 100 * Math.log10(v + 1) / Math.log10(top + 1)) : 0) + '%';
+    row.querySelector('.wrank').textContent = ranked.indexOf(k) + 1;
+  });
+}
+
+function setRule(path, value) {
+  const parts = path.split('.');
+  let o = rules;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+  o[parts[parts.length - 1]] = value;
+  applyRuleGlobals();
+
+  if (path === 'pay_period_epoch') {
+    const note = document.getElementById('epochNote');
+    if (note) {
+      const d = new Date(value + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long' });
+      note.textContent = d + (d !== 'Sunday'
+        ? ' \u2014 not a Sunday, so pay periods will not line up with calendar weeks' : '');
+    }
+  }
+  updateWeightVisuals();
+  validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
+}
+
+function sortWeights() {
+  weightOrder = Object.entries(rules.weights).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  rulesBuilt = false; renderEdit(); updateWeightVisuals();
+}
+
+function resetRules() {
+  if (!ruleDefaults) { toast('No defaults available from the server.', true); return; }
+  if (!confirm('Reset every scheduling rule to the built-in defaults?')) return;
+  rules = JSON.parse(JSON.stringify(ruleDefaults));
+  applyRuleGlobals();
+  rulesBuilt = false; refresh(); renderEdit(); updateWeightVisuals();
+  toast('Rules reset to defaults. Not saved until you press Save.');
+}
+
+// ---------------------------------------------------------------------------
+// Shift form
+// ---------------------------------------------------------------------------
 function shiftForm(s) {
   const idx = shifts.indexOf(s);
   const cats = [...new Set(shifts.map(x => x.category))].sort();
   const home   = staff.filter(e => e.home_shifts.includes(s.name));
   const backup = staff.filter(e => !e.home_shifts.includes(s.name) && e.backup_shifts.includes(s.name) && typeOf(e) !== 'u_status');
   const relief = staff.filter(e => typeOf(e) === 'u_status' && (e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name)));
-
+  const who = arr => arr.length ? arr.map(e => esc(e.name.split(',')[0])).join(', ') : '<span class="none">none</span>';
   const dayChips = WEEKDAYS.map(d =>
     `<div class="chip ${s.days.includes(d) ? 'on':''}" onclick="toggleShiftDay('${d}')">${d.slice(0,3)}</div>`).join('');
-
-  const who = arr => arr.length
-    ? arr.map(e => esc(e.name.split(',')[0])).join(', ')
-    : '<span class="none">none</span>';
 
   return `
     ${issueBanner(issues.byShift[s.name])}
@@ -745,9 +935,8 @@ function shiftForm(s) {
         </div>
         <div class="field">
           <label>End time</label>
-          <div class="derived">${esc(s.end_time)}${s.ends_next_day ? ' <span class="nextday">next day</span>' : ''}</div>
-          <div class="hint" style="margin:0">start + ${s.hours}h paid + ${s.lunch_minutes}m lunch
-          = ${(s.span_minutes/60).toFixed(1)}h on site</div>
+          <div class="derived" id="shiftEnd"></div>
+          <div class="hint" id="shiftSpan" style="margin:0"></div>
         </div>
         <div class="field">
           <label for="sReq">People needed per day</label>
@@ -758,7 +947,7 @@ function shiftForm(s) {
           <label>Status</label>
           <label class="toggle">
             <input type="checkbox" ${s.active ? 'checked':''} onchange="setShiftField('active', this.checked)">
-            Active${s.active ? '' : ' — excluded from scheduling'}
+            Active${s.active ? '' : ' \u2014 excluded from scheduling'}
           </label>
         </div>
         <div class="field">
@@ -773,23 +962,16 @@ function shiftForm(s) {
 
     <div class="section">
       <h3>Rest</h3>
-      <div class="hint">Minimum ${MIN_REST_HOURS} hours between leaving and coming back.
-      Occupied time is paid hours plus lunch, so this is clock time, not paid time.</div>
-      ${restPanel(s)}
-      ${s.is_night ? `<div class="banner info" style="margin-top:12px">
-        Flagged as a night. Anyone working it gets ${rules?.limits?.night_recovery_days ?? 3}
-        day(s) clear of day shifts afterwards, and the solver groups nights into the longest
-        run the weekly hour cap allows rather than scattering them.</div>` : ''}
+      <div class="hint">Minimum ${MIN_REST_HOURS} hours between leaving and coming back. Occupied
+      time is paid hours plus lunch, so this is clock time, not paid time.</div>
+      <div id="shiftRest"></div>
     </div>
 
     <div class="section">
       <h3>Days it runs</h3>
       <div class="hint">A 7-on/7-off rotation can only be anchored to a shift that runs all seven days.</div>
       <div class="chips">${dayChips}</div>
-      <div class="hint" style="margin-top:10px">
-        ${s.required * s.hours * s.days.length * 2} hours per pay period
-        (${s.required} &times; ${s.hours}h &times; ${s.days.length} days &times; 2 weeks)
-      </div>
+      <div class="hint" id="shiftHrs" style="margin-top:10px"></div>
     </div>
 
     <div class="section">
@@ -809,12 +991,28 @@ function shiftForm(s) {
     </div>`;
 }
 
+// Derived read-outs are refreshed in place for the same reason as the weight
+// bars: holding a spinner must not rebuild the form under the cursor.
+function updateShiftDerived() {
+  const s = curShift(); if (!s) return;
+  const end = document.getElementById('shiftEnd');
+  if (!end) return;
+  end.innerHTML = `${esc(s.end_time)}${s.ends_next_day ? ' <span class="nextday">next day</span>' : ''}`;
+  document.getElementById('shiftSpan').textContent =
+    `start + ${s.hours}h paid + ${s.lunch_minutes}m lunch = ${(s.span_minutes/60).toFixed(1)}h on site`;
+  document.getElementById('shiftHrs').textContent =
+    `${s.required * s.hours * s.days.length * 2} hours per pay period ` +
+    `(${s.required} \u00d7 ${s.hours}h \u00d7 ${s.days.length} days \u00d7 2 weeks)`;
+  document.getElementById('shiftRest').innerHTML = restPanel(s);
+}
+
 function restPanel(s) {
   const repeat = (1440 - s.span_minutes) / 60;
   const blocked = shifts.filter(x => x.active && restBetween(s, x) < MIN_REST_HOURS * 60);
   const rows = blocked.length
     ? blocked.map(x => `<li>${esc(x.name)} <span class="none">(${esc(timeLabel(x))}, only ${(restBetween(s,x)/60).toFixed(1)} h off)</span></li>`).join('')
     : '<li>Nothing. Any line can follow this one.</li>';
+  const recovery = rules?.limits?.night_recovery_days ?? 3;
   return `
     <div class="banner ${repeat < MIN_REST_HOURS ? 'warn' : 'info'}">
       <h4>Worked two days running: ${repeat.toFixed(1)} h off</h4>
@@ -822,12 +1020,16 @@ function restPanel(s) {
         ? `Under the ${MIN_REST_HOURS} h minimum, so nobody can work this line on consecutive days. A 7-on/7-off rotation cannot be anchored to it.`
         : `Above the ${MIN_REST_HOURS} h minimum, so this line can be worked on consecutive days.`}
     </div>
-    <div class="hint" style="margin-bottom:6px">Cannot be followed the next day by
-    (${blocked.length}):</div>
+    ${s.is_night ? `<div class="banner info">Flagged as a night. Anyone working it gets ${recovery}
+      day(s) clear of day shifts afterwards, and the solver groups nights into the longest run
+      the weekly hour cap allows rather than scattering them.</div>` : ''}
+    <div class="hint" style="margin-bottom:6px">Cannot be followed the next day by (${blocked.length}):</div>
     <ul class="rest-list">${rows}</ul>`;
 }
 
-// --- staff form ------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Staff form
+// ---------------------------------------------------------------------------
 function staffForm(e) {
   const t = typeOf(e), spec = TYPES[t];
   const chip = (s, field) => {
@@ -839,7 +1041,6 @@ function staffForm(e) {
       ${lockedByHome ? 'title="Already a home unit"' : `onclick="toggleStaffShift('${field}','${esc(s).replace(/'/g,"\\'")}')"`}
       >${esc(s)}<span class="hrs">${m ? m.hours + 'h' : '?'}</span></div>`;
   };
-
   const homeChips   = shiftNames().map(s => chip(s, 'home_shifts')).join('');
   const backupChips = shiftNames().map(s => chip(s, 'backup_shifts')).join('');
   const weekdayChips = WEEKDAYS.map(d =>
@@ -894,8 +1095,8 @@ function staffForm(e) {
         <div class="field">
           <label for="fRot">Rotation week</label>
           <select id="fRot" onchange="setStaffField('rotation', this.value)">
-            <option value="A" ${e.rotation === 'A' ? 'selected':''}>A — week 1 of each period</option>
-            <option value="B" ${e.rotation === 'B' ? 'selected':''}>B — week 2 of each period</option>
+            <option value="A" ${e.rotation === 'A' ? 'selected':''}>A \u2014 week 1 of each period</option>
+            <option value="B" ${e.rotation === 'B' ? 'selected':''}>B \u2014 week 2 of each period</option>
           </select>
         </div>` : ''}
         <div class="field">
@@ -962,10 +1163,10 @@ function staffForm(e) {
 function renameShift(raw) {
   const s = curShift(); if (!s) return;
   const next = String(raw || '').trim();
-  if (!next || next === s.name) { renderEdit(); return; }
+  if (!next || next === s.name) { renderEdit(); updateShiftDerived(); return; }
   if (shifts.some(x => x !== s && x.name === next)) {
     toast(`There is already a shift called "${next}".`, true);
-    renderEdit(); return;
+    renderEdit(); updateShiftDerived(); return;
   }
   const old = s.name;
   let touched = 0;
@@ -977,25 +1178,22 @@ function renameShift(raw) {
   });
   s.name = next;
   currentShift = next;
-  refresh();
-  toast(touched ? `Renamed to "${next}" and updated ${touched} staff reference(s).`
-                : `Renamed to "${next}".`);
+  refresh(); updateShiftDerived();
+  toast(touched ? `Renamed to "${next}" and updated ${touched} staff reference(s).` : `Renamed to "${next}".`);
 }
 
 function setShiftField(field, value) {
   const s = curShift(); if (!s) return;
   s[field] = value;
-  if (['hours', 'start_time', 'lunch_minutes'].includes(field)) {
-    recalc(s);
-    // The end time and rest panel are derived, so the form has to redraw.
-    const active = document.activeElement?.id;
-    renderEdit();
-    if (active) { const el = document.getElementById(active); if (el) el.focus(); }
-    validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
-    return;
+  if (['hours','start_time','lunch_minutes'].includes(field)) recalc(s);
+
+  if (field === 'active' || field === 'is_night') {
+    refresh(); updateShiftDerived(); return;
   }
-  if (field === 'active') refresh();
-  else { validate(); renderList(); renderCoverage(); renderHealth(); markDirty(); }
+  // Everything else updates the derived read-outs in place and leaves the
+  // form, focus and scroll position alone.
+  updateShiftDerived();
+  validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
 }
 
 function toggleShiftDay(day) {
@@ -1003,7 +1201,7 @@ function toggleShiftDay(day) {
   const i = s.days.indexOf(day);
   if (i >= 0) s.days.splice(i, 1); else s.days.push(day);
   s.days = WEEKDAYS.filter(d => s.days.includes(d));
-  refresh();
+  refresh(); updateShiftDerived();
 }
 
 function moveShift(dir) {
@@ -1012,14 +1210,14 @@ function moveShift(dir) {
   if (j < 0 || j >= shifts.length) return;
   shifts.splice(i, 1); shifts.splice(j, 0, s);
   shifts.forEach((x, k) => { x.order = k; });
-  refresh();
+  refresh(); updateShiftDerived();
 }
 
 function deleteShift() {
   const s = curShift(); if (!s) return;
   const owners = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
   const msg = owners.length
-    ? `${owners.length} staff record(s) reference "${s.name}". Deleting it will remove those references too.\n\nConsider switching the shift off instead — that keeps the references intact.\n\nDelete anyway?`
+    ? `${owners.length} staff record(s) reference "${s.name}". Deleting it will remove those references too.\n\nConsider switching the shift off instead \u2014 that keeps the references intact.\n\nDelete anyway?`
     : `Delete "${s.name}"?`;
   if (!confirm(msg)) return;
   owners.forEach(e => {
@@ -1040,7 +1238,7 @@ function setStaffField(field, value) {
   const e = curStaff(); if (!e) return;
   e[field] = value;
   if (field === 'name') document.getElementById('title').textContent = value || 'Unnamed';
-  validate(); renderList(); markDirty();
+  validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
 }
 
 // Changing type has to move data, not just relabel it: a core pharmacist made
@@ -1103,6 +1301,7 @@ function addDayOff()   { const e = curStaff(); if (!e) return; e.requested_days_
 function addBiweekly() { const e = curStaff(); if (!e) return; e.biweekly_unavailable.push({day:'Monday', anchor_date:''}); refresh(); }
 
 function addRecord() {
+  if (mode === 'rules') return;
   if (mode === 'staff') {
     const nextId = staff.reduce((m,e) => Math.max(m, e.id), -1) + 1;
     staff.push(normalizeStaff({ id: nextId, name: '', target_hours: 80, employment_type: 'core' }));
@@ -1113,12 +1312,11 @@ function addRecord() {
   } else {
     let n = 1, name;
     do { name = 'New Shift ' + n++; } while (shifts.some(s => s.name === name));
-    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10,
-                                 start_time:'07:00', lunch_minutes:DEFAULT_LUNCH,
-                                 required:1, is_night:false }, shifts.length));
+    shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10, start_time:'07:00',
+                                 lunch_minutes:DEFAULT_LUNCH, required:1, is_night:false }, shifts.length));
     currentShift = name;
     document.getElementById('search').value = '';
-    refresh(); showPane('edit');
+    refresh(); updateShiftDerived(); showPane('edit');
     setTimeout(() => document.getElementById('sName')?.select(), 20);
   }
 }
@@ -1134,133 +1332,12 @@ function removeStaff() {
 // ---------------------------------------------------------------------------
 // Health + coverage
 // ---------------------------------------------------------------------------
-function setRule(path, value) {
-  const parts = path.split('.');
-  let o = rules;
-  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
-  o[parts[parts.length - 1]] = value;
-  applyRuleGlobals();
-  validate(); renderList(); renderCoverage(); renderHealth(); markDirty();
-  document.getElementById('rulesDirty').classList.toggle('zero', !dirtyRules());
-  // The weight bars are relative to each other, so they all have to redraw.
-  const focused = document.activeElement?.id;
-  renderRules();
-  if (focused) document.getElementById(focused)?.focus();
-}
-
-function resetRules() {
-  if (!ruleDefaults) { toast('No defaults available from the server.', true); return; }
-  if (!confirm('Reset every scheduling rule to the built-in defaults?')) return;
-  rules = JSON.parse(JSON.stringify(ruleDefaults));
-  applyRuleGlobals(); refresh();
-  toast('Rules reset to defaults. Not saved until you press Save.');
-}
-
-function renderRules() {
-  const pane = document.getElementById('pane-rules');
-  if (!rules) { pane.innerHTML = '<div class="empty-state">Rules not loaded.</div>'; return; }
-
-  const num = (path, val, min, max, step, suffix) => `
-    <div class="field">
-      <label for="r_${path.replace(/\./g,'_')}">${suffix}</label>
-      <input type="number" id="r_${path.replace(/\./g,'_')}" min="${min}" max="${max}" step="${step || 1}"
-             value="${val}" oninput="setRule('${path}', parseInt(this.value) || 0)">
-    </div>`;
-
-  // --- weights, ranked, with a log-scale bar so 100000 and 8 both read ---
-  const entries = Object.entries(rules.weights).sort((a, b) => b[1] - a[1]);
-  const top = Math.max(...entries.map(e => e[1]), 1);
-  const weightRows = entries.map(([k, v], i) => {
-    const info = WEIGHT_INFO[k] || [k, ''];
-    const pct = v > 0 ? Math.max(2, 100 * Math.log10(v + 1) / Math.log10(top + 1)) : 0;
-    return `
-      <div class="wrow">
-        <div class="wrank">${i + 1}</div>
-        <div class="wmain">
-          <div class="wtop">
-            <span class="wname">${esc(info[0])}</span>
-            <input type="number" class="winput" min="0" max="10000000" value="${v}"
-                   oninput="setRule('weights.${k}', parseInt(this.value) || 0)">
-          </div>
-          <div class="wbar"><div class="wfill" style="width:${pct}%"></div></div>
-          <div class="wdesc">${esc(info[1])}</div>
-        </div>
-      </div>`;
-  }).join('');
-
-  const limitRows = Object.entries(LIMIT_INFO).map(([k, [label, unit, min, max, desc]]) => `
-    <div class="lrow">
-      <div class="lmain">
-        <div class="lname">${esc(label)}</div>
-        <div class="ldesc">${esc(desc)}</div>
-      </div>
-      <div class="lval">
-        <input type="number" min="${min}" max="${max}" value="${rules.limits[k]}"
-               oninput="setRule('limits.${k}', parseInt(this.value) || 0)">
-        <span class="lunit">${esc(unit)}</span>
-      </div>
-    </div>`).join('');
-
-  const epochDay = new Date(rules.pay_period_epoch + 'T12:00:00')
-    .toLocaleDateString('en-US', { weekday: 'long' });
-
-  pane.innerHTML = `
-    ${dirtyRules() ? '<div class="banner warn"><h4>Unsaved rule changes</h4>These take effect on the next generated schedule once saved.</div>' : ''}
-
-    <div class="section">
-      <h3>Pay periods</h3>
-      <div class="hint">Changing the epoch moves every pay period boundary, which changes
-      how hours targets are counted. Only touch it if the real cycle has shifted.</div>
-      <div class="grid">
-        <div class="field">
-          <label for="rEpoch">Epoch (start of a known pay period)</label>
-          <input type="date" id="rEpoch" value="${esc(rules.pay_period_epoch)}"
-                 onchange="setRule('pay_period_epoch', this.value)">
-          <div class="hint" style="margin:4px 0 0">${esc(epochDay)}${epochDay !== 'Sunday'
-            ? ' \u2014 not a Sunday, so pay periods will not line up with calendar weeks' : ''}</div>
-        </div>
-        ${num('pay_period_days', rules.pay_period_days, 1, 56, 7, 'Days per pay period')}
-        ${num('default_max_weekly_hours', rules.default_max_weekly_hours, 0, 168, 4, 'Default weekly hour cap')}
-        ${num('default_lunch_minutes', rules.default_lunch_minutes, 0, 240, 15, 'Default unpaid lunch (min)')}
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Hard limits</h3>
-      <div class="hint">These are never traded away. If they cannot all be met, the schedule
-      fails to build rather than quietly bending one of them.</div>
-      <div class="limits">${limitRows}</div>
-    </div>
-
-    <div class="section">
-      <h3>Priorities</h3>
-      <div class="hint">Soft preferences, ranked. The solver minimises the total cost, so what
-      matters is the ratio between these numbers, not their absolute size. Doubling every
-      number changes nothing; doubling one changes how often it wins.</div>
-      <div class="weights">${weightRows}</div>
-    </div>
-
-    <div class="section">
-      <h3>Solver</h3>
-      <div class="grid">
-        ${num('solver.time_limit_seconds', Math.round(rules.solver.time_limit_seconds), 1, 600, 5, 'Time limit (seconds)')}
-        ${num('solver.workers', rules.solver.workers, 1, 32, 1, 'Parallel workers')}
-      </div>
-      <div class="hint" style="margin-top:8px">A longer limit gives the solver more chance to
-      improve on its first answer. It stops early once it proves the answer optimal.</div>
-    </div>
-
-    <div class="section" style="border-top:1px solid var(--line); padding-top:18px">
-      <button class="btn danger" onclick="resetRules()">Reset all rules to defaults</button>
-    </div>`;
-}
-
 function renderHealth() {
   const c = capacity();
   const nameOf = id => staff.find(e => e.id === id)?.name || '';
   const line = i => i.staff != null
-    ? `<li><span class="who">${esc(nameOf(i.staff))}</span> — ${esc(i.msg)}</li>`
-    : (i.shift ? `<li><span class="who">${esc(i.shift)}</span> — ${esc(i.msg)}</li>`
+    ? `<li><span class="who">${esc(nameOf(i.staff))}</span> \u2014 ${esc(i.msg)}</li>`
+    : (i.shift ? `<li><span class="who">${esc(i.shift)}</span> \u2014 ${esc(i.msg)}</li>`
                : `<li>${esc(i.msg)}</li>`);
 
   let html = `
@@ -1271,15 +1348,15 @@ function renderHealth() {
       <div class="stat"><div class="n">${c.util}%</div><div class="k">Utilization</div></div>
       <div class="stat"><div class="n">${c.bench}</div><div class="k">U-status bench</div></div>
     </div>
-    <div class="banner info">Obligated hours count rotational, core and variable targets.
-    The u-status bench sits on top and nobody is required to work any of it, so the
-    schedule should stand up without it.</div>`;
+    <div class="banner info">Obligated hours count rotational, core and variable targets. The
+    u-status bench sits on top and nobody is required to work any of it, so the schedule should
+    stand up without it.</div>`;
 
   if (c.slack > c.demand * 0.05) {
     html += `<div class="banner warn"><h4>More obligated hours than shifts to put them in</h4>
-      Targets exceed demand by ${c.slack} hours per pay period, so some people cannot reach
-      their target however the solver arranges things. Lower some targets, raise the people-per-day
-      on the lines that really run more than one, or move the most flexible people to u-status.</div>`;
+      Targets exceed demand by ${c.slack} hours per pay period, so some people cannot reach their
+      target however the solver arranges things. Lower some targets, raise the people-per-day on
+      the lines that really run more than one, or move the most flexible people to u-status.</div>`;
   } else if (c.slack < 0) {
     html += `<div class="banner warn"><h4>More shifts than obligated hours</h4>
       Demand exceeds targets by ${-c.slack} hours per pay period. The schedule will have to lean
@@ -1322,9 +1399,9 @@ function renderCoverage() {
       <td>${runs}</td>
       <td class="num">${home.length}</td>
       <td class="num">${backup.length}</td>
-      <td class="num">${relief.length || '—'}</td>
-      <td class="num">${runsWknd ? wkndPool.length : '—'}</td>
-      <td>${rot || '—'}</td>
+      <td class="num">${relief.length || '\u2014'}</td>
+      <td class="num">${runsWknd ? wkndPool.length : '\u2014'}</td>
+      <td>${rot || '\u2014'}</td>
       <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
     </tr>`;
   }).join('');
@@ -1340,11 +1417,15 @@ function renderCoverage() {
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function selectShiftFromTable(nm) { setMode('shifts'); selectShift(nm); }
+function selectShiftFromTable(nm) { setMode('shifts'); selectShift(nm); updateShiftDerived(); }
 
 function showPane(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.pane === name));
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+  if (name === 'edit') {
+    if (mode === 'rules') updateWeightVisuals();
+    if (mode === 'shifts') updateShiftDerived();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1358,17 +1439,6 @@ async function save() {
   btn.disabled = true;
   const done = [];
   try {
-    // Shifts first: if a rename happened, the staff payload already points at
-    // the new names, and saving those against the old catalogue would orphan them.
-    if (dirtyShifts()) {
-      const r = await fetch(API + '/shifts', { method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(shifts.map((s,i) => ({ ...s, order:i }))) });
-      const b = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(b.message || ('shifts: ' + r.status));
-      savedShifts = JSON.stringify(shifts);
-      done.push(`${shifts.length} shifts`);
-    }
     if (dirtyRules()) {
       const r = await fetch(API + '/rules', { method:'POST',
         headers:{'Content-Type':'application/json'}, body: JSON.stringify(rules) });
@@ -1379,6 +1449,17 @@ async function save() {
       applyRuleGlobals();
       savedRules = JSON.stringify(rules);
       done.push('rules');
+    }
+    // Shifts before staff: if a rename happened, the staff payload already
+    // points at the new names.
+    if (dirtyShifts()) {
+      const r = await fetch(API + '/shifts', { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(shifts.map((s,i) => ({ ...s, order:i }))) });
+      const b = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(b.message || ('shifts: ' + r.status));
+      savedShifts = JSON.stringify(shifts);
+      done.push(`${shifts.length} shifts`);
     }
     if (dirtyStaff()) {
       // Blank dates would be stored and then silently ignored by the solver.
@@ -1394,8 +1475,9 @@ async function save() {
       savedStaff = JSON.stringify(staff);
       done.push(`${staff.length} staff`);
     }
+    if (mode === 'rules') { rulesBuilt = false; renderEdit(); updateWeightVisuals(); }
     refresh();
-    toast(done.length ? 'Saved ' + done.join(' and ') + '.' : 'Nothing had changed.');
+    toast(done.length ? 'Saved ' + done.join(', ') + '.' : 'Nothing had changed.');
   } catch (e) {
     toast('Save failed: ' + e.message, true);
   } finally {
@@ -1412,7 +1494,10 @@ function revert() {
   staff  = JSON.parse(savedStaff).map(normalizeStaff);
   if (!staff.some(e => e.id === currentStaffId)) currentStaffId = null;
   if (!shifts.some(s => s.name === currentShift)) currentShift = null;
-  refresh();
+  rulesBuilt = false;
+  refresh(); renderEdit();
+  if (mode === 'rules') updateWeightVisuals();
+  if (mode === 'shifts') updateShiftDerived();
   toast('Reverted to the last saved version.');
 }
 
