@@ -305,6 +305,7 @@ const WEIGHT_INFO = {
   unfilled_slot:            ['Leave a slot empty', 'Must stay the largest number here. The solver will accept almost anything else rather than leave a line uncovered.'],
   relief_pickup:            ['Call in u-status relief', 'Cost of using a voluntary pickup. High enough to be a last resort, far below leaving a gap.'],
   night_block_start:        ['Start a new run of nights', 'Charged once per run, not per night, so one long block costs the same as one short one. Raise it to consolidate scattered nights harder.'],
+  split_weekend:            ['Work half a weekend', 'Charged when someone works a Saturday without the Sunday after it, or the reverse. Raise it to keep weekends whole; it only applies when the person could actually have worked both days.'],
   consecutive_weekend:      ['Work two weekends in a row', 'Applies to staff set to fair-share weekends.'],
   fairness_worst_shortfall: ['Worst single shortfall', 'Applied to the largest hours shortfall anyone has. Raising it spreads unavoidable shortfall evenly instead of dumping it on a few people.'],
   hours_over_target:        ['Each hour over target', 'Per hour above someone\u2019s pay-period target. Usually set above the under-target cost so overtime is discouraged more than idleness.'],
@@ -353,6 +354,17 @@ const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
 // after the epoch, so each line can run its own cadence.
 function epochDate() {
   return new Date((rules?.pay_period_epoch || '2026-06-21') + 'T12:00:00');
+}
+// Only lines with a rotational anchor actually run 7-on/7-off blocks.
+function rotationalAnchors(s) {
+  return staff.filter(e => typeOf(e) === 'rotational' && e.home_shifts[0] === s.name);
+}
+// Does a block cover a Saturday together with the Sunday after it?
+function wholeWeekends(s) {
+  const ref = rotReference(s), days = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(ref); d.setDate(d.getDate() + i); days.push(d); }
+  const satIdx = days.findIndex(d => d.getDay() === 6);
+  return satIdx >= 0 && satIdx < 6 && days[satIdx + 1].getDay() === 0;
 }
 function rotStartDay(s) {
   if (s.rotation_start_day) return s.rotation_start_day;
@@ -656,6 +668,9 @@ function validate() {
       }
     }
 
+    if (rotationalAnchors(s).length && !wholeWeekends(s))
+      flagH(s.name, `Blocks start on ${rotStartDay(s)}, which opens on an orphaned Sunday and closes on an orphaned Saturday. Every block splits both weekends it touches. Any other start day keeps them whole.`, 'warning');
+
     const present = ['A','B'].filter(r => anchors[r + '|' + s.name]);
     if (present.length === 1)
       flagH(s.name, `Has a rotation-${present[0]} anchor but no rotation-${present[0] === 'A' ? 'B' : 'A'} counterpart. Half of all weeks will be uncovered.`, 'warning');
@@ -730,7 +745,7 @@ function renderList() {
     html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
       <div class="nm">${esc(s.name)}</div>
       <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} \u00b7 ${s.hours}h \u00b7 ${s.required}/day \u00b7 ${runs}${
-        s.rotation_start_day ? ' \u00b7 blocks ' + s.rotation_start_day.slice(0,3) : ''} \u00b7 ${pool} qualified</div></div>`;
+        rotationalAnchors(s).length ? ' \u00b7 blocks ' + rotStartDay(s).slice(0,3) : ''} \u00b7 ${pool} qualified</div></div>`;
   });
   list.innerHTML = html;
 }
@@ -991,13 +1006,14 @@ function shiftForm(s) {
             Counts as a night shift
           </label>
         </div>
+        ${rotationalAnchors(s).length ? `
         <div class="field">
           <label for="sRotDay">7-on/7-off block starts on</label>
           <select id="sRotDay" onchange="setShiftField('rotation_start_day', this.value || null)">
             <option value="" ${!s.rotation_start_day ? 'selected':''}>Follow pay period (${esc(rotStartDay({rotation_start_day:null}))})</option>
             ${WEEKDAYS.map(d => `<option value="${d}" ${s.rotation_start_day === d ? 'selected':''}>${d}</option>`).join('')}
           </select>
-        </div>
+        </div>` : ''}
       </div>
       <div id="shiftRotation"></div>
     </div>
@@ -1051,6 +1067,12 @@ function updateShiftDerived() {
 }
 
 function rotationPanel(s) {
+  const anchors = rotationalAnchors(s);
+  if (!anchors.length) {
+    return `<div class="hint" style="margin-top:12px">No 7-on/7-off staff are anchored to
+      this line, so block cadence does not apply. Assign a rotational person to it and the
+      setting appears.</div>`;
+  }
   const split = blockWeekSplit(s);
   const day = rotStartDay(s);
   const ref = rotReference(s);
@@ -1069,6 +1091,10 @@ function rotationPanel(s) {
       ${split.length > 1
         ? `Because it straddles two pay weeks, a backup needs only a ${heaviest} h weekly cap to cover the whole block. ${able.length} of ${pool.length} obligated backup(s) qualify.`
         : `The whole block lands in one pay week, so a backup needs a ${heaviest} h weekly cap to take all of it. ${able.length} of ${pool.length} obligated backup(s) qualify — starting midweek would split it instead.`}
+      <br><br>${wholeWeekends(s)
+        ? 'Weekends stay whole: each block covers a Saturday and the Sunday after it.'
+        : 'A Sunday start opens on an orphaned Sunday and closes on an orphaned Saturday, so it splits both weekends it touches. Any other start day keeps them together.'}
+      Anchored: ${anchors.map(a => esc(a.name.split(',')[0]) + ' (' + a.rotation + ')').join(', ')}.
     </div>`;
 }
 
@@ -1467,7 +1493,7 @@ function renderCoverage() {
       <td class="num">${backup.length}</td>
       <td class="num">${relief.length || '\u2014'}</td>
       <td class="num">${runsWknd ? wkndPool.length : '\u2014'}</td>
-      <td>${rot ? esc(rot) + (s.rotation_start_day ? ' ' + s.rotation_start_day.slice(0,3) : '') : '\u2014'}</td>
+      <td>${rot ? esc(rot) + ' ' + esc(rotStartDay(s).slice(0,3)) : '\u2014'}</td>
       <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
     </tr>`;
   }).join('');
