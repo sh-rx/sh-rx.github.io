@@ -349,6 +349,34 @@ const thhmm = m => String(Math.floor(m / 60) % 24).padStart(2,'0') + ':' +
 const timeLabel = s => `${s.start_time}\u2013${s.end_time}${s.ends_next_day ? '+1' : ''}`;
 const restBetween = (a, b) => (1440 + b.start_minutes) - a.end_minutes;
 
+// Blocks are counted from the first occurrence of the line's start day on or
+// after the epoch, so each line can run its own cadence.
+function epochDate() {
+  return new Date((rules?.pay_period_epoch || '2026-06-21') + 'T12:00:00');
+}
+function rotStartDay(s) {
+  if (s.rotation_start_day) return s.rotation_start_day;
+  const wd = epochDate().getDay();               // 0 = Sunday
+  return WEEKDAYS[(wd + 6) % 7];                 // WEEKDAYS starts Monday
+}
+function rotReference(s) {
+  const ep = epochDate();
+  const epIdx = (ep.getDay() + 6) % 7;
+  const delta = (WEEKDAYS.indexOf(rotStartDay(s)) - epIdx + 7) % 7;
+  const d = new Date(ep); d.setDate(d.getDate() + delta);
+  return d;
+}
+// Hours per Sunday-Saturday pay week for one 7-day block.
+function blockWeekSplit(s) {
+  const ep = epochDate(), ref = rotReference(s), counts = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ref); d.setDate(d.getDate() + i);
+    const wk = Math.floor(Math.round((d - ep) / 86400000) / 7);
+    counts[wk] = (counts[wk] || 0) + 1;
+  }
+  return Object.values(counts).map(c => c * s.hours).sort((a, b) => b - a);
+}
+
 function typeOf(e) {
   if (TYPES[e.employment_type]) return e.employment_type;
   if (e.rotation) return 'rotational';
@@ -409,6 +437,8 @@ function normalizeShift(r, i) {
     // not, so this cannot be derived from the clock alone.
     is_night: r.is_night != null ? !!r.is_night
               : !!(r.ends_next_day && tmin(r.end_time || '00:00') >= 180),
+    // Weekday a 7-on/7-off block begins on. null follows the pay period epoch.
+    rotation_start_day: WEEKDAYS.includes(r.rotation_start_day) ? r.rotation_start_day : null,
     order: r.order ?? i,
   };
   return recalc(s);
@@ -617,10 +647,13 @@ function validate() {
       const backup = pool.filter(e => typeOf(e) !== 'rotational' && typeOf(e) !== 'u_status');
       if (!backup.length)
         flagH(s.name, 'Night line with no obligated backup outside its rotation. Any time off taken by the anchors leaves it uncovered.', 'warning');
-      // A 40 h cap allows only four 10 h nights a week, so a 7-night gap needs
-      // at least two people no matter how the solver is weighted.
-      else if (!backup.some(e => e.max_weekly_hours >= s.hours * 7))
-        flagH(s.name, `No backup has a weekly cap of ${s.hours*7} h, so a full 7-night gap must be split between at least two people. Raise a cap if you want one unbroken block.`, 'warning');
+      else {
+        // Only the heaviest pay week matters, and that depends on which day
+        // the block starts, not on the block being 7 nights long.
+        const heaviest = blockWeekSplit(s)[0];
+        if (!backup.some(e => e.max_weekly_hours >= heaviest))
+          flagH(s.name, `Blocks start on ${rotStartDay(s)} and put ${heaviest} h into a single pay week. No obligated backup has a cap that high, so a full block must be split between two people. Starting midweek, or raising a cap, would fix it.`, 'warning');
+      }
     }
 
     const present = ['A','B'].filter(r => anchors[r + '|' + s.name]);
@@ -696,7 +729,8 @@ function renderList() {
                : (s.days.length === 5 && !s.days.some(d => WEEKEND.includes(d)) ? 'Weekdays' : s.days.length + ' days');
     html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
       <div class="nm">${esc(s.name)}</div>
-      <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} \u00b7 ${s.hours}h \u00b7 ${s.required}/day \u00b7 ${runs} \u00b7 ${pool} qualified</div></div>`;
+      <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} \u00b7 ${s.hours}h \u00b7 ${s.required}/day \u00b7 ${runs}${
+        s.rotation_start_day ? ' \u00b7 blocks ' + s.rotation_start_day.slice(0,3) : ''} \u00b7 ${pool} qualified</div></div>`;
   });
   list.innerHTML = html;
 }
@@ -957,7 +991,15 @@ function shiftForm(s) {
             Counts as a night shift
           </label>
         </div>
+        <div class="field">
+          <label for="sRotDay">7-on/7-off block starts on</label>
+          <select id="sRotDay" onchange="setShiftField('rotation_start_day', this.value || null)">
+            <option value="" ${!s.rotation_start_day ? 'selected':''}>Follow pay period (${esc(rotStartDay({rotation_start_day:null}))})</option>
+            ${WEEKDAYS.map(d => `<option value="${d}" ${s.rotation_start_day === d ? 'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
       </div>
+      <div id="shiftRotation"></div>
     </div>
 
     <div class="section">
@@ -1004,6 +1046,30 @@ function updateShiftDerived() {
     `${s.required * s.hours * s.days.length * 2} hours per pay period ` +
     `(${s.required} \u00d7 ${s.hours}h \u00d7 ${s.days.length} days \u00d7 2 weeks)`;
   document.getElementById('shiftRest').innerHTML = restPanel(s);
+  const rot = document.getElementById('shiftRotation');
+  if (rot) rot.innerHTML = rotationPanel(s);
+}
+
+function rotationPanel(s) {
+  const split = blockWeekSplit(s);
+  const day = rotStartDay(s);
+  const ref = rotReference(s);
+  const endRef = new Date(ref); endRef.setDate(endRef.getDate() + 6);
+  const fmtD = d => d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  const heaviest = split[0];
+  // A block sitting wholly inside one pay week needs a cap for all 70 h.
+  const pool = staff.filter(e => (e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name))
+                                 && typeOf(e) !== 'rotational' && typeOf(e) !== 'u_status');
+  const able = pool.filter(e => e.max_weekly_hours >= heaviest);
+  return `
+    <div class="banner ${split.length > 1 ? 'info' : 'warn'}" style="margin-top:12px">
+      <h4>Blocks run ${esc(day)} to ${esc(WEEKDAYS[(WEEKDAYS.indexOf(day)+6)%7])}</h4>
+      First block ${esc(fmtD(ref))} – ${esc(fmtD(endRef))}, then alternating A/B every 7 days.
+      Across Sunday–Saturday pay weeks a block splits into ${split.join(' + ')} hours.
+      ${split.length > 1
+        ? `Because it straddles two pay weeks, a backup needs only a ${heaviest} h weekly cap to cover the whole block. ${able.length} of ${pool.length} obligated backup(s) qualify.`
+        : `The whole block lands in one pay week, so a backup needs a ${heaviest} h weekly cap to take all of it. ${able.length} of ${pool.length} obligated backup(s) qualify — starting midweek would split it instead.`}
+    </div>`;
 }
 
 function restPanel(s) {
@@ -1187,7 +1253,7 @@ function setShiftField(field, value) {
   s[field] = value;
   if (['hours','start_time','lunch_minutes'].includes(field)) recalc(s);
 
-  if (field === 'active' || field === 'is_night') {
+  if (field === 'active' || field === 'is_night' || field === 'rotation_start_day') {
     refresh(); updateShiftDerived(); return;
   }
   // Everything else updates the derived read-outs in place and leaves the
@@ -1401,7 +1467,7 @@ function renderCoverage() {
       <td class="num">${backup.length}</td>
       <td class="num">${relief.length || '\u2014'}</td>
       <td class="num">${runsWknd ? wkndPool.length : '\u2014'}</td>
-      <td>${rot || '\u2014'}</td>
+      <td>${rot ? esc(rot) + (s.rotation_start_day ? ' ' + s.rotation_start_day.slice(0,3) : '') : '\u2014'}</td>
       <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
     </tr>`;
   }).join('');
