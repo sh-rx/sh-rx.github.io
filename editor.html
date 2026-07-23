@@ -153,6 +153,14 @@
   .chip.locked { opacity: .3; cursor: not-allowed; }
   .chip .hrs { opacity: .6; font-size: 11px; margin-left: 4px; }
 
+  .tbadge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px;
+            border-radius: 8px; border: 1px solid; letter-spacing: .04em;
+            text-transform: uppercase; margin-right: 6px; vertical-align: 1px; }
+  .tbadge.core       { border-color: var(--accent-dk); color: var(--accent); }
+  .tbadge.rotational { border-color: #6b5c2b; color: var(--float); }
+  .tbadge.variable   { border-color: #4a6b8a; color: #8fb6d6; }
+  .tbadge.u_status   { border-color: #7a4d84; color: #c98bd4; }
+
   /* ---------- dynamic rows ---------- */
   .rows { display: flex; flex-direction: column; gap: 8px; }
   .row { display: flex; gap: 8px; align-items: center; }
@@ -252,20 +260,20 @@ const API = 'https://bombmud.vineyard.haus/api';
 // Mirrors SHIFT_CONFIG in app.py. Replaced by GET /config at boot so the two
 // never drift; this is only the offline fallback.
 let SHIFT_CONFIG = [
-  { name: "ED Day",     hours: 12, required: 2, weekends: true  },
+  { name: "ED Day",     hours: 12, required: 1, weekends: true  },
   { name: "ED Ngt",     hours: 10, required: 1, weekends: true  },
   { name: "ICU",        hours: 10, required: 1, weekends: true  },
   { name: "CVCU",       hours: 10, required: 1, weekends: true  },
   { name: "ICU Swg",    hours: 10, required: 1, weekends: true  },
   { name: "Onc",        hours: 10, required: 1, weekends: true  },
-  { name: "Med",        hours: 10, required: 2, weekends: false },
+  { name: "Med",        hours: 10, required: 1, weekends: false },
   { name: "MedSurg",    hours: 10, required: 1, weekends: true  },
   { name: "D5",         hours: 10, required: 1, weekends: true  },
   { name: "FBC",        hours: 10, required: 1, weekends: true  },
-  { name: "IP Day",     hours: 10, required: 2, weekends: true  },
+  { name: "IP Day",     hours: 10, required: 1, weekends: true  },
   { name: "IWC",        hours: 10, required: 1, weekends: false },
   { name: "OR",         hours: 10, required: 1, weekends: false },
-  { name: "IV Day",     hours: 10, required: 2, weekends: true  },
+  { name: "IV Day",     hours: 10, required: 1, weekends: true  },
   { name: "IV Swg",     hours: 10, required: 1, weekends: true  },
   { name: "IV Ngt",     hours: 10, required: 1, weekends: true  },
   { name: "IP Day Res", hours: 10, required: 1, weekends: true  },
@@ -275,6 +283,25 @@ let SHIFT_CONFIG = [
 let DEFAULT_MAX_WEEKLY = 40;
 
 const WEEKDAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+// What each employment type means for the rest of the form.
+const TYPES = {
+  rotational: { label: 'Rotational 7/7', short: '7/7',  home: true,  target: true,
+    note: 'Works 7 on, 7 off, locked to the first home unit. The hours target and weekly cap do not apply, and any time-off rule punches a hole in that unit.' },
+  core:       { label: 'Core',           short: 'Core', home: true,  target: true,
+    note: 'Has home units and an hours target. Working a backup unit costs a small float penalty, so the solver keeps them on their own unit where it can.' },
+  variable:   { label: 'Variable',       short: 'Var',  home: false, target: true,
+    note: 'No home unit, but a real hours target the solver must hit. This is the flex layer that absorbs PTO across the pods.' },
+  u_status:   { label: 'U-status relief', short: 'U',   home: false, target: false,
+    note: 'Unscheduled relief. No hours target and no obligation. The solver uses them only to stop a line going empty, never to top anyone up. Confirm willingness before publishing.' },
+};
+
+function typeOf(e) {
+  if (TYPES[e.employment_type]) return e.employment_type;
+  if (e.rotation) return 'rotational';
+  if ((e.home_shifts || []).length) return 'core';
+  return (e.target_hours || 0) > 0 ? 'variable' : 'u_status';
+}
 
 let staff = [];
 let saved = '[]';       // JSON snapshot of the last server state
@@ -316,9 +343,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
 // Legacy records are missing newer fields. Fill them in once, on load, so no
 // downstream code has to guard against undefined arrays.
 function normalize(e) {
-  return {
+  const base = {
     id: e.id,
     name: e.name || '',
+    employment_type: null,
     home_shifts: Array.isArray(e.home_shifts) ? e.home_shifts.slice() : [],
     backup_shifts: Array.isArray(e.backup_shifts) ? e.backup_shifts.slice() : [],
     rotation: e.rotation ?? null,
@@ -329,6 +357,8 @@ function normalize(e) {
     biweekly_unavailable: Array.isArray(e.biweekly_unavailable) ? e.biweekly_unavailable.slice() : [],
     requested_days_off: Array.isArray(e.requested_days_off) ? e.requested_days_off.slice() : [],
   };
+  base.employment_type = typeOf({ ...base, employment_type: e.employment_type });
+  return base;
 }
 
 function isDirty() { return JSON.stringify(staff) !== saved; }
@@ -364,15 +394,26 @@ function validate() {
     if (!e.name.trim()) flag(e.id, 'This person has no name.', 'error');
 
     const home = e.home_shifts, backup = e.backup_shifts;
+    const t = typeOf(e);
+    const spec = TYPES[t];
 
     if (!home.length && !backup.length)
-      flag(e.id, 'No home or backup shifts, so this person can never be scheduled.', 'warning');
+      flag(e.id, 'No shifts at all, so this person can never be scheduled.', 'warning');
 
     const overlap = backup.filter(s => home.includes(s));
     if (overlap.length)
-      flag(e.id, `${overlap.join(', ')} listed as both home and backup. Home wins.`, 'warning');
+      flag(e.id, `${overlap.join(', ')} listed twice. Home wins.`, 'warning');
 
-    if (e.rotation) {
+    if (!spec.home && home.length)
+      flag(e.id, `${spec.label} staff have no home unit, but ${home.join(', ')} is set as one. It will be treated as a shift they can work.`, 'warning');
+    if (spec.home && !home.length && t !== 'rotational')
+      flag(e.id, `${spec.label} staff need at least one home unit. Switch them to Variable if they float.`, 'error');
+    if (!spec.target && e.target_hours > 0)
+      flag(e.id, `${spec.label} staff are never scored against a target, but this one is set to ${e.target_hours} h. Set it to 0.`, 'warning');
+    if (spec.target && t !== 'rotational' && e.target_hours <= 0)
+      flag(e.id, `${spec.label} staff need an hours target. Switch them to U-status if they have none.`, 'warning');
+
+    if (t === 'rotational') {
       if (!home.length) {
         flag(e.id, `On rotation ${e.rotation} but has no home shift to anchor to.`, 'error');
       } else {
@@ -385,8 +426,8 @@ function validate() {
           flag(e.id, `Rotational staff are locked to their first home shift (${anchor}). The others are ignored.`, 'warning');
       }
       if (e.unavailable_weekdays.length || e.biweekly_unavailable.length || e.requested_days_off.length)
-        flag(e.id, 'Rotational, but also has time-off rules. Those days drop out of the rotation and leave the shift empty.', 'warning');
-    } else {
+        flag(e.id, 'Rotational, but also has time-off rules. Those days drop out of the rotation, so the unit needs backup cover on them.', 'warning');
+    } else if (spec.target) {
       // Reachable hours under the weekly cap
       const pool = [...new Set([...home, ...backup])];
       if (pool.length && e.target_hours > 0) {
@@ -404,8 +445,7 @@ function validate() {
       flag(e.id, 'Has a blank day-off entry. Fill it in or remove it.', 'warning');
     if (e.biweekly_unavailable.some(r => !r.anchor_date))
       flag(e.id, 'Has a bi-weekly rule with no anchor date, so it will be ignored.', 'warning');
-    if (e.target_hours <= 0)
-      flag(e.id, 'Target hours is zero, so no hours target will be enforced.', 'warning');
+
   });
 
   // Two people anchored to the same rotation and shift
@@ -428,10 +468,13 @@ function validate() {
   // Shifts nobody can cover
   shiftNames().forEach(shift => {
     const pool = staff.filter(e => e.home_shifts.includes(shift) || e.backup_shifts.includes(shift));
+    const obligated = pool.filter(e => typeOf(e) !== 'u_status');
     if (!pool.length) {
       errors.push({ id: null, msg: `Nobody is qualified for ${shift}. It can never be filled.` });
-    } else if (shiftMeta(shift).weekends && !pool.some(e => e.weekend_preference !== 'never')) {
-      errors.push({ id: null, msg: `${shift} runs on weekends, but everyone qualified for it is set to never work weekends.` });
+    } else if (!obligated.length) {
+      errors.push({ id: null, msg: `${shift} has only u-status staff qualified for it. Relief pickup is voluntary, so this line has no guaranteed cover.` });
+    } else if (shiftMeta(shift).weekends && !obligated.some(e => e.weekend_preference !== 'never')) {
+      errors.push({ id: null, msg: `${shift} runs on weekends, but no obligated staff qualified for it will work weekends.` });
     }
   });
 
@@ -443,14 +486,18 @@ function validate() {
 }
 
 function capacity() {
-  const demandPerPeriod = SHIFT_CONFIG.reduce((t, s) =>
+  const demand = SHIFT_CONFIG.reduce((t, s) =>
     t + s.required * s.hours * (s.weekends ? 14 : 10), 0);
-  const supplyPerPeriod = staff.reduce((t, e) => t + (e.target_hours || 0), 0);
+  // Only rotational, core and variable hours are obligated. U-status is a
+  // voluntary bench and must not be counted as though it were guaranteed.
+  const committed = staff.filter(e => typeOf(e) !== 'u_status')
+    .reduce((t, e) => t + (e.target_hours || 0), 0);
+  const bench = staff.filter(e => typeOf(e) === 'u_status')
+    .reduce((t, e) => t + (e.max_weekly_hours || 0) * 2, 0);
   return {
-    demand: demandPerPeriod,
-    supply: supplyPerPeriod,
-    slack: supplyPerPeriod - demandPerPeriod,
-    util: supplyPerPeriod ? Math.round(1000 * demandPerPeriod / supplyPerPeriod) / 10 : 0,
+    demand, committed, bench,
+    slack: committed - demand,
+    util: committed ? Math.round(1000 * demand / committed) / 10 : 0,
   };
 }
 
@@ -473,13 +520,15 @@ function renderList() {
   }
 
   list.innerHTML = view.map(e => {
+    const t = typeOf(e);
     const bits = [];
     if (e.rotation) bits.push('Rotation ' + e.rotation);
     if (e.home_shifts.length) bits.push(e.home_shifts.join(' / '));
-    bits.push(e.target_hours + ' h');
+    else bits.push((e.backup_shifts.slice(0, 3).join(' / ')) + (e.backup_shifts.length > 3 ? ' +' + (e.backup_shifts.length - 3) : ''));
+    bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
     const flagged = (issues.byId[e.id] || []).length ? ' flagged' : '';
     return `<div class="emp-item${e.id === currentId ? ' active' : ''}${flagged}" onclick="select(${e.id})">
-      <div class="nm">${esc(e.name || 'Unnamed')}</div>
+      <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
       <div class="sub">${esc(bits.join(' · '))}</div>
     </div>`;
   }).join('');
@@ -516,6 +565,9 @@ function renderPerson() {
       <h4>${myIssues.length} issue${myIssues.length > 1 ? 's' : ''} on this record</h4>
       <ul>${myIssues.map(i => `<li>${esc(i.msg)}</li>`).join('')}</ul>
     </div>` : '';
+
+  const t = typeOf(e);
+  const spec = TYPES[t];
 
   const homeChips = shiftNames().map(s => {
     const on = e.home_shifts.includes(s);
@@ -566,23 +618,32 @@ function renderPerson() {
                  oninput="setField('name', this.value)">
         </div>
         <div class="field">
+          <label for="fType">Employment type</label>
+          <select id="fType" onchange="setType(this.value)">
+            ${Object.entries(TYPES).map(([k, v]) =>
+              `<option value="${k}" ${t === k ? 'selected' : ''}>${v.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
           <label for="fTarget">Target hours per pay period</label>
-          <input type="number" id="fTarget" min="0" max="200" step="5" value="${e.target_hours}"
+          <input type="number" id="fTarget" min="0" max="200" step="4" value="${e.target_hours}"
+                 ${spec.target ? '' : 'disabled title="U-status staff have no hours target"'}
                  oninput="setField('target_hours', parseInt(this.value) || 0)">
         </div>
         <div class="field">
           <label for="fCap">Weekly hour cap</label>
           <input type="number" id="fCap" min="0" max="84" step="4" value="${e.max_weekly_hours}"
+                 ${t === 'rotational' ? 'disabled title="7-on/7-off sets its own hours"' : ''}
                  oninput="setField('max_weekly_hours', parseInt(this.value) || 0)">
         </div>
+        ${t === 'rotational' ? `
         <div class="field">
-          <label for="fRot">Rotation</label>
-          <select id="fRot" onchange="setField('rotation', this.value || null)">
-            <option value="" ${!e.rotation ? 'selected' : ''}>None</option>
+          <label for="fRot">Rotation week</label>
+          <select id="fRot" onchange="setField('rotation', this.value)">
             <option value="A" ${e.rotation === 'A' ? 'selected' : ''}>A — week 1 of each period</option>
             <option value="B" ${e.rotation === 'B' ? 'selected' : ''}>B — week 2 of each period</option>
           </select>
-        </div>
+        </div>` : ''}
         <div class="field">
           <label for="fWknd">Weekends</label>
           <select id="fWknd" onchange="setField('weekend_preference', this.value)">
@@ -592,22 +653,29 @@ function renderPerson() {
           </select>
         </div>
       </div>
-      ${e.rotation ? `<div class="banner info" style="margin-top:14px">
-        Rotational staff work 7 on, 7 off, locked to their first home shift. The hours
-        target and weekly cap do not apply to them.</div>` : ''}
+      <div class="banner info" style="margin-top:14px">${esc(spec.note)}</div>
     </div>
 
+    ${spec.home ? `
     <div class="section">
-      <h3>Home shifts</h3>
-      <div class="hint">The units this person normally covers.${e.rotation ? ' The first one is their rotation anchor.' : ''}</div>
+      <h3>Home units</h3>
+      <div class="hint">The units this person normally covers.${
+        t === 'rotational' ? ' The first one is their rotation anchor.' : ''}</div>
       <div class="chips">${homeChips}</div>
     </div>
 
     <div class="section">
-      <h3>Backup shifts</h3>
-      <div class="hint">Units this person can float to. The solver uses these only when a home unit cannot be covered.</div>
+      <h3>Backup units</h3>
+      <div class="hint">Units this person can float to. The solver uses these only when a home unit cannot otherwise be covered.</div>
       <div class="chips">${backupChips}</div>
-    </div>
+    </div>` : `
+    <div class="section">
+      <h3>Units they can work</h3>
+      <div class="hint">${t === 'u_status'
+        ? 'Relief staff pick up only from this list, and only when a line would otherwise go empty.'
+        : 'Variable staff have no home unit. Pick every unit they are signed off on.'}</div>
+      <div class="chips">${backupChips}</div>
+    </div>`}
 
     <div class="section">
       <h3>Never available on</h3>
@@ -644,6 +712,32 @@ function setField(field, value) {
   e[field] = value;
   if (field === 'name') document.getElementById('topbarName').textContent = value || 'Unnamed';
   validate(); renderList(); markDirty();
+}
+
+// Changing type has to move data, not just relabel it: a core pharmacist made
+// variable keeps their units, but as things they *can* work rather than own.
+function setType(newType) {
+  const e = current(); if (!e) return;
+  const spec = TYPES[newType];
+  e.employment_type = newType;
+
+  if (!spec.home && e.home_shifts.length) {
+    e.home_shifts.forEach(s => { if (!e.backup_shifts.includes(s)) e.backup_shifts.push(s); });
+    e.home_shifts = [];
+  }
+  if (spec.home && !e.home_shifts.length && e.backup_shifts.length) {
+    e.home_shifts = [e.backup_shifts.shift()];   // promote one so they have an anchor
+  }
+  if (!spec.target) e.target_hours = 0;
+  else if (!e.target_hours) e.target_hours = 80;
+
+  if (newType === 'rotational') {
+    if (!e.rotation) e.rotation = 'A';
+    e.target_hours = 70;
+  } else {
+    e.rotation = null;
+  }
+  refresh();
 }
 
 function toggleShift(field, value) {
@@ -690,7 +784,8 @@ function addBiweekly() {
 
 function addEmployee() {
   const nextId = staff.reduce((m, e) => Math.max(m, e.id), -1) + 1;
-  const e = normalize({ id: nextId, name: '', target_hours: 80 });
+  const e = normalize({ id: nextId, name: '', target_hours: 80,
+                        employment_type: 'core' });
   staff.push(e);
   currentId = nextId;
   document.getElementById('search').value = '';
@@ -720,21 +815,25 @@ function renderHealth() {
   let html = `
     <div class="stats">
       <div class="stat"><div class="n">${c.demand}</div><div class="k">Hours demanded / period</div></div>
-      <div class="stat"><div class="n">${c.supply}</div><div class="k">Hours of staff targets</div></div>
+      <div class="stat"><div class="n">${c.committed}</div><div class="k">Obligated hours</div></div>
       <div class="stat"><div class="n ${c.slack < 0 ? 'neg' : 'pos'}">${c.slack > 0 ? '+' : ''}${c.slack}</div><div class="k">Slack</div></div>
       <div class="stat"><div class="n">${c.util}%</div><div class="k">Utilization</div></div>
-    </div>`;
+      <div class="stat"><div class="n">${c.bench}</div><div class="k">U-status bench</div></div>
+    </div>
+    <div class="banner info">Obligated hours count rotational, core and variable
+    targets. The u-status bench sits on top and nobody is required to work any of
+    it, so the schedule should stand up without it.</div>`;
 
   if (c.slack > c.demand * 0.05) {
-    html += `<div class="banner warn"><h4>More staff hours than shifts to put them in</h4>
-      Targets exceed demand by ${c.slack} hours per pay period. Most people cannot reach
-      their target because there is no slot left to fill. Either raise the required
-      headcount on the units that genuinely run more than one nurse, or lower the targets
-      to match what the schedule can absorb.</div>`;
+    html += `<div class="banner warn"><h4>More obligated hours than shifts to put them in</h4>
+      Targets exceed demand by ${c.slack} hours per pay period. Every line takes one
+      person a day, so some people cannot reach their target however the solver arranges
+      things. Lower some targets, or move the most flexible people to u-status so their
+      hours stop being counted as obligated.</div>`;
   } else if (c.slack < 0) {
-    html += `<div class="banner warn"><h4>More shifts than staff hours</h4>
-      Demand exceeds targets by ${-c.slack} hours per pay period. Expect overtime,
-      unfilled slots, or both.</div>`;
+    html += `<div class="banner warn"><h4>More shifts than obligated hours</h4>
+      Demand exceeds targets by ${-c.slack} hours per pay period. The schedule will
+      have to lean on voluntary u-status pickup, which nobody is required to give.</div>`;
   }
 
   if (issues.errors.length) {
@@ -755,15 +854,18 @@ function renderHealth() {
 
 function renderCoverage() {
   const rows = SHIFT_CONFIG.map(s => {
-    const home = staff.filter(e => e.home_shifts.includes(s.name));
-    const backup = staff.filter(e => e.backup_shifts.includes(s.name) && !e.home_shifts.includes(s.name));
+    const qual = staff.filter(e => e.home_shifts.includes(s.name) || e.backup_shifts.includes(s.name));
+    const home = qual.filter(e => e.home_shifts.includes(s.name));
+    const backup = qual.filter(e => !e.home_shifts.includes(s.name) && typeOf(e) !== 'u_status');
+    const relief = qual.filter(e => typeOf(e) === 'u_status');
+    const obligated = qual.filter(e => typeOf(e) !== 'u_status');
     const rot = staff.filter(e => e.rotation && e.home_shifts[0] === s.name)
                      .map(e => e.rotation).sort().join('/');
-    const wkndPool = [...home, ...backup].filter(e => e.weekend_preference !== 'never');
+    const wkndPool = obligated.filter(e => e.weekend_preference !== 'never');
     const daysPerPeriod = s.weekends ? 14 : 10;
     const demand = s.required * s.hours * daysPerPeriod;
 
-    const risky = !home.length && !backup.length
+    const risky = !obligated.length
       || (s.weekends && !wkndPool.length)
       || (rot && rot !== 'A/B');
 
@@ -774,6 +876,7 @@ function renderCoverage() {
       <td>${s.weekends ? '7 days' : 'Weekdays'}</td>
       <td class="num">${home.length}</td>
       <td class="num">${backup.length}</td>
+      <td class="num">${relief.length || '—'}</td>
       <td class="num">${s.weekends ? wkndPool.length : '—'}</td>
       <td>${rot ? esc(rot) : '—'}</td>
       <td class="num">${demand}</td>
@@ -781,12 +884,13 @@ function renderCoverage() {
   }).join('');
 
   document.getElementById('pane-coverage').innerHTML = `
-    <div class="banner info">Hours demanded assumes a full 14-day pay period. Rows in
-    red have no qualified staff, no weekend-eligible staff, or an unpaired rotation.</div>
+    <div class="banner info">Hours demanded assumes a full 14-day pay period. Backup and
+    weekend counts exclude u-status, since relief pickup is voluntary. Rows in red have no
+    obligated staff, no weekend-eligible obligated staff, or an unpaired rotation.</div>
     <table>
       <thead><tr>
         <th>Shift</th><th class="num">Length</th><th class="num">Need</th><th>Runs</th>
-        <th class="num">Home</th><th class="num">Backup</th><th class="num">Wknd pool</th>
+        <th class="num">Home</th><th class="num">Backup</th><th class="num">Relief</th><th class="num">Wknd pool</th>
         <th>Rotation</th><th class="num">Hrs / period</th>
       </tr></thead>
       <tbody>${rows}</tbody>
