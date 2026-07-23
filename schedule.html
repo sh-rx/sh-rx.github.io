@@ -140,7 +140,14 @@
   td.filled { background: #21252c; }
   td.wknd-col { background: #1b1e24; }
   td.gap { background: #331a1a; color: #e88; font-weight: 600; }
-  .float-tag { color: var(--float); font-weight: 700; margin-left: 3px; }
+  .cov { font-weight: 700; margin-left: 3px; font-size: 10.5px; }
+  .cov.float    { color: var(--float); }
+  .cov.variable { color: var(--accent); }
+  .cov.relief   { color: #c98bd4; }
+  td.has-relief { box-shadow: inset 0 0 0 1px #7a4d84; }
+  .pill.core     { border-color: var(--accent-dk); color: var(--accent); }
+  .pill.variable { border-color: #4a6b8a; color: #8fb6d6; }
+  .pill.relief   { border-color: #7a4d84; color: #c98bd4; }
 
   /* ---------- employee cards ---------- */
   .card-grid {
@@ -383,6 +390,24 @@ function showPane(name) {
     p.classList.toggle('active', p.id === 'pane-' + name));
 }
 
+// Home assignments are unmarked. Everything else says why it is not.
+const COV = {
+  float:    ['F', 'Float: core staff covering off their home unit'],
+  variable: ['V', 'Variable staff: no home unit, but a real hours target'],
+  relief:   ['R', 'U-status relief: voluntary pickup, not obligated'],
+};
+function covTag(c) {
+  const m = COV[c];
+  return m ? `<span class="cov ${c}" title="${m[1]}">${m[0]}</span>` : '';
+}
+
+const TYPE_LABEL = {
+  rotational: 'Rotational 7/7',
+  core: 'Core',
+  variable: 'Variable',
+  u_status: 'U-status relief',
+};
+
 // --- Master grid -----------------------------------------------------------
 function buildGrid(data) {
   const order = data.meta.shift_order;
@@ -404,11 +429,11 @@ function buildGrid(data) {
       if (d.is_weekend) cls.push('wknd-col');
       if (people.length) cls.push('filled');
       if (gap) cls.push('gap');
+      if (people.some(p => p.coverage === 'relief')) cls.push('has-relief');
 
       let cell = '';
       people.forEach(p => {
-        cell += `<div>${esc(p.display_name)}${
-          p.is_float ? '<span class="float-tag" title="Float / backup unit">F</span>' : ''}</div>`;
+        cell += `<div>${esc(p.display_name)}${covTag(p.coverage)}</div>`;
       });
       if (gap) cell += `<div>unfilled</div>`;
       if (!cell) cell = '<span style="color:var(--text-mute)">&middot;</span>';
@@ -427,8 +452,10 @@ function buildGrid(data) {
 // sides drifted apart.
 function buildPeople(data) {
   const cards = data.employee_summary.map(emp => {
-    const rot = emp.rotation
-      ? `<span class="pill rot">Rotation ${esc(emp.rotation)}</span>` : '';
+    const t = emp.employment_type;
+    const typeCls = t === 'u_status' ? 'relief' : (t === 'variable' ? 'variable' : 'core');
+    const typePill = `<span class="pill ${typeCls}">${esc(TYPE_LABEL[t] || t)}${
+      emp.rotation ? ' ' + esc(emp.rotation) : ''}</span>`;
     const home = emp.home_shifts.length
       ? `<span class="pill">${esc(emp.home_shifts.join(' / '))}</span>` : '';
 
@@ -438,13 +465,17 @@ function buildPeople(data) {
         cls = p.delta === 0 ? 'ok' : (p.delta < 0 ? 'short' : 'over');
         text = `${p.scheduled_hours} / ${p.target_hours} h`;
       }
+      const why = p.scored
+        ? `Target ${p.target_hours} h` + (p.is_partial ? ', prorated for a partial period' : '')
+        : (emp.employment_type === 'u_status'
+            ? 'U-status relief has no hours target'
+            : 'Fixed 7-on/7-off rotation, so no target is scored');
 
       const rows = p.shifts.length
         ? p.shifts.map(s => `
             <div class="row ${s.is_weekend ? 'wknd' : ''}">
               <span class="date">${esc(s.label)}</span>
-              <span class="shift">${esc(s.shift)} &middot; ${s.hours}h${
-                s.is_float ? '<span class="float-tag" title="Float / backup unit">F</span>' : ''}</span>
+              <span class="shift">${esc(s.shift)} &middot; ${s.hours}h${covTag(s.coverage)}</span>
             </div>`).join('')
         : '<div class="empty">No shifts in this period.</div>';
 
@@ -453,9 +484,7 @@ function buildPeople(data) {
           <div class="pp-head">
             <span class="pp-label">${esc(p.label)}${
               p.is_partial ? ` <span class="partial">(${p.days_in_range} of 14 days)</span>` : ''}</span>
-            <span class="badge ${cls}" title="${p.scored
-              ? `Target ${p.target_hours} h` + (p.is_partial ? ', prorated for a partial period' : '')
-              : 'Fixed 7-on/7-off rotation, so no target is scored'}">${text}</span>
+            <span class="badge ${cls}" title="${why}">${text}</span>
           </div>
           ${rows}
         </div>`;
@@ -466,7 +495,7 @@ function buildPeople(data) {
         <div class="card-head">
           <div class="card-name">${esc(emp.name)}</div>
           <div class="card-meta">
-            ${rot}${home}
+            ${typePill}${home}
             <span class="pill">${emp.total_hours} h total</span>
             <span class="pill">${emp.weekend_days} weekend day${emp.weekend_days === 1 ? '' : 's'}</span>
             ${emp.float_shifts ? `<span class="pill">${emp.float_shifts} float</span>` : ''}
@@ -498,6 +527,11 @@ function buildGaps(data) {
 function buildCapacity(data) {
   const c = data.meta.capacity;
   const slackClass = c.slack_hours < 0 ? 'neg' : 'pos';
+  const hc = c.headcount || {};
+  const hcLine = Object.keys(TYPE_LABEL)
+    .filter(k => hc[k])
+    .map(k => `${hc[k]} ${TYPE_LABEL[k].toLowerCase()}`)
+    .join(' &middot; ');
 
   const rows = [...data.employee_summary]
     .sort((a, b) => {
@@ -515,7 +549,8 @@ function buildCapacity(data) {
         : `<td class="num" style="color:var(--text-mute)">fixed</td>`;
       return `<tr>
         <td>${esc(emp.name)}</td>
-        <td>${emp.rotation ? 'Rotation ' + esc(emp.rotation) : esc(emp.home_shifts[0] || '—')}</td>
+        <td>${esc(TYPE_LABEL[emp.employment_type] || emp.employment_type)}</td>
+        <td>${esc(emp.home_shifts[0] || '—')}</td>
         <td class="num">${emp.total_shifts}</td>
         <td class="num">${emp.total_hours}</td>
         <td class="num">${scored.length ? target : '—'}</td>
@@ -527,14 +562,18 @@ function buildCapacity(data) {
   return `
     <div class="stats">
       <div class="stat"><div class="n">${c.demand_hours}</div><div class="k">Hours demanded</div></div>
-      <div class="stat"><div class="n">${c.supply_hours}</div><div class="k">Hours of staff targets</div></div>
+      <div class="stat"><div class="n">${c.committed_hours}</div><div class="k">Obligated staff hours</div></div>
       <div class="stat"><div class="n ${slackClass}">${c.slack_hours > 0 ? '+' : ''}${c.slack_hours}</div><div class="k">Slack</div></div>
       <div class="stat"><div class="n">${c.utilization_pct}%</div><div class="k">Utilization</div></div>
+      <div class="stat"><div class="n">${data.meta.relief_shifts_used}</div><div class="k">Relief shifts used</div></div>
       <div class="stat"><div class="n">${data.meta.solve_seconds}s</div><div class="k">${esc(data.meta.solver_status)}</div></div>
     </div>
+    <div class="banner info">${hcLine}. Obligated hours count rotational, core and
+    variable targets only. U-status relief adds ${c.relief_bench_hours} h of
+    capacity on top, none of which anyone is required to work.</div>
     <table class="list-table">
       <thead><tr>
-        <th>Name</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
+        <th>Name</th><th>Type</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
         <th class="num">Target</th><th class="num">Delta</th><th class="num">Wknd days</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -545,12 +584,12 @@ function buildCapacity(data) {
 function exportCsv() {
   if (!LAST) return;
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const lines = [['Date', 'Day', 'Shift', 'Hours', 'Employee', 'Float', 'Pay period'].join(',')];
+  const lines = [['Date', 'Day', 'Shift', 'Hours', 'Employee', 'Coverage', 'Pay period'].join(',')];
 
   LAST.schedule.forEach(d => {
     d.shifts.forEach(s => lines.push([
       q(d.date), q(d.day_of_week), q(s.shift), s.hours,
-      q(s.employee_name), s.is_float ? 'Y' : '', d.pp_index
+      q(s.employee_name), q(s.coverage), d.pp_index
     ].join(',')));
     d.gaps.forEach(g => lines.push([
       q(d.date), q(d.day_of_week), q(g.shift), '', q('UNFILLED'), '', d.pp_index
