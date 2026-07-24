@@ -292,6 +292,8 @@ const LIMIT_INFO = {
     'Clock hours between leaving one shift and starting the next. Measured on occupied time (paid hours plus lunch), so it catches an overnight line running into the next morning.'],
   night_recovery_days:    ['Night recovery', 'days', 0, 14,
     'After any night shift, this many days with no DAY shift. More nights during the window are still allowed, and preferred. Set to 0 to switch the rule off.'],
+  preferred_consecutive_days: ['Preferred run length', 'days', 0, 21,
+    'Soft target for a run of day shifts. Each day past this costs the "stretch past preferred run" weight below. Night runs are exempt, since night blocking wants those long.'],
   max_consecutive_days:   ['Consecutive day shifts', 'days', 0, 21,
     'Longest run of day shifts before a day off. Does not apply to rotational staff, whose 7-on/7-off pattern is fixed.'],
   max_consecutive_nights: ['Consecutive nights', 'nights', 0, 21,
@@ -307,9 +309,11 @@ const WEIGHT_INFO = {
   night_block_start:        ['Start a new run of nights', 'Charged once per run, not per night, so one long block costs the same as one short one. Raise it to consolidate scattered nights harder.'],
   split_weekend:            ['Work half a weekend', 'Charged when someone works a Saturday without the Sunday after it, or the reverse. Raise it to keep weekends whole; it only applies when the person could actually have worked both days.'],
   consecutive_weekend:      ['Work two weekends in a row', 'Applies to staff set to fair-share weekends.'],
+  island_day:               ['Work a lone day', 'Charged for a worked day with a day off either side. Individual staff can ban these outright on their record, which makes it a hard rule for them instead of a cost.'],
   fairness_worst_shortfall: ['Worst single shortfall', 'Applied to the largest hours shortfall anyone has. Raising it spreads unavoidable shortfall evenly instead of dumping it on a few people.'],
   hours_over_target:        ['Each hour over target', 'Per hour above someone\u2019s pay-period target. Usually set above the under-target cost so overtime is discouraged more than idleness.'],
   hours_under_target:       ['Each hour under target', 'Per hour below someone\u2019s pay-period target.'],
+  stretch_beyond_preferred: ['Stretch past preferred run', 'Charged once per day that pushes a run of day shifts past the preferred length above. A run three days over costs it three times.'],
   weekend_balance:          ['Heaviest weekend load', 'Applied to whoever works the most weekend days, which pulls the distribution flatter.'],
   float_off_home_unit:      ['Core staff off their unit', 'Cost of floating a core pharmacist to a backup unit.'],
   variable_assignment:      ['Use a variable staffer', 'Kept low: variable staff exist to be used. Set below the float cost so the solver reaches for them before pulling core staff off their unit.'],
@@ -477,6 +481,9 @@ function normalizeStaff(e) {
     rotation: e.rotation ?? null,
     target_hours: Number(e.target_hours) || 0,
     max_weekly_hours: Number(e.max_weekly_hours) || DEFAULT_MAX_WEEKLY,
+    // null means "use the global consecutive limit"
+    max_days_in_a_row: Number(e.max_days_in_a_row) > 0 ? Number(e.max_days_in_a_row) : null,
+    allow_island_days: e.allow_island_days !== false,
     weekend_preference: e.weekend_preference || 'target_equity',
     home_shifts: Array.isArray(e.home_shifts) ? e.home_shifts.slice() : [],
     backup_shifts: Array.isArray(e.backup_shifts) ? e.backup_shifts.slice() : [],
@@ -631,6 +638,19 @@ function validate() {
       }
     }
 
+    // Banning lone days is only possible if two workable weekdays sit together.
+    if (!e.allow_island_days && t !== 'rotational') {
+      const off = new Set(e.unavailable_weekdays);
+      const trapped = WEEKDAYS.filter((d, i) =>
+        !off.has(d) && off.has(WEEKDAYS[(i + 6) % 7]) && off.has(WEEKDAYS[(i + 1) % 7]));
+      if (trapped.length)
+        flagS(e.id, `Lone days are switched off, but their standing days off leave ${trapped.join(', ')} isolated every week. They could never be scheduled then. Allow lone days, or move a standing day off.`, 'error');
+    }
+    if (e.max_days_in_a_row && t === 'rotational')
+      flagS(e.id, `Rotational staff work 7 days running, so the ${e.max_days_in_a_row}-day personal cap is ignored.`, 'warning');
+    if (e.max_days_in_a_row && rules && e.max_days_in_a_row > rules.limits.max_consecutive_any)
+      flagS(e.id, `Personal cap of ${e.max_days_in_a_row} days is above the global limit of ${rules.limits.max_consecutive_any}, so the global one applies.`, 'warning');
+
     if (e.requested_days_off.some(d => !d)) flagS(e.id, 'Has a blank day-off entry.', 'warning');
     if (e.biweekly_unavailable.some(r => !r.anchor_date)) flagS(e.id, 'Has a bi-weekly rule with no anchor date, so it will be ignored.', 'warning');
     e.biweekly_unavailable.forEach(r => {
@@ -726,6 +746,8 @@ function renderList() {
       if (e.home_shifts.length) bits.push(e.home_shifts.join(' / '));
       else bits.push(e.backup_shifts.slice(0,3).join(' / ') + (e.backup_shifts.length > 3 ? ' +' + (e.backup_shifts.length-3) : ''));
       bits.push(TYPES[t].target ? e.target_hours + ' h' : 'no target');
+      if (e.max_days_in_a_row) bits.push('max ' + e.max_days_in_a_row + ' in a row');
+      if (!e.allow_island_days) bits.push('no lone days');
       return `<div class="item${e.id === currentStaffId ? ' active':''}${(issues.byStaff[e.id]||[]).length ? ' flagged':''}" onclick="selectStaff(${e.id})">
         <div class="nm"><span class="tbadge ${t}">${esc(TYPES[t].short)}</span>${esc(e.name || 'Unnamed')}</div>
         <div class="sub">${esc(bits.filter(Boolean).join(' \u00b7 '))}</div></div>`;
@@ -1192,6 +1214,22 @@ function staffForm(e) {
           </select>
         </div>` : ''}
         <div class="field">
+          <label for="fRun">Max days in a row</label>
+          <input type="number" id="fRun" min="0" max="21" value="${e.max_days_in_a_row ?? ''}"
+                 placeholder="Global (${rules?.limits?.max_consecutive_any ?? 7})"
+                 ${t === 'rotational' ? 'disabled title="7-on/7-off sets its own pattern"' : ''}
+                 oninput="setStaffField('max_days_in_a_row', parseInt(this.value) > 0 ? parseInt(this.value) : null)">
+        </div>
+        <div class="field">
+          <label>Lone days</label>
+          <label class="toggle">
+            <input type="checkbox" ${e.allow_island_days ? 'checked':''}
+                   ${t === 'rotational' ? 'disabled' : ''}
+                   onchange="setStaffField('allow_island_days', this.checked)">
+            Will work a single day between two days off
+          </label>
+        </div>
+        <div class="field">
           <label for="fWknd">Weekends</label>
           <select id="fWknd" onchange="setStaffField('weekend_preference', this.value)">
             <option value="target_equity" ${e.weekend_preference === 'target_equity' ? 'selected':''}>Fair share</option>
@@ -1396,7 +1434,8 @@ function addRecord() {
   if (mode === 'rules') return;
   if (mode === 'staff') {
     const nextId = staff.reduce((m,e) => Math.max(m, e.id), -1) + 1;
-    staff.push(normalizeStaff({ id: nextId, name: '', target_hours: 80, employment_type: 'core' }));
+    staff.push(normalizeStaff({ id: nextId, name: '', target_hours: 80,
+                                employment_type: 'core', allow_island_days: true }));
     currentStaffId = nextId;
     document.getElementById('search').value = '';
     refresh(); showPane('edit');
