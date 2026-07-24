@@ -454,6 +454,7 @@ function normalizeShift(r, i) {
     active: r.active !== false,
     // Swg Res ends 03:30 and counts as a night; ICU Swg ends 01:30 and does
     // not, so this cannot be derived from the clock alone.
+    home_only: !!r.home_only,
     is_night: r.is_night != null ? !!r.is_night
               : !!(r.ends_next_day && tmin(r.end_time || '00:00') >= 180),
     // Weekday a 7-on/7-off block begins on. null follows the pay period epoch.
@@ -678,6 +679,26 @@ function validate() {
     else if (s.days.some(d => WEEKEND.includes(d)) && !obligated.some(e => e.weekend_preference !== 'never'))
       flagH(s.name, 'Runs on weekends, but no obligated staff qualified for it will work weekends.', 'error');
 
+    if (s.home_only) {
+      const home = staff.filter(e => e.home_shifts.includes(s.name));
+      if (!home.length) {
+        flagH(s.name, 'Set to home staff only, but nobody has it as a home unit.', 'error');
+      } else {
+        const needWk = s.days.length * s.required;
+        const capWk = home.reduce((t, e) => t + (typeOf(e) === 'rotational' ? 7
+          : Math.min(Math.floor(e.max_weekly_hours / s.hours), s.days.length)), 0);
+        if (capWk < needWk)
+          flagH(s.name, `Home staff only, needs ${needWk} shift(s) a week, but ${home.map(e=>e.name.split(',')[0]).join(' and ')} can supply at most ${capWk} under their weekly hour caps.`, 'error');
+        const uncovered = s.days.filter(d => !home.some(e =>
+          !e.unavailable_weekdays.includes(d) &&
+          !(WEEKEND.includes(d) && e.weekend_preference === 'never')));
+        if (uncovered.length)
+          flagH(s.name, `Home staff only, but no home staffer is available on ${uncovered.join(', ')}.`, 'error');
+        if (home.length <= 2)
+          flagH(s.name, `Home staff only and rests entirely on ${home.map(e=>e.name.split(',')[0]).join(' and ')}. Any time off they take leaves it unfilled.`, 'warning');
+      }
+    }
+
     if (s.is_night) {
       const backup = pool.filter(e => typeOf(e) !== 'rotational' && typeOf(e) !== 'u_status');
       if (!backup.length)
@@ -770,6 +791,7 @@ function renderList() {
     html += `<div class="item${s.name === currentShift ? ' active':''}${s.active ? '':' off'}${(issues.byShift[s.name]||[]).length ? ' flagged':''}" onclick="selectShift('${esc(s.name).replace(/'/g,"\\'")}')">
       <div class="nm">${esc(s.name)}</div>
       <div class="sub">${esc(timeLabel(s))}${s.is_night ? ' <span class="nbadge">night</span>' : ''} \u00b7 ${s.hours}h \u00b7 ${s.required}/day \u00b7 ${runs}${
+        s.home_only ? ' \u00b7 home only' : ''}${
         rotationalAnchors(s).length ? ' \u00b7 blocks ' + rotStartDay(s).slice(0,3) : ''} \u00b7 ${pool} qualified</div></div>`;
   });
   list.innerHTML = html;
@@ -1025,6 +1047,14 @@ function shiftForm(s) {
           </label>
         </div>
         <div class="field">
+          <label>Who may work it</label>
+          <label class="toggle">
+            <input type="checkbox" ${s.home_only ? 'checked':''}
+                   onchange="setShiftField('home_only', this.checked)">
+            Home staff only
+          </label>
+        </div>
+        <div class="field">
           <label>Classification</label>
           <label class="toggle">
             <input type="checkbox" ${s.is_night ? 'checked':''} onchange="setShiftField('is_night', this.checked)">
@@ -1041,6 +1071,11 @@ function shiftForm(s) {
         </div>` : ''}
       </div>
       <div id="shiftRotation"></div>
+      ${s.home_only ? `<div class="banner info" style="margin-top:12px">
+        Only staff with this as a <strong>home</strong> unit can be scheduled on it. Backup,
+        variable and u-status staff are excluded outright, not just discouraged, so no weight
+        or tie-break can put them here. The trade is that time off taken by the home staff
+        leaves the line unfilled.</div>` : ''}
     </div>
 
     <div class="section">
@@ -1447,7 +1482,8 @@ function addRecord() {
     let n = 1, name;
     do { name = 'New Shift ' + n++; } while (shifts.some(s => s.name === name));
     shifts.push(normalizeShift({ name, category:'Uncategorised', hours:10, start_time:'07:00',
-                                 lunch_minutes:DEFAULT_LUNCH, required:1, is_night:false }, shifts.length));
+                                 lunch_minutes:DEFAULT_LUNCH, required:1, is_night:false,
+                                 home_only:false }, shifts.length));
     currentShift = name;
     document.getElementById('search').value = '';
     refresh(); updateShiftDerived(); showPane('edit');
@@ -1532,8 +1568,8 @@ function renderCoverage() {
       <td class="num">${s.required}</td>
       <td>${runs}</td>
       <td class="num">${home.length}</td>
-      <td class="num">${backup.length}</td>
-      <td class="num">${relief.length || '\u2014'}</td>
+      <td class="num">${s.home_only ? '\u2014' : backup.length}</td>
+      <td class="num">${s.home_only ? '\u2014' : (relief.length || '\u2014')}</td>
       <td class="num">${runsWknd ? wkndPool.length : '\u2014'}</td>
       <td>${rot ? esc(rot) + ' ' + esc(rotStartDay(s).slice(0,3)) : '\u2014'}</td>
       <td class="num">${s.active ? s.required * s.hours * s.days.length * 2 : 0}</td>
