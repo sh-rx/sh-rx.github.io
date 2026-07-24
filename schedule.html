@@ -564,6 +564,7 @@ function buildPeople(data) {
             ${typePill}${home}
             <span class="pill">${emp.total_hours} h total</span>
             <span class="pill">${emp.weekend_days} weekend day${emp.weekend_days === 1 ? '' : 's'}</span>
+            ${emp.island_days ? `<span class="pill" title="Lone worked days with a day off either side">${emp.island_days} lone day${emp.island_days === 1 ? '' : 's'}</span>` : ''}
             ${emp.night_shifts ? `<span class="pill">${emp.night_shifts} night${emp.night_shifts === 1 ? '' : 's'} in ${emp.night_blocks} block${emp.night_blocks === 1 ? '' : 's'}${emp.longest_night_block > 1 ? `, longest ${emp.longest_night_block}` : ''}</span>` : ''}
             ${emp.float_shifts ? `<span class="pill">${emp.float_shifts} float</span>` : ''}
           </div>
@@ -625,6 +626,9 @@ function buildCapacity(data) {
         <td class="num">${emp.weekend_days}</td>
         <td class="num">${emp.night_shifts || '—'}</td>
         <td class="num">${emp.night_shifts ? emp.night_blocks : '—'}</td>
+        <td class="num">${emp.longest_run || '—'}${
+          emp.max_days_in_a_row ? `<span style="color:var(--text-mute)"> / ${emp.max_days_in_a_row}</span>` : ''}</td>
+        <td class="num ${emp.island_days ? 'neg' : ''}">${emp.island_days || '—'}</td>
       </tr>`;
     }).join('');
 
@@ -647,6 +651,7 @@ function buildCapacity(data) {
         <th>Name</th><th>Type</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
         <th class="num">Target</th><th class="num">Delta</th><th class="num">Wknd</th>
         <th class="num">Nights</th><th class="num">Blocks</th>
+        <th class="num">Longest run</th><th class="num">Lone days</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
