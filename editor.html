@@ -300,24 +300,24 @@ const LIMIT_INFO = {
     'Longest run of day shifts before a day off. Does not apply to rotational staff, whose 7-on/7-off pattern is fixed.'],
   max_consecutive_nights: ['Consecutive nights', 'nights', 0, 21,
     'Longest run of nights. Keep this at 7 or higher, or a 7-on/7-off rotation cannot work its own line.'],
+  max_consecutive_weekends: ['Weekends in a row', 'weekends', 0, 12,
+    'Hard cap on consecutive weekends for obligated staff. 1 means strict every-other-weekend. Set to 0 to drop the cap and rely on the weight below instead, though a weight alone tends to lose out in a large model. A line needs cap+1 weekend-capable staff to keep running.'],
   max_consecutive_any:    ['Consecutive worked days', 'days', 0, 21,
     'Longest run of worked days of any kind. Bounds a run that mixes days and nights.'],
 };
 
 // Declaration order is the display order and never changes while you type.
 const WEIGHT_INFO = {
-  unfilled_slot:            ['Leave a slot empty', 'Must stay the largest number here. The solver will accept almost anything else rather than leave a line uncovered.'],
   relief_pickup:            ['Call in u-status relief', 'Cost of using a voluntary pickup. High enough to be a last resort, far below leaving a gap.'],
   night_block_start:        ['Start a new run of nights', 'Charged once per run, not per night, so one long block costs the same as one short one. Raise it to consolidate scattered nights harder.'],
   split_weekend:            ['Work half a weekend', 'Charged when someone works a Saturday without the Sunday after it, or the reverse. Raise it to keep weekends whole; it only applies when the person could actually have worked both days.'],
-  consecutive_weekend:      ['Work two weekends in a row', 'Applies to staff set to fair-share weekends.'],
+  consecutive_weekend:      ['Work two weekends in a row', 'Only bites when the hard cap above is set to 0; otherwise back-to-back weekends are already impossible.'],
   island_day:               ['Work a lone day', 'Charged for a worked day with a day off either side. Individual staff can ban these outright on their record, which makes it a hard rule for them instead of a cost.'],
-  fairness_worst_shortfall: ['Worst single shortfall', 'Applied to the largest hours shortfall anyone has. Raising it spreads unavoidable shortfall evenly instead of dumping it on a few people.'],
   hours_over_target:        ['Each hour over target', 'Per hour above someone\u2019s pay-period target. Usually set above the under-target cost so overtime is discouraged more than idleness.'],
   hours_under_target:       ['Each hour under target', 'Per hour below target, up to the first-tier hours set above.'],
   hours_deeply_under_target: ['Each hour deeply under target', 'Per hour of shortfall beyond the first tier. Keep it well above the shallow rate: the gap between the two is what stops the solver starving one person to the level of the worst-off.'],
   stretch_beyond_preferred: ['Stretch past preferred run', 'Charged once per day that pushes a run of day shifts past the preferred length above. A run three days over costs it three times.'],
-  weekend_balance:          ['Weekend load spread', 'Applied to the SQUARE of each person\u2019s weekend count, so two people on six weekends each costs far less than one on twelve. Squaring is what makes it actually even out; a plain worst-case measure only protects one person.'],
+  weekend_load:             ['Weekend load spread', 'Charged so that each person\u2019s k-th weekend costs more than their last, making the running total grow with the square of their count. Two people on six weekends each costs far less than one on twelve. A worst-case measure only protects one person and lets everyone else be loaded to that level for free.'],
   float_off_home_unit:      ['Core staff off their unit', 'Cost of floating a core pharmacist to a backup unit.'],
   variable_assignment:      ['Use a variable staffer', 'Kept low: variable staff exist to be used. Set below the float cost so the solver reaches for them before pulling core staff off their unit.'],
 };
@@ -679,6 +679,16 @@ function validate() {
     else if (s.days.some(d => WEEKEND.includes(d)) && !obligated.some(e => e.weekend_preference !== 'never'))
       flagH(s.name, 'Runs on weekends, but no obligated staff qualified for it will work weekends.', 'error');
 
+    const capW = rules?.limits?.max_consecutive_weekends ?? 0;
+    if (capW > 0 && s.days.some(d => WEEKEND.includes(d))) {
+      const rot = rotationalAnchors(s);
+      if (!rot.length) {
+        const wpool = pool.filter(e => typeOf(e) !== 'u_status' && e.weekend_preference !== 'never');
+        if (wpool.length < (capW + 1) * s.required)
+          flagH(s.name, `Runs weekends and needs ${s.required} person/people, but only ${wpool.length} obligated staff can work its weekends. A cap of ${capW} weekend(s) in a row needs at least ${(capW+1)*s.required}.`, 'error');
+      }
+    }
+
     if (s.home_only) {
       const home = staff.filter(e => e.home_shifts.includes(s.name));
       if (!home.length) {
@@ -915,7 +925,10 @@ function rulesForm() {
       <div class="hint">Soft preferences. The solver minimises total cost, so only the ratios
       between these matter, not their absolute size. Doubling every number changes nothing;
       doubling one changes how often it wins. Rows keep a fixed order while you edit; use
-      Sort by value to re-rank.</div>
+      Sort by value to re-rank.<br><br>
+      Leaving a line uncovered is not listed because it is not a weight: the first solve
+      forbids gaps outright. Only if that proves impossible does a second pass allow them,
+      so a gap can never be traded against a preference.</div>
       <div class="weights" id="weightRows">${weightRows}</div>
     </div>
 
