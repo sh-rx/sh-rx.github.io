@@ -564,6 +564,8 @@ function buildPeople(data) {
             ${typePill}${home}
             <span class="pill">${emp.total_hours} h total</span>
             <span class="pill">${emp.weekend_days} weekend day${emp.weekend_days === 1 ? '' : 's'}</span>
+            ${emp.whole_weekends ? `<span class="pill" title="Saturday and Sunday worked together">${emp.whole_weekends} whole weekend${emp.whole_weekends === 1 ? '' : 's'}</span>` : ''}
+            ${emp.split_weekends ? `<span class="pill" style="border-color:#7d5c2b;color:#e8cd9a" title="Worked one weekend day without the other">${emp.split_weekends} split</span>` : ''}
             ${emp.island_days ? `<span class="pill" title="Lone worked days with a day off either side">${emp.island_days} lone day${emp.island_days === 1 ? '' : 's'}</span>` : ''}
             ${emp.night_shifts ? `<span class="pill">${emp.night_shifts} night${emp.night_shifts === 1 ? '' : 's'} in ${emp.night_blocks} block${emp.night_blocks === 1 ? '' : 's'}${emp.longest_night_block > 1 ? `, longest ${emp.longest_night_block}` : ''}</span>` : ''}
             ${emp.float_shifts ? `<span class="pill">${emp.float_shifts} float</span>` : ''}
@@ -589,6 +591,34 @@ function buildGaps(data) {
       shifts, relax a time-off rule, or lower the required headcount.</div>
     <table class="list-table"><thead><tr><th>Slot</th></tr></thead><tbody>${
       data.shortages.map(s => `<tr><td>${esc(s)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// The roster splits into groups of lines that share no staff. Each is solved as
+// its own model, which is why a small group can reach proven optimality while a
+// large one is still searching.
+function buildComponents(data) {
+  const comps = data.components || [];
+  if (!comps.length) return '';
+  const rows = comps.map(c => `
+    <tr class="${c.optimal ? '' : 'risk'}">
+      <td>${esc(c.shifts.slice(0, 4).join(', '))}${c.shifts.length > 4 ? ` +${c.shifts.length - 4}` : ''}</td>
+      <td class="num">${c.staff_count}</td>
+      <td class="num">${c.shift_count}</td>
+      <td>${c.optimal ? 'Proven optimal' : esc(c.status)}</td>
+      <td class="num">${c.seconds}s</td>
+    </tr>`).join('');
+  const slow = comps.filter(c => !c.optimal).length;
+  return `
+    <div class="banner ${slow ? 'warn' : 'info'}">
+      <h4>${comps.length} independent group${comps.length > 1 ? 's' : ''}</h4>
+      ${slow
+        ? `${slow} group(s) hit the time limit before proving optimality. Raising the solver time limit in the editor's Rules tab gives them longer.`
+        : 'Every group was solved to proven optimality, so no better arrangement exists under the current rules and weights.'}
+    </div>
+    <table class="list-table" style="margin-bottom:18px">
+      <thead><tr><th>Lines</th><th class="num">Staff</th><th class="num">Lines</th>
+      <th>Result</th><th class="num">Time</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
 }
 
 // --- Capacity --------------------------------------------------------------
@@ -626,6 +656,7 @@ function buildCapacity(data) {
         <td class="num">${emp.weekend_days}</td>
         <td class="num">${emp.night_shifts || '—'}</td>
         <td class="num">${emp.night_shifts ? emp.night_blocks : '—'}</td>
+        <td class="num">${emp.whole_weekends}<span style="color:var(--text-mute)">/</span><span class="${emp.split_weekends ? 'neg' : ''}">${emp.split_weekends}</span></td>
         <td class="num">${emp.longest_run || '—'}${
           emp.max_days_in_a_row ? `<span style="color:var(--text-mute)"> / ${emp.max_days_in_a_row}</span>` : ''}</td>
         <td class="num ${emp.island_days ? 'neg' : ''}">${emp.island_days || '—'}</td>
@@ -642,7 +673,9 @@ function buildCapacity(data) {
       <div class="stat"><div class="n">${data.meta.min_rest_hours}h</div><div class="k">Minimum rest</div></div>
       <div class="stat"><div class="n">${data.meta.night_recovery_days}d</div><div class="k">Night recovery</div></div>
       <div class="stat"><div class="n">${data.meta.solve_seconds}s</div><div class="k">${esc(data.meta.solver_status)}</div></div>
+      <div class="stat"><div class="n">${data.meta.component_count}</div><div class="k">Independent groups</div></div>
     </div>
+    ${buildComponents(data)}
     <div class="banner info">${hcLine}. Obligated hours count rotational, core and
     variable targets only. U-status relief adds ${c.relief_bench_hours} h of
     capacity on top, none of which anyone is required to work.</div>
@@ -651,7 +684,7 @@ function buildCapacity(data) {
         <th>Name</th><th>Type</th><th>Home</th><th class="num">Shifts</th><th class="num">Hours</th>
         <th class="num">Target</th><th class="num">Delta</th><th class="num">Wknd</th>
         <th class="num">Nights</th><th class="num">Blocks</th>
-        <th class="num">Longest run</th><th class="num">Lone days</th>
+        <th class="num">Wknd whole/split</th><th class="num">Longest run</th><th class="num">Lone days</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
