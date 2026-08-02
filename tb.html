@@ -11,6 +11,7 @@
     #overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #111; display: flex; align-items: center; justify-content: center; z-index: 9999; }
     #box { background: #222; padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center; }
     #input { padding: 10px; font-size: 18px; width: 150px; text-align: center; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; letter-spacing: 5px; outline: none; }
+    #server { margin-bottom: 14px; padding: 9px; font-size: 15px; width: 174px; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; outline: none; font-family: monospace; }
     #app { display: none; flex-direction: column; height: 100%; }
     #term { flex-grow: 1; overflow: hidden; }
     #cmd { flex-grow: 1; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
@@ -20,6 +21,11 @@
   <div id="overlay">
     <div id="box">
       <h2 style="color:#aaa;"></h2>
+      <select id="server">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select><br />
       <input type="password" id="input" autofocus autocomplete="off" />
     </div>
   </div>
@@ -31,7 +37,8 @@
 
   <script>
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
-    
+    const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
+
     async function verify(v) {
       const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
       const hash = Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -42,41 +49,45 @@
     input.addEventListener('keypress', async (e) => {
       if (e.key === 'Enter') {
         if (await verify(input.value)) {
+          const token = document.getElementById('server').value;
           document.getElementById('overlay').style.display = 'none';
           document.getElementById('app').style.display = 'flex';
-          init();
+          init(token);
         } else {
           input.value = '';
         }
       }
     });
 
-    function init() {
+    function init(token) {
       // Check if we are on a mobile-sized screen.
       const isMobile = window.innerWidth <= 768;
 
       // Set font size based on screen size (10 for mobile, 15 for desktop)
-      const term = new Terminal({ 
+      const term = new Terminal({
         theme: { background: '#000' },
         fontSize: isMobile ? 10 : 15,
         fontFamily: 'monospace'
       });
-      
+
       const fit = new FitAddon.FitAddon();
       term.loadAddon(fit);
       term.open(document.getElementById('term'));
       fit.fit();
-      
+
       // Re-calculate the grid if you rotate your phone
       window.addEventListener('resize', () => fit.fit());
-      
-      const ws = new WebSocket('wss://castle-style-stuart-develops.trycloudflare.com');
+
+  
+      const ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(token));
       ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
+      ws.onclose = () => term.writeln('\x1b[31m*** disconnected from ' + token + ' - reload to reconnect ***\x1b[0m');
+      ws.onerror = () => term.writeln('\x1b[31m*** could not reach ' + token + ' ***\x1b[0m');
 
       // Send a blank return every 45 seconds to keep the network tunnel hot
       setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(new TextEncoder().encode('\r\n')); 
+          ws.send(new TextEncoder().encode('\r\n'));
         }
       }, 45000);
 
@@ -94,14 +105,14 @@
       }
       // Trigger the lock
       requestWakeLock();
-      
+
       // Re-trigger the lock if you minimize the browser and come back
       document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible') {
           requestWakeLock();
         }
       });
-      
+
       const cmd = document.getElementById('cmd');
       cmd.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
