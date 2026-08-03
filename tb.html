@@ -12,12 +12,19 @@
     #box { background: #222; padding: 30px; border-radius: 8px; border: 1px solid #444; text-align: center; }
     #input { padding: 10px; font-size: 18px; width: 150px; text-align: center; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; letter-spacing: 5px; outline: none; }
     #server { margin-bottom: 14px; padding: 9px; font-size: 15px; width: 174px; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; outline: none; font-family: monospace; }
+
     #app { display: none; flex-direction: column; height: 100%; }
-    #term { flex-grow: 1; overflow: hidden; }
-    #bar { display: flex; margin-top: 10px; gap: 6px; }
+    #tabs { display: flex; gap: 4px; margin-bottom: 8px; align-items: stretch; flex-shrink: 0; }
+    .tab { background: #111; color: #555; border: 1px solid #333; border-radius: 3px 3px 0 0; font-family: monospace; font-size: 14px; padding: 6px 13px; cursor: pointer; outline: none; }
+    .tab.on { color: #00ff00; border-color: #444; background: #000; }
+    .tab .dot { color: #b58900; }
+    #terms { flex-grow: 1; position: relative; overflow: hidden; }
+    .sess { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+    #bar { display: flex; margin-top: 10px; gap: 6px; flex-shrink: 0; }
     #cmd { flex-grow: 1; min-width: 0; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
-    #sw, #rc { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
-    #sw:hover, #rc:hover, #sw:focus, #rc:focus { color: #00ff00; border-color: #444; }
+    #add, #rc, #xt { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
+    #add { padding: 6px 9px; border-radius: 3px; }
+    #add:hover, #rc:hover, #xt:hover, #add:focus, #rc:focus, #xt:focus { color: #00ff00; border-color: #444; }
   </style>
 </head>
 <body>
@@ -34,23 +41,21 @@
   </div>
 
   <div id="app">
-    <div id="term"></div>
+    <div id="tabs"></div>
+    <div id="terms"></div>
     <div id="bar">
       <input type="text" id="cmd" autocomplete="off" />
-      <select id="sw" title="switch">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-      </select>
       <button id="rc" title="reconnect">&#8635;</button>
+      <button id="xt" title="close tab">&#215;</button>
     </div>
   </div>
 
   <script>
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
+    const MAX_TABS = 6;
 
-    let term = null, ws = null, token = "1";
+    let sessions = [], active = -1, isMobile = false;
 
     async function verify(v) {
       const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
@@ -62,70 +67,123 @@
     input.addEventListener('keypress', async (e) => {
       if (e.key === 'Enter') {
         if (await verify(input.value)) {
-          token = document.getElementById('server').value;
-          document.getElementById('sw').value = token;
+          const first = document.getElementById('server').value;
           document.getElementById('overlay').style.display = 'none';
           document.getElementById('app').style.display = 'flex';
-          init();
+          init(first);
         } else {
           input.value = '';
         }
       }
     });
 
-    // Open a socket for the current token, dropping any existing one first.
-    function connect() {
-      if (ws) {
-        ws.onmessage = ws.onclose = ws.onerror = ws.onopen = null;
-        try { ws.close(); } catch (err) {}
+    // --- tab bar -------------------------------------------------------
+    function renderTabs() {
+      const bar = document.getElementById('tabs');
+      bar.innerHTML = '';
+      sessions.forEach((s, i) => {
+        const b = document.createElement('button');
+        b.className = 'tab' + (i === active ? ' on' : '');
+        b.innerHTML = s.token + (s.unread && i !== active ? ' <span class="dot">&bull;</span>' : '');
+        b.addEventListener('click', () => activate(i));
+        bar.appendChild(b);
+      });
+      if (sessions.length < MAX_TABS) {
+        const sel = document.createElement('select');
+        sel.id = 'add';
+        sel.innerHTML = '<option value="">+</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>';
+        sel.addEventListener('change', (e) => {
+          if (e.target.value) openTab(e.target.value);
+        });
+        bar.appendChild(sel);
       }
-      term.writeln('\x1b[90m--- connecting to ' + token + ' ---\x1b[0m');
-      ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(token));
-      ws.onopen = () => term.writeln('\x1b[90m--- connected ---\x1b[0m');
-      ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
-      ws.onclose = () => term.writeln('\x1b[31m--- disconnected ---\x1b[0m');
-      ws.onerror = () => term.writeln('\x1b[31m--- could not reach ' + token + ' ---\x1b[0m');
+    }
+
+    function activate(i) {
+      active = i;
+      sessions.forEach((s, n) => { s.el.style.display = n === i ? 'block' : 'none'; });
+      const s = sessions[i];
+      s.unread = false;
+      // A hidden terminal measures as zero, so fit only once it is visible.
+      s.fit.fit();
+      renderTabs();
       document.getElementById('cmd').focus();
     }
 
-    function init() {
-      // Check if we are on a mobile-sized screen.
-      const isMobile = window.innerWidth <= 768;
+    // --- sessions ------------------------------------------------------
+    function openTab(token) {
+      if (sessions.length >= MAX_TABS) return;
+      const el = document.createElement('div');
+      el.className = 'sess';
+      el.style.display = 'none';
+      document.getElementById('terms').appendChild(el);
 
-      // Set font size based on screen size (10 for mobile, 15 for desktop)
-      term = new Terminal({
+      const term = new Terminal({
         theme: { background: '#000' },
         fontSize: isMobile ? 10 : 15,
-        fontFamily: 'monospace'
+        fontFamily: 'monospace',
+        scrollback: 1500
       });
-
       const fit = new FitAddon.FitAddon();
       term.loadAddon(fit);
-      term.open(document.getElementById('term'));
-      fit.fit();
+      term.open(el);
 
-      // Re-calculate the grid if you rotate your phone
-      window.addEventListener('resize', () => fit.fit());
+      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false };
+      sessions.push(s);
+      activate(sessions.length - 1);
+      connect(s);
+    }
 
-      connect();
+    function connect(s) {
+      if (s.ws) {
+        s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
+        try { s.ws.close(); } catch (err) {}
+      }
+      s.term.writeln('\x1b[90m--- connecting to ' + s.token + ' ---\x1b[0m');
+      const ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(s.token));
+      s.ws = ws;
+      ws.onopen = () => s.term.writeln('\x1b[90m--- connected ---\x1b[0m');
+      ws.onmessage = async (e) => {
+        s.term.write(e.data instanceof Blob ? await e.data.text() : e.data);
+        if (sessions[active] !== s && !s.unread) { s.unread = true; renderTabs(); }
+      };
+      ws.onclose = () => s.term.writeln('\x1b[31m--- disconnected ---\x1b[0m');
+      ws.onerror = () => s.term.writeln('\x1b[31m--- could not reach ' + s.token + ' ---\x1b[0m');
+    }
+
+    function closeTab() {
+      if (sessions.length < 2) return;   // always keep one open
+      const s = sessions[active];
+      if (s.ws) {
+        s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
+        try { s.ws.close(); } catch (err) {}
+      }
+      s.term.dispose();
+      s.el.remove();
+      sessions.splice(active, 1);
+      activate(Math.min(active, sessions.length - 1));
+    }
+
+    // --- startup -------------------------------------------------------
+    function init(first) {
+      isMobile = window.innerWidth <= 768;
+      openTab(first);
+
+      window.addEventListener('resize', () => { if (active >= 0) sessions[active].fit.fit(); });
 
       // Send a blank return every 45 seconds to keep the network tunnel hot
       setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(new TextEncoder().encode('\r\n'));
-        }
+        sessions.forEach((s) => {
+          if (s.ws && s.ws.readyState === WebSocket.OPEN) {
+            s.ws.send(new TextEncoder().encode('\r\n'));
+          }
+        });
       }, 45000);
 
-      // Reconnect to whatever is currently selected
-      document.getElementById('rc').addEventListener('click', () => connect());
+      document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
+      document.getElementById('xt').addEventListener('click', closeTab);
 
-      // Switch targets without reloading
-      document.getElementById('sw').addEventListener('change', (e) => {
-        token = e.target.value;
-        connect();
-      });
-
-    
+      // Request the phone to keep the screen on while the MUD is running
       let wakeLock = null;
       async function requestWakeLock() {
         try {
@@ -137,10 +195,8 @@
           console.log('Wake Lock failed:', err);
         }
       }
-      // Trigger the lock
       requestWakeLock();
 
-      // Re-trigger the lock if you minimize the browser and come back
       document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible') {
           requestWakeLock();
@@ -150,8 +206,9 @@
       const cmd = document.getElementById('cmd');
       cmd.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-          term.writeln('\x1b[36m> ' + cmd.value + '\x1b[0m');
-          if (ws && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
+          const s = sessions[active];
+          s.term.writeln('\x1b[36m> ' + cmd.value + '\x1b[0m');
+          if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
           cmd.value = '';
         }
       });
