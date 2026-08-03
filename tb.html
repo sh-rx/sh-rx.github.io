@@ -4,7 +4,7 @@
   <title></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
     body { background-color: #000; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; height: 100dvh; box-sizing: border-box; font-family: sans-serif; }
@@ -83,6 +83,32 @@
       }
     });
 
+    // Measure one monospace cell at the terminal's font size.
+    function cellSize() {
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;line-height:normal;font-family:monospace;';
+      probe.style.fontSize = (isMobile ? 10 : 15) + 'px';
+      probe.textContent = 'W'.repeat(50);
+      document.body.appendChild(probe);
+      const r = probe.getBoundingClientRect();
+      probe.remove();
+      return r.width > 0 ? { w: r.width / 50, h: r.height } : null;
+    }
+
+    // Ask the addon to fit, then check its work. If it left the terminal at
+    // its default grid, size it by hand from the container instead.
+    function fitSession(s) {
+      try { s.fit.fit(); } catch (err) {}
+      const box = document.getElementById('terms');
+      const c = cellSize();
+      if (!c || !box.clientHeight) return;
+      const rows = Math.max(5, Math.floor(box.clientHeight / c.h));
+      const cols = Math.max(20, Math.floor((box.clientWidth - 18) / c.w));
+      if (s.term.rows < rows * 0.85 || s.term.cols < cols * 0.85) {
+        try { s.term.resize(cols, rows); } catch (err) {}
+      }
+    }
+
     // Grow the command box to fit its contents, up to the CSS max-height.
     // scrollHeight covers content + padding; border-box height also needs the border.
     function autosize() {
@@ -127,9 +153,9 @@
       sessions.forEach((s, n) => { s.el.className = 'sess' + (n === i ? ' on' : ''); });
       const s = sessions[i];
       s.unread = false;
-      s.fit.fit();
+      fitSession(s);
       // Re-fit once layout has settled, in case fonts or the bar shifted things.
-      requestAnimationFrame(() => { if (sessions[active] === s) s.fit.fit(); });
+      requestAnimationFrame(() => { if (sessions[active] === s) fitSession(s); });
       renderTabs();
       // Each tab remembers its own last command.
       const cmd = document.getElementById('cmd');
@@ -197,20 +223,20 @@
       isMobile = window.innerWidth <= 768;
       openTab(first);
 
-      window.addEventListener('resize', () => { if (active >= 0) sessions[active].fit.fit(); });
+      window.addEventListener('resize', () => { if (active >= 0) fitSession(sessions[active]); });
 
       // The command box grows and shrinks as you type or paste; the terminal
       // has to re-measure or it keeps rendering at its old size.
       if (window.ResizeObserver) {
         new ResizeObserver(() => {
-          if (active >= 0) sessions[active].fit.fit();
+          if (active >= 0) fitSession(sessions[active]);
         }).observe(document.getElementById('bar'));
       }
 
       autosize();
 
       // The xterm stylesheet may land after the first fit; measure again.
-      setTimeout(() => { if (active >= 0) sessions[active].fit.fit(); }, 250);
+      setTimeout(() => { if (active >= 0) fitSession(sessions[active]); }, 250);
 
       // Send a blank return every 45 seconds to keep the network tunnel hot
       setInterval(() => {
