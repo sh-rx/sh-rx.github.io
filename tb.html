@@ -19,8 +19,6 @@
     .tab.on { color: #00ff00; border-color: #444; background: #000; }
     .tab .dot { color: #b58900; }
     #terms { flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden; }
-    /* Hidden tabs stay laid out; display:none would zero their size and
-       break xterm's character measurement. */
     .sess { position: absolute; top: 0; left: 0; right: 0; bottom: 0; visibility: hidden; z-index: 0; }
     .sess.on { visibility: visible; z-index: 1; }
     #bar { display: flex; margin-top: 10px; gap: 6px; flex-shrink: 0; align-items: flex-end; }
@@ -50,8 +48,8 @@
     <div id="terms"></div>
     <div id="bar">
       <textarea id="cmd" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
-      <button id="rc" title="reconnect">&#8635;</button>
-      <button id="xt" title="close tab">&#215;</button>
+      <button id="rc">&#8635;</button>
+      <button id="xt">&#215;</button>
     </div>
   </div>
 
@@ -59,8 +57,9 @@
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
     const MAX_TABS = 6;
-    const SEND_DELAY = 120;   
-    const HISTORY_MAX = 100;  
+    const SEND_DELAY = 120;
+    const HISTORY_MAX = 100;
+    const RETRY_MAX = 6;
 
     let sessions = [], active = -1, isMobile = false;
 
@@ -84,7 +83,6 @@
       }
     });
 
- 
     function cellSize() {
       const probe = document.createElement('span');
       probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;line-height:normal;font-family:monospace;';
@@ -96,7 +94,6 @@
       return r.width > 0 ? { w: r.width / 50, h: r.height } : null;
     }
 
-   
     function fitSession(s) {
       try { s.fit.fit(); } catch (err) {}
       const box = document.getElementById('terms');
@@ -109,13 +106,11 @@
       }
     }
 
-  
     function autosize() {
       const cmd = document.getElementById('cmd');
       cmd.style.height = 'auto';
       cmd.style.height = (cmd.scrollHeight + 2) + 'px';
     }
-
 
     function selectCmd() {
       const cmd = document.getElementById('cmd');
@@ -124,7 +119,6 @@
       setTimeout(() => cmd.setSelectionRange(0, cmd.value.length), 0);
     }
 
-    // --- tab bar -------------------------------------------------------
     function renderTabs() {
       const bar = document.getElementById('tabs');
       bar.innerHTML = '';
@@ -152,10 +146,8 @@
       const s = sessions[i];
       s.unread = false;
       fitSession(s);
-      // Re-fit once layout has settled, in case fonts or the bar shifted things.
       requestAnimationFrame(() => { if (sessions[active] === s) fitSession(s); });
       renderTabs();
-      // Each tab remembers its own last command.
       const cmd = document.getElementById('cmd');
       cmd.value = s.last || '';
       s.hi = -1;
@@ -164,7 +156,6 @@
       selectCmd();
     }
 
-    // --- sessions ------------------------------------------------------
     function openTab(token) {
       if (sessions.length >= MAX_TABS) return;
       const el = document.createElement('div');
@@ -181,51 +172,64 @@
       term.loadAddon(fit);
       term.open(el);
 
-      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '', hist: [], hi: -1, draft: '' };
+      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '', hist: [], hi: -1, draft: '', tries: 0, timer: null };
       sessions.push(s);
       activate(sessions.length - 1);
       connect(s);
     }
 
-    function connect(s) {
+    function drop(s) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
       if (s.ws) {
         s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
         try { s.ws.close(); } catch (err) {}
+        s.ws = null;
       }
-      s.term.writeln('\x1b[90m--- connecting to ' + s.token + ' ---\x1b[0m');
+    }
+
+    function connect(s) {
+      drop(s);
+      s.term.writeln('\x1b[90m--- opening ' + s.token + ' ---\x1b[0m');
       const ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(s.token));
       s.ws = ws;
-      ws.onopen = () => s.term.writeln('\x1b[90m--- connected ---\x1b[0m');
+      ws.onopen = () => {
+        s.tries = 0;
+        s.term.writeln('\x1b[90m--- open ---\x1b[0m');
+      };
       ws.onmessage = async (e) => {
         s.term.write(e.data instanceof Blob ? await e.data.text() : e.data);
         if (sessions[active] !== s && !s.unread) { s.unread = true; renderTabs(); }
       };
-      ws.onclose = () => s.term.writeln('\x1b[31m--- disconnected ---\x1b[0m');
-      ws.onerror = () => s.term.writeln('\x1b[31m--- could not reach ' + s.token + ' ---\x1b[0m');
+      ws.onclose = () => {
+        s.ws = null;
+        if (s.tries < RETRY_MAX) {
+          const wait = Math.min(1000 * Math.pow(2, s.tries), 20000);
+          s.tries++;
+          s.term.writeln('\x1b[33m--- closed, retrying in ' + Math.round(wait / 1000) + 's ---\x1b[0m');
+          s.timer = setTimeout(() => connect(s), wait);
+        } else {
+          s.term.writeln('\x1b[31m--- closed ---\x1b[0m');
+        }
+      };
+      ws.onerror = () => {};
     }
 
     function closeTab() {
-      if (sessions.length < 2) return;   
+      if (sessions.length < 2) return;
       const s = sessions[active];
-      if (s.ws) {
-        s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
-        try { s.ws.close(); } catch (err) {}
-      }
+      drop(s);
       s.term.dispose();
       s.el.remove();
       sessions.splice(active, 1);
       activate(Math.min(active, sessions.length - 1));
     }
 
-    // --- startup -------------------------------------------------------
     function init(first) {
       isMobile = window.innerWidth <= 768;
       openTab(first);
 
       window.addEventListener('resize', () => { if (active >= 0) fitSession(sessions[active]); });
 
-      // The command box grows and shrinks as you type or paste; the terminal
-      // has to re-measure or it keeps rendering at its old size.
       if (window.ResizeObserver) {
         new ResizeObserver(() => {
           if (active >= 0) fitSession(sessions[active]);
@@ -233,33 +237,22 @@
       }
 
       autosize();
-
-      // The xterm stylesheet may land after the first fit; measure again.
       setTimeout(() => { if (active >= 0) fitSession(sessions[active]); }, 250);
 
-      // Send a blank return every 45 seconds to keep the network tunnel hot
-      setInterval(() => {
-        sessions.forEach((s) => {
-          if (s.ws && s.ws.readyState === WebSocket.OPEN) {
-            s.ws.send(new TextEncoder().encode('\r\n'));
-          }
-        });
-      }, 45000);
-
-      document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
+      document.getElementById('rc').addEventListener('click', () => {
+        const s = sessions[active];
+        s.tries = 0;
+        connect(s);
+      });
       document.getElementById('xt').addEventListener('click', closeTab);
 
-   
       let wakeLock = null;
       async function requestWakeLock() {
         try {
           if ('wakeLock' in navigator) {
             wakeLock = await navigator.wakeLock.request('screen');
-            console.log('Screen Wake Lock is active');
           }
-        } catch (err) {
-          console.log('Wake Lock failed:', err);
-        }
+        } catch (err) {}
       }
       requestWakeLock();
 
@@ -286,24 +279,23 @@
         s.sending = false;
       }
 
-      cmd.addEventListener('input', autosize);
-
-     
       function recall(text) {
         cmd.value = text;
         autosize();
         selectCmd();
       }
 
-  
       function atFirstLine() {
         const nl = cmd.value.indexOf('\n');
         return nl === -1 || cmd.selectionStart <= nl;
       }
+
       function atLastLine() {
         const nl = cmd.value.lastIndexOf('\n');
         return nl === -1 || cmd.selectionEnd > nl;
       }
+
+      cmd.addEventListener('input', autosize);
 
       cmd.addEventListener('keydown', (e) => {
         const s = sessions[active];
@@ -311,7 +303,7 @@
         if (e.key === 'ArrowUp' && atFirstLine()) {
           if (!s.hist.length || s.hi >= s.hist.length - 1) return;
           e.preventDefault();
-          if (s.hi === -1) s.draft = cmd.value;   // keep what was being typed
+          if (s.hi === -1) s.draft = cmd.value;
           s.hi++;
           recall(s.hist[s.hist.length - 1 - s.hi]);
           return;
@@ -325,7 +317,6 @@
           return;
         }
 
-        // Shift+Enter adds a line instead of sending.
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           const text = cmd.value;
@@ -335,7 +326,6 @@
           if (s.hist.length > HISTORY_MAX) s.hist.shift();
           s.hi = -1;
           s.draft = '';
-          // Leave the text in place, selected: Enter repeats it, anything else replaces it.
           selectCmd();
         }
       });
