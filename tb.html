@@ -14,7 +14,10 @@
     #server { margin-bottom: 14px; padding: 9px; font-size: 15px; width: 174px; background: #000; color: #00ff00; border: 1px solid #555; border-radius: 4px; outline: none; font-family: monospace; }
     #app { display: none; flex-direction: column; height: 100%; }
     #term { flex-grow: 1; overflow: hidden; }
-    #cmd { flex-grow: 1; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
+    #bar { display: flex; margin-top: 10px; gap: 6px; }
+    #cmd { flex-grow: 1; min-width: 0; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
+    #sw, #rc { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
+    #sw:hover, #rc:hover, #sw:focus, #rc:focus { color: #00ff00; border-color: #444; }
   </style>
 </head>
 <body>
@@ -32,12 +35,22 @@
 
   <div id="app">
     <div id="term"></div>
-    <div style="display:flex; margin-top:10px;"><input type="text" id="cmd" autocomplete="off" /></div>
+    <div id="bar">
+      <input type="text" id="cmd" autocomplete="off" />
+      <select id="sw" title="switch">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+      <button id="rc" title="reconnect">&#8635;</button>
+    </div>
   </div>
 
   <script>
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
+
+    let term = null, ws = null, token = "1";
 
     async function verify(v) {
       const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
@@ -49,22 +62,38 @@
     input.addEventListener('keypress', async (e) => {
       if (e.key === 'Enter') {
         if (await verify(input.value)) {
-          const token = document.getElementById('server').value;
+          token = document.getElementById('server').value;
+          document.getElementById('sw').value = token;
           document.getElementById('overlay').style.display = 'none';
           document.getElementById('app').style.display = 'flex';
-          init(token);
+          init();
         } else {
           input.value = '';
         }
       }
     });
 
-    function init(token) {
+    // Open a socket for the current token, dropping any existing one first.
+    function connect() {
+      if (ws) {
+        ws.onmessage = ws.onclose = ws.onerror = ws.onopen = null;
+        try { ws.close(); } catch (err) {}
+      }
+      term.writeln('\x1b[90m--- connecting to ' + token + ' ---\x1b[0m');
+      ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(token));
+      ws.onopen = () => term.writeln('\x1b[90m--- connected ---\x1b[0m');
+      ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
+      ws.onclose = () => term.writeln('\x1b[31m--- disconnected ---\x1b[0m');
+      ws.onerror = () => term.writeln('\x1b[31m--- could not reach ' + token + ' ---\x1b[0m');
+      document.getElementById('cmd').focus();
+    }
+
+    function init() {
       // Check if we are on a mobile-sized screen.
       const isMobile = window.innerWidth <= 768;
 
       // Set font size based on screen size (10 for mobile, 15 for desktop)
-      const term = new Terminal({
+      term = new Terminal({
         theme: { background: '#000' },
         fontSize: isMobile ? 10 : 15,
         fontFamily: 'monospace'
@@ -78,20 +107,25 @@
       // Re-calculate the grid if you rotate your phone
       window.addEventListener('resize', () => fit.fit());
 
-  
-      const ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(token));
-      ws.onmessage = async (e) => term.write(e.data instanceof Blob ? await e.data.text() : e.data);
-      ws.onclose = () => term.writeln('\x1b[31m*** disconnected from ' + token + ' - reload to reconnect ***\x1b[0m');
-      ws.onerror = () => term.writeln('\x1b[31m*** could not reach ' + token + ' ***\x1b[0m');
+      connect();
 
       // Send a blank return every 45 seconds to keep the network tunnel hot
       setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(new TextEncoder().encode('\r\n'));
         }
       }, 45000);
 
-     
+      // Reconnect to whatever is currently selected
+      document.getElementById('rc').addEventListener('click', () => connect());
+
+      // Switch targets without reloading
+      document.getElementById('sw').addEventListener('change', (e) => {
+        token = e.target.value;
+        connect();
+      });
+
+    
       let wakeLock = null;
       async function requestWakeLock() {
         try {
@@ -117,7 +151,7 @@
       cmd.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           term.writeln('\x1b[36m> ' + cmd.value + '\x1b[0m');
-          if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
+          if (ws && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
           cmd.value = '';
         }
       });
