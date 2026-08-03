@@ -59,7 +59,7 @@
     const MAX_TABS = 6;
     const SEND_DELAY = 120;
     const HISTORY_MAX = 100;
-    const RETRY_MAX = 6;
+    const PING_EVERY = 50000;
 
     let sessions = [], active = -1, isMobile = false;
 
@@ -172,14 +172,13 @@
       term.loadAddon(fit);
       term.open(el);
 
-      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '', hist: [], hi: -1, draft: '', tries: 0, timer: null };
+      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '', hist: [], hi: -1, draft: '' };
       sessions.push(s);
       activate(sessions.length - 1);
       connect(s);
     }
 
     function drop(s) {
-      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
       if (s.ws) {
         s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
         try { s.ws.close(); } catch (err) {}
@@ -193,7 +192,6 @@
       const ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(s.token));
       s.ws = ws;
       ws.onopen = () => {
-        s.tries = 0;
         s.term.writeln('\x1b[90m--- open ---\x1b[0m');
       };
       ws.onmessage = async (e) => {
@@ -202,14 +200,7 @@
       };
       ws.onclose = () => {
         s.ws = null;
-        if (s.tries < RETRY_MAX) {
-          const wait = Math.min(1000 * Math.pow(2, s.tries), 20000);
-          s.tries++;
-          s.term.writeln('\x1b[33m--- closed, retrying in ' + Math.round(wait / 1000) + 's ---\x1b[0m');
-          s.timer = setTimeout(() => connect(s), wait);
-        } else {
-          s.term.writeln('\x1b[31m--- closed ---\x1b[0m');
-        }
+        s.term.writeln('\x1b[31m--- closed ---\x1b[0m');
       };
       ws.onerror = () => {};
     }
@@ -239,11 +230,15 @@
       autosize();
       setTimeout(() => { if (active >= 0) fitSession(sessions[active]); }, 250);
 
-      document.getElementById('rc').addEventListener('click', () => {
-        const s = sessions[active];
-        s.tries = 0;
-        connect(s);
-      });
+      setInterval(() => {
+        sessions.forEach((s) => {
+          if (s.ws && s.ws.readyState === WebSocket.OPEN) {
+            s.ws.send(new Uint8Array(0));
+          }
+        });
+      }, PING_EVERY);
+
+      document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
       document.getElementById('xt').addEventListener('click', closeTab);
 
       let wakeLock = null;
