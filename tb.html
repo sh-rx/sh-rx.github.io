@@ -38,6 +38,12 @@
         <option value="1">1</option>
         <option value="2">2</option>
         <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
       </select><br />
       <input type="password" id="input" autofocus autocomplete="off" />
     </div>
@@ -55,8 +61,8 @@
 
   <script>
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
-    const TUNNEL = "wss://javascript-returned-adapted-exactly.trycloudflare.com";
-    const MAX_TABS = 6;
+    const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
+    const MAX_TABS = 9;
     const SEND_DELAY = 120;
     const HISTORY_MAX = 100;
     const PING_EVERY = 50000;
@@ -133,7 +139,7 @@
       if (sessions.length < MAX_TABS) {
         const sel = document.createElement('select');
         sel.id = 'add';
-        sel.innerHTML = '<option value="">+</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>';
+        sel.innerHTML = '<option value="">+</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option>';
         sel.addEventListener('change', (e) => {
           if (e.target.value) openTab(e.target.value);
         });
