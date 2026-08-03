@@ -25,9 +25,11 @@
     #cmd { flex-grow: 1; min-width: 0; box-sizing: border-box; display: block; padding: 12px; font-family: monospace; font-size: 16px; line-height: 1.3; background: #111; color: #00ff00; border: 1px solid #444; outline: none; resize: none; overflow-y: auto; max-height: 150px; }
     #cmd::selection { background: #00ff00; color: #000; }
     #cmd::-moz-selection { background: #00ff00; color: #000; }
-    #add, #rc, #xt { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
+    #add, #rc, #kl, #xt { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
     #add { padding: 6px 9px; border-radius: 3px; }
-    #add:hover, #rc:hover, #xt:hover, #add:focus, #rc:focus, #xt:focus { color: #00ff00; border-color: #444; }
+    #add:hover, #rc:hover, #kl:hover, #xt:hover, #add:focus, #rc:focus, #kl:focus, #xt:focus { color: #00ff00; border-color: #444; }
+    #kl.armed { color: #ff5555; border-color: #ff5555; }
+    .tab { user-select: none; }
   </style>
 </head>
 <body>
@@ -55,6 +57,7 @@
     <div id="bar">
       <textarea id="cmd" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
       <button id="rc">&#8635;</button>
+      <button id="kl">&#9211;</button>
       <button id="xt">&#215;</button>
     </div>
   </div>
@@ -70,7 +73,7 @@
     const RETRY_MAX = 15;
     const RETRY_CAP = 30000;
 
-    let sessions = [], active = -1, isMobile = false;
+    let sessions = [], active = -1, isMobile = false, dragFrom = -1, armTimer = null;
 
     async function verify(v) {
       const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
@@ -136,6 +139,10 @@
         b.className = 'tab' + (i === active ? ' on' : '');
         b.innerHTML = s.token + (s.unread && i !== active ? ' <span class="dot">&bull;</span>' : '');
         b.addEventListener('click', () => activate(i));
+        b.draggable = true;
+        b.addEventListener('dragstart', (ev) => { dragFrom = i; ev.dataTransfer.effectAllowed = 'move'; });
+        b.addEventListener('dragover', (ev) => ev.preventDefault());
+        b.addEventListener('drop', (ev) => { ev.preventDefault(); reorder(dragFrom, i); });
         bar.appendChild(b);
       });
       if (sessions.length < MAX_TABS) {
@@ -147,6 +154,23 @@
         });
         bar.appendChild(sel);
       }
+    }
+
+    function reorder(from, to) {
+      if (from < 0 || to < 0 || from === to || from >= sessions.length) return;
+      const cur = sessions[active];
+      const moved = sessions.splice(from, 1)[0];
+      sessions.splice(to, 0, moved);
+      active = sessions.indexOf(cur);
+      sessions.forEach((s, n) => { s.el.className = 'sess' + (n === active ? ' on' : ''); });
+      renderTabs();
+      dragFrom = -1;
+    }
+
+    function killSession(s) {
+      const k = new WebSocket(TUNNEL + '/?token=k' + s.token);
+      k.onopen = () => setTimeout(() => { try { k.close(); } catch (err) {} }, 300);
+      k.onerror = () => {};
     }
 
     function activate(i) {
@@ -265,6 +289,24 @@
         connect(s);
       });
       document.getElementById('xt').addEventListener('click', closeTab);
+
+      let armed = null;
+      const kl = document.getElementById('kl');
+      kl.addEventListener('click', () => {
+        const s = sessions[active];
+        if (armed === s) {
+          clearTimeout(armTimer);
+          armed = null;
+          kl.classList.remove('armed');
+          s.term.writeln('\x1b[33m--- ending ' + s.token + ' ---\x1b[0m');
+          killSession(s);
+          return;
+        }
+        armed = s;
+        kl.classList.add('armed');
+        s.term.writeln('\x1b[33m--- press again to end ' + s.token + ' ---\x1b[0m');
+        armTimer = setTimeout(() => { armed = null; kl.classList.remove('armed'); }, 5000);
+      });
 
       let wakeLock = null;
       async function requestWakeLock() {
