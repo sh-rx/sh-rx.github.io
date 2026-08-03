@@ -22,6 +22,8 @@
     .sess { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
     #bar { display: flex; margin-top: 10px; gap: 6px; flex-shrink: 0; }
     #cmd { flex-grow: 1; min-width: 0; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
+    #cmd::selection { background: #00ff00; color: #000; }
+    #cmd::-moz-selection { background: #00ff00; color: #000; }
     #add, #rc, #xt { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
     #add { padding: 6px 9px; border-radius: 3px; }
     #add:hover, #rc:hover, #xt:hover, #add:focus, #rc:focus, #xt:focus { color: #00ff00; border-color: #444; }
@@ -77,6 +79,15 @@
       }
     });
 
+    // Highlight whatever is in the command box, deferred so the browser
+    // does not move the caret back to the end afterwards.
+    function selectCmd() {
+      const cmd = document.getElementById('cmd');
+      if (!cmd.value) return;
+      cmd.focus();
+      setTimeout(() => cmd.setSelectionRange(0, cmd.value.length), 0);
+    }
+
     // --- tab bar -------------------------------------------------------
     function renderTabs() {
       const bar = document.getElementById('tabs');
@@ -107,7 +118,11 @@
       // A hidden terminal measures as zero, so fit only once it is visible.
       s.fit.fit();
       renderTabs();
-      document.getElementById('cmd').focus();
+      // Each tab remembers its own last command.
+      const cmd = document.getElementById('cmd');
+      cmd.value = s.last || '';
+      cmd.focus();
+      selectCmd();
     }
 
     // --- sessions ------------------------------------------------------
@@ -128,7 +143,7 @@
       term.loadAddon(fit);
       term.open(el);
 
-      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false };
+      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '' };
       sessions.push(s);
       activate(sessions.length - 1);
       connect(s);
@@ -204,12 +219,16 @@
       });
 
       const cmd = document.getElementById('cmd');
-      cmd.addEventListener('keypress', (e) => {
+      cmd.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+          e.preventDefault();
           const s = sessions[active];
-          s.term.writeln('\x1b[36m> ' + cmd.value + '\x1b[0m');
-          if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.send(new TextEncoder().encode(cmd.value + '\r\n'));
-          cmd.value = '';
+          const line = cmd.value;
+          s.term.writeln('\x1b[36m> ' + line + '\x1b[0m');
+          if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.send(new TextEncoder().encode(line + '\r\n'));
+          s.last = line;
+          // Leave the text in place, selected: Enter repeats it, anything else replaces it.
+          selectCmd();
         }
       });
     }
