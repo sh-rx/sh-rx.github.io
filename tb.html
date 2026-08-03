@@ -183,7 +183,7 @@
       document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
       document.getElementById('xt').addEventListener('click', closeTab);
 
-      // Request the phone to keep the screen on while the MUD is running
+      
       let wakeLock = null;
       async function requestWakeLock() {
         try {
