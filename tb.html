@@ -59,7 +59,8 @@
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
     const MAX_TABS = 6;
-    const SEND_DELAY = 120;   // ms between lines of a pasted block
+    const SEND_DELAY = 120;   
+    const HISTORY_MAX = 100;  
 
     let sessions = [], active = -1, isMobile = false;
 
@@ -83,7 +84,7 @@
       }
     });
 
-    // Measure one monospace cell at the terminal's font size.
+ 
     function cellSize() {
       const probe = document.createElement('span');
       probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;line-height:normal;font-family:monospace;';
@@ -95,8 +96,7 @@
       return r.width > 0 ? { w: r.width / 50, h: r.height } : null;
     }
 
-    // Ask the addon to fit, then check its work. If it left the terminal at
-    // its default grid, size it by hand from the container instead.
+   
     function fitSession(s) {
       try { s.fit.fit(); } catch (err) {}
       const box = document.getElementById('terms');
@@ -109,16 +109,14 @@
       }
     }
 
-    // Grow the command box to fit its contents, up to the CSS max-height.
-    // scrollHeight covers content + padding; border-box height also needs the border.
+  
     function autosize() {
       const cmd = document.getElementById('cmd');
       cmd.style.height = 'auto';
       cmd.style.height = (cmd.scrollHeight + 2) + 'px';
     }
 
-    // Highlight whatever is in the command box, deferred so the browser
-    // does not move the caret back to the end afterwards.
+
     function selectCmd() {
       const cmd = document.getElementById('cmd');
       if (!cmd.value) return;
@@ -160,6 +158,7 @@
       // Each tab remembers its own last command.
       const cmd = document.getElementById('cmd');
       cmd.value = s.last || '';
+      s.hi = -1;
       autosize();
       cmd.focus();
       selectCmd();
@@ -182,7 +181,7 @@
       term.loadAddon(fit);
       term.open(el);
 
-      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '' };
+      const s = { token: token, term: term, fit: fit, el: el, ws: null, unread: false, last: '', hist: [], hi: -1, draft: '' };
       sessions.push(s);
       activate(sessions.length - 1);
       connect(s);
@@ -206,7 +205,7 @@
     }
 
     function closeTab() {
-      if (sessions.length < 2) return;   // always keep one open
+      if (sessions.length < 2) return;   
       const s = sessions[active];
       if (s.ws) {
         s.ws.onmessage = s.ws.onclose = s.ws.onerror = s.ws.onopen = null;
@@ -250,7 +249,7 @@
       document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
       document.getElementById('xt').addEventListener('click', closeTab);
 
-      
+   
       let wakeLock = null;
       async function requestWakeLock() {
         try {
@@ -272,7 +271,6 @@
 
       const cmd = document.getElementById('cmd');
 
-     
       async function sendBlock(s, text) {
         if (s.sending) return;
         const lines = text === '' ? [''] : text.split(/\r?\n/);
@@ -290,14 +288,53 @@
 
       cmd.addEventListener('input', autosize);
 
+     
+      function recall(text) {
+        cmd.value = text;
+        autosize();
+        selectCmd();
+      }
+
+  
+      function atFirstLine() {
+        const nl = cmd.value.indexOf('\n');
+        return nl === -1 || cmd.selectionStart <= nl;
+      }
+      function atLastLine() {
+        const nl = cmd.value.lastIndexOf('\n');
+        return nl === -1 || cmd.selectionEnd > nl;
+      }
+
       cmd.addEventListener('keydown', (e) => {
+        const s = sessions[active];
+
+        if (e.key === 'ArrowUp' && atFirstLine()) {
+          if (!s.hist.length || s.hi >= s.hist.length - 1) return;
+          e.preventDefault();
+          if (s.hi === -1) s.draft = cmd.value;   // keep what was being typed
+          s.hi++;
+          recall(s.hist[s.hist.length - 1 - s.hi]);
+          return;
+        }
+
+        if (e.key === 'ArrowDown' && atLastLine()) {
+          if (s.hi < 0) return;
+          e.preventDefault();
+          s.hi--;
+          recall(s.hi === -1 ? s.draft : s.hist[s.hist.length - 1 - s.hi]);
+          return;
+        }
+
         // Shift+Enter adds a line instead of sending.
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          const s = sessions[active];
           const text = cmd.value;
           sendBlock(s, text);
           s.last = text;
+          if (text && s.hist[s.hist.length - 1] !== text) s.hist.push(text);
+          if (s.hist.length > HISTORY_MAX) s.hist.shift();
+          s.hi = -1;
+          s.draft = '';
           // Leave the text in place, selected: Enter repeats it, anything else replaces it.
           selectCmd();
         }
