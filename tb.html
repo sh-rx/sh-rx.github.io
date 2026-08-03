@@ -20,8 +20,8 @@
     .tab .dot { color: #b58900; }
     #terms { flex-grow: 1; position: relative; overflow: hidden; }
     .sess { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-    #bar { display: flex; margin-top: 10px; gap: 6px; flex-shrink: 0; }
-    #cmd { flex-grow: 1; min-width: 0; padding: 12px; font-family: monospace; font-size: 16px; background: #111; color: #00ff00; border: 1px solid #444; outline: none; }
+    #bar { display: flex; margin-top: 10px; gap: 6px; flex-shrink: 0; align-items: flex-end; }
+    #cmd { flex-grow: 1; min-width: 0; padding: 12px; font-family: monospace; font-size: 16px; line-height: 1.3; background: #111; color: #00ff00; border: 1px solid #444; outline: none; resize: none; overflow-y: auto; max-height: 150px; }
     #cmd::selection { background: #00ff00; color: #000; }
     #cmd::-moz-selection { background: #00ff00; color: #000; }
     #add, #rc, #xt { background: #111; color: #555; border: 1px solid #333; font-family: monospace; font-size: 15px; padding: 0 11px; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; }
@@ -46,7 +46,7 @@
     <div id="tabs"></div>
     <div id="terms"></div>
     <div id="bar">
-      <input type="text" id="cmd" autocomplete="off" />
+      <textarea id="cmd" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
       <button id="rc" title="reconnect">&#8635;</button>
       <button id="xt" title="close tab">&#215;</button>
     </div>
@@ -56,6 +56,7 @@
     const reg = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
     const TUNNEL = "wss://castle-style-stuart-develops.trycloudflare.com";
     const MAX_TABS = 6;
+    const SEND_DELAY = 120;   // ms between lines of a pasted block
 
     let sessions = [], active = -1, isMobile = false;
 
@@ -78,6 +79,13 @@
         }
       }
     });
+
+    // Grow the command box to fit its contents, up to the CSS max-height.
+    function autosize() {
+      const cmd = document.getElementById('cmd');
+      cmd.style.height = 'auto';
+      cmd.style.height = cmd.scrollHeight + 'px';
+    }
 
     // Highlight whatever is in the command box, deferred so the browser
     // does not move the caret back to the end afterwards.
@@ -121,6 +129,7 @@
       // Each tab remembers its own last command.
       const cmd = document.getElementById('cmd');
       cmd.value = s.last || '';
+      autosize();
       cmd.focus();
       selectCmd();
     }
@@ -198,7 +207,7 @@
       document.getElementById('rc').addEventListener('click', () => connect(sessions[active]));
       document.getElementById('xt').addEventListener('click', closeTab);
 
-      
+     
       let wakeLock = null;
       async function requestWakeLock() {
         try {
@@ -219,14 +228,33 @@
       });
 
       const cmd = document.getElementById('cmd');
+
+      // One line per MUD command, paced so a long paste does not trip spam guards.
+      async function sendBlock(s, text) {
+        if (s.sending) return;
+        const lines = text === '' ? [''] : text.split(/\r?\n/);
+        s.sending = true;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          s.term.writeln('\x1b[36m> ' + line + '\x1b[0m');
+          if (s.ws && s.ws.readyState === WebSocket.OPEN) {
+            s.ws.send(new TextEncoder().encode(line + '\r\n'));
+          }
+          if (i < lines.length - 1) await new Promise(r => setTimeout(r, SEND_DELAY));
+        }
+        s.sending = false;
+      }
+
+      cmd.addEventListener('input', autosize);
+
       cmd.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        // Shift+Enter adds a line instead of sending.
+        if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           const s = sessions[active];
-          const line = cmd.value;
-          s.term.writeln('\x1b[36m> ' + line + '\x1b[0m');
-          if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.send(new TextEncoder().encode(line + '\r\n'));
-          s.last = line;
+          const text = cmd.value;
+          sendBlock(s, text);
+          s.last = text;
           // Leave the text in place, selected: Enter repeats it, anything else replaces it.
           selectCmd();
         }
