@@ -40,12 +40,12 @@ body{
 .gate-in.bad{border-color:var(--p-rust);animation:nudge .3s}
 @keyframes nudge{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 
-/* ---------- chrome ---------- */
+/* ---------- top strip ---------- */
 #top{display:flex;align-items:center;gap:14px;padding:8px 12px;
   border-bottom:1px solid var(--edge);flex-shrink:0;background:var(--slab)}
-.brand{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ash)}
+.brand{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ash);white-space:nowrap}
 .brand b{color:var(--p-green);font-weight:600}
-.stat-strip{display:flex;gap:16px;margin-left:auto;align-items:center;font-size:11px}
+.stat-strip{display:flex;gap:16px;margin-left:auto;align-items:center;font-size:11px;flex-wrap:wrap}
 .stat-cell{display:flex;gap:6px;align-items:baseline}
 .stat-cell .k{color:var(--ash);text-transform:uppercase;letter-spacing:.1em;font-size:9px}
 .stat-cell .v{color:var(--chalk);font-variant-numeric:tabular-nums}
@@ -55,12 +55,14 @@ body{
 .led.err{background:var(--p-rust);box-shadow:0 0 7px var(--p-rust)}
 
 #main{flex:1 1 auto;display:flex;min-height:0}
-#termwrap{flex:1 1 55%;min-width:0;position:relative;padding:6px 0 0 8px}
-#term{position:absolute;inset:6px 0 0 8px}
-#lab{flex:0 0 46%;max-width:560px;border-left:1px solid var(--edge);
-  display:flex;flex-direction:column;min-height:0;background:var(--slab)}
 
-/* ---------- tabs ---------- */
+/* ---------- terminal ---------- */
+#termwrap{flex:1 1 auto;min-width:0;position:relative;padding:6px 0 0 8px}
+#term{position:absolute;inset:6px 0 0 8px}
+
+/* ---------- lab ---------- */
+#lab{display:flex;flex-direction:column;min-height:0;background:var(--slab)}
+
 #tabs{display:flex;border-bottom:1px solid var(--edge);flex-shrink:0}
 .tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;
   color:var(--ash);font-family:var(--mono);font-size:10px;letter-spacing:.16em;
@@ -69,9 +71,15 @@ body{
 .tab.on{color:var(--p-green);border-bottom-color:var(--p-green)}
 .tab:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:-2px}
 
-#panes{flex:1 1 auto;overflow-y:auto;padding:14px}
-.pane{display:none}
-.pane.on{display:block}
+#panes{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
+.col{display:flex;flex-direction:column;min-width:0}
+.card{padding:14px}
+.card + .card{border-top:1px solid var(--edge)}
+
+/* card headers only appear when everything is on screen at once */
+.card-head{display:none;font-size:9px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--p-green-dim);margin-bottom:13px;align-items:center;gap:9px}
+.card-head::after{content:"";flex:1;height:1px;background:var(--edge)}
 
 /* ---------- forms ---------- */
 .fld{margin-bottom:12px}
@@ -86,22 +94,22 @@ body{
 
 .btn{background:var(--void);border:1px solid var(--edge-hi);color:var(--ash);
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-  padding:8px 13px;cursor:pointer;outline:none}
+  padding:8px 13px;cursor:pointer;outline:none;white-space:nowrap}
 .btn:hover{color:var(--chalk);border-color:var(--ash)}
 .btn:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:1px}
 .btn.go{color:var(--p-green);border-color:var(--p-green-dim)}
 .btn.go:hover{background:var(--p-green-dim);color:var(--void)}
 .btn.stop{color:var(--p-amber);border-color:var(--p-amber)}
 .btn.danger{color:var(--p-rust);border-color:var(--p-rust)}
+.btn.sm{padding:6px 9px;font-size:10px}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 
-/* ---------- section headers ---------- */
 .sec{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--p-green-dim);
   border-bottom:1px solid var(--edge);padding-bottom:5px;margin:20px 0 12px}
 .sec:first-child{margin-top:0}
 
-/* ---------- feed ---------- */
-#feed{font-size:12px;line-height:1.75}
+/* ---------- live feed ---------- */
+#feed{font-size:12px;line-height:1.75;overflow-y:auto}
 .ev{display:flex;gap:9px;padding:3px 5px;border-left:2px solid transparent;
   white-space:nowrap;font-variant-numeric:tabular-nums}
 .ev.clean{border-left-color:var(--p-green);color:var(--chalk)}
@@ -119,23 +127,23 @@ body{
 /* ---------- readouts ---------- */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--edge);
   border:1px solid var(--edge);margin-bottom:14px}
-.cell{background:var(--slab);padding:10px 9px}
+.cell{background:var(--slab);padding:10px 9px;min-width:0}
 .cell .k{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash);display:block;margin-bottom:3px}
 .cell .v{font-size:17px;color:var(--p-green);font-variant-numeric:tabular-nums}
 .cell .v.sm{font-size:13px;color:var(--chalk)}
 
-/* ---------- support map (signature) ---------- */
+/* ---------- support map ---------- */
 .map-wrap{border:1px solid var(--edge);padding:11px;margin-bottom:14px;background:var(--void)}
 .map-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--ash);margin-bottom:9px}
+  text-transform:uppercase;color:var(--ash);margin-bottom:9px;gap:10px}
 #map{display:flex;gap:1px;align-items:flex-end;height:78px}
-.mcol{flex:1 1 0;min-width:2px;background:var(--p-green-dim);position:relative}
+.mcol{flex:1 1 0;min-width:2px;background:var(--p-green-dim)}
 .mcol.hot{background:var(--p-green)}
 .mcol.void{background:var(--edge);height:2px!important}
 .map-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--ash);
   margin-top:6px;font-variant-numeric:tabular-nums}
 
-/* ---------- verdicts ---------- */
+/* ---------- notes ---------- */
 .note-box{border-left:2px solid var(--edge-hi);padding:8px 11px;margin:11px 0;
   font-size:11px;line-height:1.65;color:var(--ash)}
 .note-box.good{border-left-color:var(--p-green);color:var(--chalk)}
@@ -151,7 +159,6 @@ body{
 .fit .form{font-size:16px;color:var(--p-green);font-weight:600;min-width:106px}
 .fit .meta{font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums}
 
-/* ---------- tables ---------- */
 table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
 th{text-align:left;font-size:8px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--ash);font-weight:400;padding:6px 7px;border-bottom:1px solid var(--edge)}
@@ -174,12 +181,43 @@ tr.here td{color:var(--p-green)}
 .ic:hover{color:var(--chalk);border-color:var(--ash)}
 .ic.armed{color:var(--p-rust);border-color:var(--p-rust)}
 
-#swap{display:none}
-@media(max-width:900px){
-  #lab{position:absolute;inset:0;max-width:none;flex:none;z-index:5;display:none}
-  #lab.show{display:flex}
-  #main{position:relative}
-  #swap{display:block}
+/*==================================================================
+  MOBILE (default): lab is an overlay driven by tabs
+==================================================================*/
+#lab{position:absolute;inset:0;z-index:5;display:none}
+#lab.show{display:flex}
+#main{position:relative}
+.card{display:none}
+.card.on{display:block}
+.card + .card{border-top:none}
+
+/*==================================================================
+  DESKTOP: everything visible at once, no tabs, terminal steps back
+==================================================================*/
+@media(min-width:900px){
+  #swap{display:none}
+  #tabs{display:none}
+  #lab{position:static;display:flex;flex:0 0 62%;border-left:1px solid var(--edge)}
+  #termwrap{flex:1 1 38%;max-width:460px}
+  .card{display:block}
+  .card-head{display:flex}
+  .card + .card{border-top:1px solid var(--edge)}
+  #feed{max-height:300px}
+}
+
+/* two lab columns once there is room for them */
+@media(min-width:1180px){
+  #panes{flex-direction:row;overflow:hidden}
+  .col{flex:1 1 0;overflow-y:auto}
+  .col + .col{border-left:1px solid var(--edge)}
+  #feed{max-height:none;flex:1 1 auto}
+  .col.a{display:flex;flex-direction:column}
+  .col.a .card.livecard{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+}
+
+@media(min-width:1500px){
+  #termwrap{flex:0 0 30%;max-width:520px}
+  #lab{flex:1 1 auto}
 }
 </style>
 </head>
@@ -196,6 +234,7 @@ tr.here td{color:var(--p-green)}
   <div class="brand"><b>DMG</b> LAB</div>
   <div class="stat-strip">
     <div class="stat-cell"><span class="led" id="led-net"></span><span class="v" id="net">offline</span></div>
+    <div class="stat-cell"><span class="k">run</span><span class="v" id="hud-run">&mdash;</span></div>
     <div class="stat-cell"><span class="k">clean</span><span class="v" id="hud-n">0</span></div>
     <div class="stat-cell"><span class="k">mean</span><span class="v" id="hud-mean">&mdash;</span></div>
     <div class="stat-cell"><span class="led" id="led-rec"></span><span class="v" id="rec">idle</span></div>
@@ -204,6 +243,7 @@ tr.here td{color:var(--p-green)}
 
 <div id="main">
   <div id="termwrap"><div id="term"></div></div>
+
   <div id="lab">
     <div id="tabs">
       <button class="tab on" data-p="setup">Setup</button>
@@ -212,83 +252,75 @@ tr.here td{color:var(--p-green)}
       <button class="tab" data-p="runs">Runs</button>
       <button class="tab" data-p="data">Data</button>
     </div>
+
     <div id="panes">
+      <div class="col a">
 
-      <!-- SETUP -->
-      <div class="pane on" data-p="setup">
-        <div class="sec">Character</div>
-        <div class="row">
-          <div class="fld"><label>Max HP</label><input id="c-max" value="2840" /></div>
-          <div class="fld"><label>Level</label><input id="c-lvl" value="0" /></div>
-          <div class="fld"><label>Saving spell</label><input id="c-sav" value="0" /></div>
+        <div class="card on" data-p="setup">
+          <div class="card-head">Setup</div>
+          <div class="row">
+            <div class="fld"><label>Max HP</label><input id="c-max" value="2840" /></div>
+            <div class="fld"><label>Spell lvl</label><input id="c-lvl" value="98" /></div>
+            <div class="fld"><label>Save</label><input id="c-sav" value="0" /></div>
+          </div>
+          <div class="row">
+            <div class="fld"><label>Spell</label><input id="c-spell" value="detonate" /></div>
+          </div>
+          <div class="fld"><label>Damage line</label><input id="c-dmg" value="detonates your liver" />
+            <div class="hint">Regex. A distinctive fragment beats the whole line &mdash; avoid the mob's name.</div></div>
+          <div class="fld"><label>Heal line</label><input id="c-heal" value="You feel totally healed from all ailments" /></div>
+          <div class="fld"><label>Prompt</label><input id="c-prompt" value="(\d+)Hp\s+(\d+)Ma\s+(\d+)Mv" />
+            <div class="hint">Three capture groups: hp, mana, moves.</div></div>
+          <div class="btnrow">
+            <button class="btn go" id="go">Start collecting</button>
+            <button class="btn stop" id="halt">Stop</button>
+            <button class="btn sm" id="grab">Max = current HP</button>
+          </div>
+          <div class="note-box">Prog is two lines: <b>mpcast 61 $n</b> then <b>mpcast 88 $n</b>.
+            Drop the <b>$i</b> self-heal, zero the mob's damnodice, strip your gear, and don't swing back.
+            <br><br>Spell level comes from the prog &mdash; with no argument it inherits the mob's level.
+            Change it there, reload the mob, then update the field above <b>before</b> collecting again.</div>
         </div>
-        <div class="btnrow" style="margin-top:0">
-          <button class="btn" id="grab">Use current HP as max</button>
-        </div>
-        <div class="fld"><div class="hint">Stand at full health outside combat, then capture.
-          A wrong max poisons every sample.</div></div>
 
-        <div class="sec">Spell under test</div>
-        <div class="fld"><label>Name</label><input id="c-spell" value="detonate" /></div>
-        <div class="fld"><label>Damage line</label><input id="c-dmg" value="detonates your liver" />
-          <div class="hint">Regex. A distinctive fragment beats the whole line &mdash; avoid the mob's name.</div></div>
-        <div class="fld"><label>Heal line</label><input id="c-heal" value="You feel totally healed from all ailments" /></div>
-        <div class="fld"><label>Prompt</label><input id="c-prompt" value="(\d+)Hp\s+(\d+)Ma\s+(\d+)Mv" />
-          <div class="hint">Three capture groups: hp, mana, moves.</div></div>
-
-        <div class="btnrow">
-          <button class="btn go" id="go">Start collecting</button>
-          <button class="btn stop" id="halt">Stop</button>
+        <div class="card livecard" data-p="live">
+          <div class="card-head">Rounds</div>
+          <div class="grid">
+            <div class="cell"><span class="k">Clean</span><span class="v" id="l-clean">0</span></div>
+            <div class="cell"><span class="k">Flagged</span><span class="v sm" id="l-flag">0</span></div>
+            <div class="cell"><span class="k">Discarded</span><span class="v sm" id="l-tick">0</span></div>
+          </div>
+          <div id="feed"><div class="empty"><b>No rounds recorded.</b>
+            Set your max HP, start collecting, and stand still while the mob works.</div></div>
         </div>
 
-        <div class="sec">Mob setup</div>
-        <div class="note-box">Prog should be two lines: <b>mpcast 61 $n</b> then <b>mpcast 88 $n</b>.
-          Heal immediately before damage means a desync costs you a heal and reads as
-          obviously wrong rather than plausibly right.<br><br>
-          Drop the <b>$i</b> self-heal, set the mob's damnodice to 0, strip your gear,
-          and don't swing back &mdash; weapon procs corrupt rounds.</div>
       </div>
 
-      <!-- LIVE -->
-      <div class="pane" data-p="live">
-        <div class="grid">
-          <div class="cell"><span class="k">Clean</span><span class="v" id="l-clean">0</span></div>
-          <div class="cell"><span class="k">Flagged</span><span class="v sm" id="l-flag">0</span></div>
-          <div class="cell"><span class="k">Discarded</span><span class="v sm" id="l-tick">0</span></div>
+      <div class="col b">
+
+        <div class="card" data-p="analyze">
+          <div class="card-head">Analysis</div>
+          <div id="an"></div>
         </div>
-        <div id="feed"><div class="empty"><b>No rounds recorded.</b>
-          Set your max HP, start collecting, and stand still while the mob works.</div></div>
-      </div>
 
-      <!-- ANALYZE -->
-      <div class="pane" data-p="analyze">
-        <div id="an"></div>
-      </div>
-
-      <!-- RUNS -->
-      <div class="pane" data-p="runs">
-        <div id="runs"></div>
-      </div>
-
-      <!-- DATA -->
-      <div class="pane" data-p="data">
-        <div class="sec">Keep your samples</div>
-        <div class="note-box">Saved in this browser automatically after every round.
-          Export before switching machines or clearing site data.</div>
-        <div class="btnrow" style="margin-top:0">
-          <button class="btn" id="ex-csv">Export CSV</button>
-          <button class="btn" id="ex-json">Export JSON</button>
-          <button class="btn" id="im">Import JSON</button>
-          <input type="file" id="imf" accept=".json" style="display:none" />
+        <div class="card" data-p="runs">
+          <div class="card-head">Runs</div>
+          <div id="runs"></div>
         </div>
-        <div class="sec">Remove</div>
-        <div class="btnrow" style="margin-top:0">
-          <button class="btn danger" id="del-run">Delete this run</button>
-          <button class="btn danger" id="del-all">Delete everything</button>
-        </div>
-        <div id="store-note" class="note-box" style="margin-top:18px"></div>
-      </div>
 
+        <div class="card" data-p="data">
+          <div class="card-head">Data</div>
+          <div class="btnrow" style="margin-top:0">
+            <button class="btn sm" id="ex-csv">Export CSV</button>
+            <button class="btn sm" id="ex-json">Export JSON</button>
+            <button class="btn sm" id="im">Import</button>
+            <button class="btn sm danger" id="del-run">Delete run</button>
+            <button class="btn sm danger" id="del-all">Delete all</button>
+            <input type="file" id="imf" accept=".json" style="display:none" />
+          </div>
+          <div id="store-note" class="note-box"></div>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>
@@ -374,7 +406,7 @@ async function sendBlock(text){
   DAMAGE LAB ENGINE
 ===================================================================*/
 const LAB = {
-  cfg: { maxhp:2840, level:0, save:0, spell:'detonate',
+  cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate',
          dmg:'detonates your liver',
          heal:'You feel totally healed from all ailments',
          prompt:'(\\d+)Hp\\s+(\\d+)Ma\\s+(\\d+)Mv' },
@@ -385,7 +417,7 @@ const LAB = {
   last: { ma:null, mv:null }, lastHp: null,
   DICE: [2,3,4,6,8,10,12,20,100],
 
-  key(){ return this.cfg.spell + '|L' + this.cfg.level + '|S' + this.cfg.save; },
+  key(){ return this.cfg.spell + '|SL' + this.cfg.slevel + '|S' + this.cfg.save; },
 
   compile(){
     try{
@@ -446,7 +478,7 @@ const LAB = {
     if(trailing === 0){ this.seq=[]; this.tick=false; return; }
 
     const s = {
-      key: this.key(), spell:this.cfg.spell, level:this.cfg.level, save:this.cfg.save,
+      key: this.key(), spell:this.cfg.spell, slevel:this.cfg.slevel, save:this.cfg.save,
       hp, deficit: this.cfg.maxhp - hp, trailing, tick:this.tick,
       seq: this.seq.join(''), t: Date.now()
     };
@@ -577,7 +609,18 @@ const UI = {
     while(feed.children.length > 220) feed.lastChild.remove();
     setTimeout(()=>row.classList.remove('fresh'), 1200);
     this.hud();
+    this.queue();
   },
+
+  /* Feed rows land immediately; the stats redraw is debounced so a fast
+     fight doesn't rebuild the support map on every single round. */
+  _t:null,
+  queue(){
+    clearTimeout(this._t);
+    this._t = setTimeout(()=>{ this.analyze(); this.runs(); }, 700);
+  },
+
+  render(){ this.hud(); this.analyze(); this.runs(); },
 
   hud(){
     const c = LAB.counts();
@@ -585,6 +628,8 @@ const UI = {
     $('l-flag').textContent  = c.flag;
     $('l-tick').textContent  = c.tick;
     $('hud-n').textContent   = c.clean;
+    $('hud-run').textContent = LAB.cfg.spell + ' sl' + LAB.cfg.slevel +
+                               (LAB.cfg.save ? ' sv' + LAB.cfg.save : '');
     const d = LAB.describe(LAB.clean());
     $('hud-mean').textContent = d ? d.mean.toFixed(1) : '\u2014';
   },
@@ -669,10 +714,6 @@ const UI = {
              'not the mean, that separates 6d8 from 12d4.</div>';
     }
 
-    if(LAB.cfg.level > 0)
-      h += '<div class="note-box">Mean per level: <b>' + (d.mean/LAB.cfg.level).toFixed(3) +
-           '</b>. Only meaningful once you have a second level in Runs.</div>';
-
     box.innerHTML = h;
     this.drawMap(LAB.clean(), d);
 
@@ -714,57 +755,157 @@ const UI = {
     return null;
   },
 
-  /* ---------- runs ---------- */
+  /* ---------- runs: sweep across spell level ---------- */
   runs(){
     const box = $('runs');
     const ks = LAB.keys();
     if(!ks.length){
       box.innerHTML = '<div class="empty"><b>No runs recorded.</b>' +
-        'A run is one spell at one level with one saving-spell value. ' +
-        'Change any of those in Setup and new rounds file themselves separately.</div>';
+        'A run is one spell at one spell level with one saving-spell value. ' +
+        'Change the level in the prog, update Setup to match, and new rounds file separately.</div>';
       return;
     }
-    let h = '<table><thead><tr><th>Run</th><th>N</th><th>Mean</th><th>Var</th><th>Range</th></tr></thead><tbody>';
-    const byLevel = [];
+    let h = '<table><thead><tr><th>Spell</th><th>Lvl</th><th>N</th><th>Mean</th><th>Var</th><th>Range</th></tr></thead><tbody>';
+    const pts = [];
     for(const r of ks){
       const d = LAB.describe(LAB.clean(r.key));
       if(!d) continue;
-      h += '<tr class="' + (r.key===LAB.key()?'here':'') + '"><td>' + r.key + '</td><td>' + d.n +
-           '</td><td>' + d.mean.toFixed(1) + '</td><td>' + d.var.toFixed(1) +
-           '</td><td>' + d.min + '\u2013' + d.max + '</td></tr>';
-      if(r.spell === LAB.cfg.spell && d.n >= 20) byLevel.push({lvl:r.level, ...d});
+      h += '<tr class="' + (r.key===LAB.key()?'here':'') + '"><td>' + r.spell + '</td><td>' +
+           (r.slevel ?? '?') + '</td><td>' + d.n + '</td><td>' + d.mean.toFixed(1) +
+           '</td><td>' + d.var.toFixed(1) + '</td><td>' + d.min + '\u2013' + d.max + '</td></tr>';
+      if(r.spell === LAB.cfg.spell && d.n >= 15 && typeof r.slevel === 'number')
+        pts.push({x:r.slevel, y:d.mean, v:d.var, n:d.n});
     }
     h += '</tbody></table>';
 
-    if(byLevel.length >= 2){
-      byLevel.sort((a,b)=>a.lvl-b.lvl);
-      const lo = byLevel[0], hiL = byLevel[byLevel.length-1];
-      if(hiL.lvl !== lo.lvl){
-        const K = (hiL.mean - lo.mean)/(hiL.lvl - lo.lvl);
-        const base = lo.mean - K*lo.lvl;
-        h += '<div class="sec">Level term</div>';
-        h += '<div class="grid">' +
-          '<div class="cell"><span class="k">Per level</span><span class="v">' + K.toFixed(2) + '</span></div>' +
-          '<div class="cell"><span class="k">Intercept</span><span class="v sm">' + base.toFixed(1) + '</span></div>' +
-          '<div class="cell"><span class="k">Levels</span><span class="v sm">' + lo.lvl + '\u2192' + hiL.lvl + '</span></div></div>';
-        h += '<div class="note-box ' + (Math.abs(K)<0.15?'good':'') + '">' +
-          (Math.abs(K)<0.15
-            ? '<b>No level scaling.</b> Damage held flat across levels, so pool every run together and fit once.'
-            : '<b>Damage grows ' + K.toFixed(2) + ' per level.</b> The formula contains roughly ' +
-              K.toFixed(2) + ' \u00d7 level, with about ' + base.toFixed(0) + ' left over for dice and constants.') +
-          '</div>';
-        const vr = hiL.var / Math.max(lo.var, .01);
-        h += '<div class="note-box ' + (vr>1.6?'warn':'good') + '">' +
-          (vr>1.6
-            ? '<b>Variance grew ' + vr.toFixed(1) + '\u00d7 with level.</b> The dice count itself scales &mdash; not just a flat adder on top.'
-            : '<b>Variance held steady across levels.</b> Level enters as a flat adder; the dice stay the same size.') +
-          '</div>';
-      }
-    } else {
-      h += '<div class="note-box">Collect a second level to separate the fixed part from the ' +
-           'level-scaled part. Two widely spaced levels beat five close ones.</div>';
+    if(pts.length < 2){
+      h += '<div class="note-box">Collect at a second spell level to separate the fixed part ' +
+           'from the level-scaled part. Level is set in the prog, so sweeping 6&ndash;8 values ' +
+           'spread wide is cheap &mdash; far better than two close ones.</div>';
+      box.innerHTML = h;
+      return;
     }
+
+    pts.sort((a,b)=>a.x-b.x);
+    const fit = this.ols(pts);
+
+    h += '<div class="sec">Spell level term</div>';
+    h += this.sweep(pts, fit);
+    h += '<div class="grid">' +
+      '<div class="cell"><span class="k">Per level</span><span class="v">' + fit.m.toFixed(2) + '</span></div>' +
+      '<div class="cell"><span class="k">Intercept</span><span class="v sm">' + fit.b.toFixed(1) + '</span></div>' +
+      '<div class="cell"><span class="k">R\u00b2</span><span class="v sm">' + fit.r2.toFixed(4) + '</span></div></div>';
+
+    /* --- is it level-scaled at all --- */
+    if(Math.abs(fit.m) < 0.15){
+      h += '<div class="note-box good"><b>No level scaling.</b> Damage held flat across ' +
+        pts.length + ' spell levels, so the formula ignores level entirely. ' +
+        'Pool every run together and fit once against the combined sample.</div>';
+    } else {
+      const near = (v,t)=>Math.abs(fit.m - t) < Math.max(0.06, Math.abs(t)*0.06);
+      let guess = '';
+      if(near(fit.m,1))        guess = ' That is almost exactly <b>+ level</b>.';
+      else if(near(fit.m,0.5)) guess = ' That is close to <b>level / 2</b>.';
+      else if(near(fit.m,2))   guess = ' That is close to <b>level * 2</b>.';
+      else if(near(fit.m,1/3)) guess = ' That is close to <b>level / 3</b>.';
+      else if(near(fit.m,0.25))guess = ' That is close to <b>level / 4</b>.';
+      h += '<div class="note-box"><b>Damage rises ' + fit.m.toFixed(2) + ' per spell level.</b>' +
+        guess + ' About <b>' + fit.b.toFixed(0) + '</b> is left over for dice and constants ' +
+        'once the level term is removed.</div>';
+    }
+
+    /* --- linearity, caps, floors --- */
+    const plat = this.plateau(pts);
+    if(plat){
+      h += '<div class="note-box warn"><b>Damage stops rising at spell level ' + plat.at + '.</b> ' +
+        'Levels ' + plat.at + ' and above all land near ' + plat.val.toFixed(0) +
+        '. That is a MIN() clamp in the formula &mdash; fit the level term using only ' +
+        'levels below ' + plat.at + ', and treat everything above as saturated.</div>';
+    }
+    if(pts.length >= 4){
+      if(fit.r2 < 0.97 && !plat){
+        const worst = fit.res.reduce((a,b)=>Math.abs(b.r)>Math.abs(a.r)?b:a);
+        h += '<div class="note-box warn"><b>Not a straight line</b> (R\u00b2 ' + fit.r2.toFixed(3) +
+          '). Level ' + worst.x + ' sits ' + (worst.r>0?'+':'') + worst.r.toFixed(1) +
+          ' off the fit. Look for a floor, a second breakpoint, or integer division making steps.</div>';
+      } else if(!plat){
+        h += '<div class="note-box good"><b>Clean linear scaling</b> across ' + pts.length +
+          ' levels (R\u00b2 ' + fit.r2.toFixed(4) + '). The level term is a simple multiple.</div>';
+      }
+    }
+
+    /* --- does the dice count scale too --- */
+    const vf = this.ols(pts.map(p=>({x:p.x, y:p.v})));
+    const lo = pts[0], hi = pts[pts.length-1];
+    const vr = hi.v / Math.max(lo.v, .01);
+    h += '<div class="note-box ' + (vr>1.6?'warn':'good') + '">' +
+      (vr>1.6
+        ? '<b>Variance grew ' + vr.toFixed(1) + '\u00d7 across the sweep</b> (' + lo.v.toFixed(0) +
+          ' at level ' + lo.x + ', ' + hi.v.toFixed(0) + ' at ' + hi.x + '). The dice count scales ' +
+          'with level too &mdash; the formula is not just a flat adder on fixed dice.'
+        : '<b>Variance held steady</b> across the sweep (' + lo.v.toFixed(0) + ' to ' + hi.v.toFixed(0) +
+          '). Level enters as an adder; the dice themselves stay the same.') +
+      '</div>';
+
+    if(pts.length < 5)
+      h += '<div class="note-box">Only ' + pts.length + ' levels. A cap or a step pattern needs ' +
+           'at least five points spread wide to show up &mdash; try 10, 25, 50, 75 and 98.</div>';
+
     box.innerHTML = h;
+  },
+
+  /* A cap shows up as the top points going flat while lower ones still climb.
+     Returns the level where the climb stops, or null. */
+  plateau(pts){
+    if(pts.length < 3) return null;
+    const span = pts[pts.length-1].y - pts[0].y;
+    if(Math.abs(span) < 1) return null;
+    const noise = Math.max(1.5, Math.abs(span) * 0.02);
+    // walk back while consecutive means stay within noise of each other
+    let i = pts.length - 1;
+    while(i > 0 && Math.abs(pts[i].y - pts[i-1].y) < noise) i--;
+    if(i === pts.length - 1) return null;          // nothing flat at the top
+    if(i === 0) return null;                        // entirely flat, handled elsewhere
+    const flat = pts.slice(i);
+    if(flat.length < 2) return null;
+    const val = flat.reduce((a,p)=>a+p.y,0)/flat.length;
+    // the climb below must be real, otherwise this is just a noisy tail
+    if(Math.abs(pts[i].y - pts[i-1].y) < noise * 2) return null;
+    return {at: pts[i].x, val};
+  },
+
+  /* least squares, weighted by sample count */
+  ols(pts){
+    let sw=0, sx=0, sy=0, sxx=0, sxy=0;
+    for(const p of pts){ const w = p.n || 1;
+      sw+=w; sx+=w*p.x; sy+=w*p.y; sxx+=w*p.x*p.x; sxy+=w*p.x*p.y; }
+    const den = sw*sxx - sx*sx;
+    const m = den ? (sw*sxy - sx*sy)/den : 0;
+    const b = (sy - m*sx)/sw;
+    const my = sy/sw;
+    let ssr=0, sst=0;
+    const res = pts.map(p=>{ const r = p.y - (m*p.x + b); ssr += r*r; sst += (p.y-my)**2; return {x:p.x, r}; });
+    const sd = Math.sqrt(ssr/Math.max(1,pts.length-2));
+    return {m, b, r2: sst ? 1 - ssr/sst : 1, res, sd};
+  },
+
+  /* mean-vs-level sweep plot */
+  sweep(pts, fit){
+    const W=100, H=44, pad=3;
+    const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+    const x0=Math.min(...xs), x1=Math.max(...xs);
+    const y0=Math.min(...ys), y1=Math.max(...ys);
+    const sx = v => x1===x0 ? W/2 : pad + (v-x0)/(x1-x0)*(W-2*pad);
+    const sy = v => y1===y0 ? H/2 : H-pad - (v-y0)/(y1-y0)*(H-2*pad);
+    const line = 'M' + sx(x0) + ',' + sy(fit.m*x0+fit.b) + ' L' + sx(x1) + ',' + sy(fit.m*x1+fit.b);
+    const dots = pts.map(p=>'<circle cx="' + sx(p.x).toFixed(2) + '" cy="' + sy(p.y).toFixed(2) +
+      '" r="1.4" fill="#33ff88"><title>level ' + p.x + ': ' + p.y.toFixed(1) + ' (n=' + p.n + ')</title></circle>').join('');
+    return '<div class="map-wrap"><div class="map-head"><span>Mean by spell level</span>' +
+      '<span>' + x0 + ' \u2192 ' + x1 + '</span></div>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:104px;display:block">' +
+      '<path d="' + line + '" stroke="#1a7a44" stroke-width=".6" fill="none" stroke-dasharray="2 1.5"/>' +
+      dots + '</svg>' +
+      '<div class="map-axis"><span>' + y0.toFixed(0) + ' dmg</span><span>' + y1.toFixed(0) + ' dmg</span></div></div>';
   }
 };
 
@@ -773,7 +914,7 @@ const UI = {
 ===================================================================*/
 function readCfg(){
   LAB.cfg.maxhp  = parseInt($('c-max').value) || 0;
-  LAB.cfg.level  = parseInt($('c-lvl').value) || 0;
+  LAB.cfg.slevel = parseInt($('c-lvl').value) || 0;
   LAB.cfg.save   = parseInt($('c-sav').value) || 0;
   LAB.cfg.spell  = ($('c-spell').value || 'spell').trim();
   LAB.cfg.dmg    = $('c-dmg').value;
@@ -781,11 +922,11 @@ function readCfg(){
   LAB.cfg.prompt = $('c-prompt').value;
   const ok = LAB.compile();
   store.save();
-  UI.hud();
+  UI.render();
   return ok;
 }
 function writeCfg(){
-  $('c-max').value=LAB.cfg.maxhp; $('c-lvl').value=LAB.cfg.level; $('c-sav').value=LAB.cfg.save;
+  $('c-max').value=LAB.cfg.maxhp; $('c-lvl').value=LAB.cfg.slevel; $('c-sav').value=LAB.cfg.save;
   $('c-spell').value=LAB.cfg.spell; $('c-dmg').value=LAB.cfg.dmg;
   $('c-heal').value=LAB.cfg.heal; $('c-prompt').value=LAB.cfg.prompt;
 }
@@ -796,7 +937,7 @@ function boot(){
   LAB.compile();
 
   term = new Terminal({theme:{background:'#05070a', foreground:'#c8d6dc'},
-    fontSize: window.innerWidth<=900 ? 11 : 14, fontFamily:'monospace', scrollback:2000});
+    fontSize: window.innerWidth<=900 ? 11 : 13, fontFamily:'monospace', scrollback:2000});
   fit = new FitAddon.FitAddon();
   term.loadAddon(fit); term.open($('term'));
   setTimeout(()=>{try{fit.fit()}catch(e){}}, 120);
@@ -806,20 +947,19 @@ function boot(){
   connect();
   setInterval(()=>{ if(ws && ws.readyState===WebSocket.OPEN) ws.send(PING); }, PING_EVERY);
 
-  UI.hud(); UI.rec();
+  UI.render(); UI.rec();
   $('store-note').innerHTML = store.ok
     ? 'Samples persist in this browser. <b>' + LAB.samples.length + '</b> rows stored.'
     : '<b>This browser is blocking local storage.</b> Samples live only in memory &mdash; export before you close the tab.';
 
-  // tabs
+  // tabs (mobile only; on desktop every card is already on screen)
   document.querySelectorAll('.tab').forEach(b=>{
     b.addEventListener('click', ()=>{
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
-      document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.card').forEach(x=>x.classList.remove('on'));
       b.classList.add('on');
-      document.querySelector('.pane[data-p="'+b.dataset.p+'"]').classList.add('on');
-      if(b.dataset.p==='analyze') UI.analyze();
-      if(b.dataset.p==='runs')    UI.runs();
+      document.querySelector('.card[data-p="'+b.dataset.p+'"]').classList.add('on');
+      UI.render();
     });
   });
 
@@ -835,15 +975,15 @@ function boot(){
     if(!readCfg()){ alert('One of the patterns is not valid regex. Check Setup.'); return; }
     if(!LAB.cfg.maxhp){ alert('Set your max HP first.'); return; }
     LAB.active = true; LAB.seq=[]; LAB.tick=false; UI.rec();
-    document.querySelector('.tab[data-p="live"]').click();
+    if(window.innerWidth < 900) document.querySelector('.tab[data-p="live"]').click();
   });
   $('halt').addEventListener('click', ()=>{ LAB.active=false; UI.rec(); });
 
   // data
   $('ex-csv').addEventListener('click', ()=>{
-    const rows = ['spell,level,save,hp,deficit,trailing,per,tick,seq'];
+    const rows = ['spell,spell_level,save,hp,deficit,trailing,per,tick,seq'];
     for(const s of LAB.samples)
-      rows.push([s.spell,s.level,s.save,s.hp,s.deficit,s.trailing,s.per.toFixed(2),s.tick,s.seq].join(','));
+      rows.push([s.spell,s.slevel,s.save,s.hp,s.deficit,s.trailing,s.per.toFixed(2),s.tick,s.seq].join(','));
     download('damage_samples.csv', rows.join('\n'), 'text/csv');
   });
   $('ex-json').addEventListener('click', ()=>{
@@ -858,7 +998,7 @@ function boot(){
         const o = JSON.parse(r.result);
         if(Array.isArray(o.samples)){
           LAB.samples = LAB.samples.concat(o.samples);
-          store.save(); UI.hud(); UI.runs();
+          store.save(); UI.render();
           alert('Added ' + o.samples.length + ' rows.');
         }
       }catch(err){ alert('That file is not readable JSON.'); }
@@ -869,11 +1009,11 @@ function boot(){
     const k = LAB.key();
     if(!confirm('Delete every round recorded under ' + k + '?')) return;
     LAB.samples = LAB.samples.filter(s=>s.key!==k);
-    store.save(); UI.hud(); UI.runs(); $('feed').innerHTML='';
+    store.save(); UI.render(); $('feed').innerHTML='';
   });
   $('del-all').addEventListener('click', ()=>{
     if(!confirm('Delete all ' + LAB.samples.length + ' recorded rounds? This cannot be undone.')) return;
-    LAB.samples = []; store.wipe(); store.save(); UI.hud(); UI.runs(); $('feed').innerHTML='';
+    LAB.samples = []; store.wipe(); store.save(); UI.render(); $('feed').innerHTML='';
   });
 
   // command bar
