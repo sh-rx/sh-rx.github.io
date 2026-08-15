@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Damage Lab</title>
+<title></title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
 <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
@@ -32,8 +32,7 @@ body{
 /* ---------- gate ---------- */
 #gate{position:fixed;inset:0;background:var(--void);z-index:999;
   display:flex;align-items:center;justify-content:center}
-.gate-box{border:1px solid var(--edge);background:var(--slab);padding:34px 30px;min-width:250px}
-.gate-mark{font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--p-green-dim);margin-bottom:20px}
+.gate-box{border:1px solid var(--edge);background:var(--slab);padding:26px 26px;min-width:230px}
 .gate-in{width:100%;padding:11px;background:var(--void);border:1px solid var(--edge-hi);
   color:var(--p-green);font-family:var(--mono);font-size:17px;letter-spacing:.4em;text-align:center;outline:none}
 .gate-in:focus{border-color:var(--p-green-dim)}
@@ -225,7 +224,6 @@ tr.here td{color:var(--p-green)}
 
 <div id="gate">
   <div class="gate-box">
-    <div class="gate-mark">Damage Lab</div>
     <input type="password" id="pw" class="gate-in" autofocus autocomplete="off" />
   </div>
 </div>
@@ -271,6 +269,9 @@ tr.here td{color:var(--p-green)}
           <div class="fld"><label>Heal line</label><input id="c-heal" value="You feel totally healed from all ailments" /></div>
           <div class="fld"><label>Prompt</label><input id="c-prompt" value="(\d+)Hp\s+(\d+)Ma\s+(\d+)Mv" />
             <div class="hint">Three capture groups: hp, mana, moves.</div></div>
+          <div class="fld"><label>Anti-idle</label><input id="c-idle" value="look" />
+            <div class="hint">Sent every 30s while collecting so the MUD doesn't idle you out.
+              Pick something with no output you'd mistake for a damage or heal line.</div></div>
           <div class="btnrow">
             <button class="btn go" id="go">Start collecting</button>
             <button class="btn stop" id="halt">Stop</button>
@@ -337,10 +338,26 @@ tr.here td{color:var(--p-green)}
   CONNECTION
 ===================================================================*/
 const REG     = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
-const TUNNEL  = "wss://pgp-petersburg-collar-commands.trycloudflare.com";
+const TUNNEL  = "wss://artist-bytes-pushed-email.trycloudflare.com";
 const TOKEN   = "3";
 const SEND_DELAY = 120, PING_EVERY = 50000, RETRY_MAX = 15, RETRY_CAP = 30000;
 const PING = new Uint8Array([255,241]);
+
+/* The telnet ping keeps the socket alive but the MUD still counts you idle,
+   so while collecting we send a real command on a timer. */
+const IDLE_CMD = 'look', IDLE_EVERY = 30000;
+let idleTimer = null;
+
+function idleOn(){
+  idleOff();
+  idleTimer = setInterval(()=>{
+    if(!LAB.active) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(new TextEncoder().encode(LAB.cfg.idleCmd + '\r\n'));
+    term.writeln('\x1b[90m> ' + LAB.cfg.idleCmd + ' (keepalive)\x1b[0m');
+  }, IDLE_EVERY);
+}
+function idleOff(){ if(idleTimer){ clearInterval(idleTimer); idleTimer = null; } }
 
 let term, fit, ws = null, tries = 0, retryTimer = null, sending = false;
 let hist = [], hi = -1, draft = "";
@@ -406,7 +423,7 @@ async function sendBlock(text){
   DAMAGE LAB ENGINE
 ===================================================================*/
 const LAB = {
-  cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate',
+  cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate', idleCmd:'look',
          dmg:'detonates your liver',
          heal:'You feel totally healed from all ailments',
          prompt:'(\\d+)Hp\\s+(\\d+)Ma\\s+(\\d+)Mv' },
@@ -920,6 +937,7 @@ function readCfg(){
   LAB.cfg.dmg    = $('c-dmg').value;
   LAB.cfg.heal   = $('c-heal').value;
   LAB.cfg.prompt = $('c-prompt').value;
+  LAB.cfg.idleCmd = ($('c-idle').value || 'look').trim();
   const ok = LAB.compile();
   store.save();
   UI.render();
@@ -928,7 +946,7 @@ function readCfg(){
 function writeCfg(){
   $('c-max').value=LAB.cfg.maxhp; $('c-lvl').value=LAB.cfg.slevel; $('c-sav').value=LAB.cfg.save;
   $('c-spell').value=LAB.cfg.spell; $('c-dmg').value=LAB.cfg.dmg;
-  $('c-heal').value=LAB.cfg.heal; $('c-prompt').value=LAB.cfg.prompt;
+  $('c-heal').value=LAB.cfg.heal; $('c-prompt').value=LAB.cfg.prompt; $('c-idle').value=LAB.cfg.idleCmd;
 }
 
 function boot(){
@@ -964,7 +982,7 @@ function boot(){
   });
 
   // config inputs
-  ['c-max','c-lvl','c-sav','c-spell','c-dmg','c-heal','c-prompt']
+  ['c-max','c-lvl','c-sav','c-spell','c-dmg','c-heal','c-prompt','c-idle']
     .forEach(id => $(id).addEventListener('change', readCfg));
 
   $('grab').addEventListener('click', ()=>{
@@ -974,10 +992,10 @@ function boot(){
   $('go').addEventListener('click', ()=>{
     if(!readCfg()){ alert('One of the patterns is not valid regex. Check Setup.'); return; }
     if(!LAB.cfg.maxhp){ alert('Set your max HP first.'); return; }
-    LAB.active = true; LAB.seq=[]; LAB.tick=false; UI.rec();
+    LAB.active = true; LAB.seq=[]; LAB.tick=false; UI.rec(); idleOn();
     if(window.innerWidth < 900) document.querySelector('.tab[data-p="live"]').click();
   });
-  $('halt').addEventListener('click', ()=>{ LAB.active=false; UI.rec(); });
+  $('halt').addEventListener('click', ()=>{ LAB.active=false; idleOff(); UI.rec(); });
 
   // data
   $('ex-csv').addEventListener('click', ()=>{
