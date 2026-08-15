@@ -658,9 +658,27 @@ const store = {
     if(!blob) return;
     try{
       const o = JSON.parse(blob);
-      if(o.samples) LAB.samples = o.samples;
-      if(o.cfg) Object.assign(LAB.cfg, o.cfg);
+      if(o.samples) LAB.samples = this.migrate(o.samples);
+      if(o.cfg){
+        // an older save may carry the pre-rename 'level' field
+        if(o.cfg.slevel === undefined && o.cfg.level !== undefined) o.cfg.slevel = o.cfg.level;
+        delete o.cfg.level;
+        Object.assign(LAB.cfg, o.cfg);
+      }
     }catch(e){}
+  },
+
+  /* Rows captured before spell level replaced character level carry
+     'level' and a '|L' key. Rewrite them so old and new runs pool. */
+  migrate(rows){
+    let n = 0;
+    for(const s of rows){
+      if(s.slevel === undefined && s.level !== undefined){ s.slevel = s.level; delete s.level; n++; }
+      if(typeof s.key === 'string' && s.key.indexOf('|L') !== -1 && s.key.indexOf('|SL') === -1)
+        s.key = s.key.replace('|L', '|SL');
+    }
+    if(n) this.migrated = n;
+    return rows;
   },
   wipe(){ try{ localStorage.removeItem(this.KEY); }catch(e){} }
 };
@@ -1074,9 +1092,11 @@ function boot(){
   setInterval(()=>{ if(ws && ws.readyState===WebSocket.OPEN) ws.send(PING); }, PING_EVERY);
 
   UI.render(); UI.rec();
-  $('store-note').innerHTML = store.ok
+  $('store-note').innerHTML = (store.ok
     ? 'Samples persist in this browser. <b>' + LAB.samples.length + '</b> rows stored.'
-    : '<b>This browser is blocking local storage.</b> Samples live only in memory &mdash; export before you close the tab.';
+    : '<b>This browser is blocking local storage.</b> Samples live only in memory &mdash; export before you close the tab.')
+    + (store.migrated ? '<br><br><b>' + store.migrated + ' rows carried over</b> from before spell level ' +
+       'replaced character level. They kept their numbers and now file under the spell level you had set.' : '');
 
   // tabs (mobile only; on desktop every card is already on screen)
   document.querySelectorAll('.tab').forEach(b=>{
@@ -1123,7 +1143,7 @@ function boot(){
       try{
         const o = JSON.parse(r.result);
         if(Array.isArray(o.samples)){
-          LAB.samples = LAB.samples.concat(o.samples);
+          LAB.samples = LAB.samples.concat(store.migrate(o.samples));
           store.save(); UI.render();
           alert('Added ' + o.samples.length + ' rows.');
         }
