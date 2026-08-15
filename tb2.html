@@ -1004,26 +1004,29 @@ const UI = {
       h += '</div>';
     }
 
-    const impS = d.mean>0 ? 6*d.var/d.mean + 1 : 0;
-    const impN = impS>1 ? 2*d.mean/(Math.round(impS)+1) : 0;
-    h += '<div class="grid">' +
-      cell('Samples', d.n) +
-      cell(this.adj ? 'Mean less lvl' : 'Mean', d.mean.toFixed(2)) +
-      cell('&plusmn;95%', (1.96*d.se).toFixed(2)) +
-      cell('Variance', d.var.toFixed(1), 1) + cell('Std dev', d.sd.toFixed(2), 1) +
-      cell('Spread', d.min + '\u2013' + d.max, 1) + '</div>';
-
-    /* If the constant is zero then var/mean = (S-1)/6 pins the die exactly,
-       with no enumeration and no priors involved. Worth showing on its own. */
-    if(impS >= 2 && impS <= 130){
-      const rS = Math.round(impS), off = Math.abs(impS - rS);
-      h += '<div class="note-box ' + (off < 0.35 ? 'good' : '') + '"><b>If the constant is zero, ' +
-        'the die is d' + impS.toFixed(1) + '</b> and there are about ' + impN.toFixed(1) + ' of them. ' +
-        'This comes straight from var/mean and owes nothing to the ranking below' +
-        (off < 0.35
-          ? ' \u2014 landing this close to a whole number is a good sign the constant really is zero.'
-          : '. It is not near a whole number, which usually means there is a real constant.') +
-        '</div>';
+    /* var/mean = (S-1)/6 pins the die exactly — but ONLY on damage with the
+       level term already taken out. On raw damage the mean is inflated by
+       K*level while the variance is not, so the ratio is meaningless. */
+    const base = sol ? sol.d : (lt && !this.adj ? null : d);
+    if(base && base.mean > 0){
+      const impS = 6*base.var/base.mean + 1;
+      const rS   = Math.round(impS);
+      const impN = rS > 0 ? 2*base.mean/(rS+1) : 0;
+      if(impS >= 2 && impS <= 130 && impN >= 1 && impN <= 80){
+        const off = Math.abs(impS - rS);
+        const src = sol && sol.pooled ? 'pooled across ' + sol.levels + ' levels'
+                  : 'level term removed';
+        h += '<div class="note-box ' + (off < 0.15 ? 'good' : off < 0.4 ? 'warn' : '') + '">' +
+          '<b>If the constant is zero the die would be d' + impS.toFixed(1) + '</b>, with about ' +
+          impN.toFixed(1) + ' of them (' + src + '). This falls straight out of var/mean and owes ' +
+          'nothing to the ranking below. ' +
+          (off < 0.15
+            ? 'Sitting this close to d' + rS + ' is good evidence the constant really is zero.'
+            : off < 0.4
+              ? 'It is near d' + rS + ' but not on it, so there is probably a small constant as well.'
+              : 'It is nowhere near a whole number, so there is a real constant in the formula.') +
+          '</div>';
+      }
     }
 
     /* --- signature: support map --- */
@@ -1070,6 +1073,10 @@ const UI = {
         (this.adj
           ? 'Currently subtracting it, so the constants shown are the real leftover.'
           : 'Subtract it and the leftover constant should come out round.') +
+        (sol && sol.pooled
+          ? '<br><br>The verdict above already pools every level with the term removed; ' +
+            'this toggle only affects the single-run figures below.'
+          : '') +
         '<br><br><button class="btn sm ' + (this.adj?'stop':'go') + '" id="adjbtn">' +
         (this.adj ? 'Show raw damage' : 'Subtract ' + lt.offset) + '</button></div>';
     }
