@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Damage Lab</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+:root{
+  --void:#05070a;
+  --slab:#0b1015;
+  --edge:#1b242c;
+  --edge-hi:#2e3d47;
+  --p-green:#33ff88;
+  --p-green-dim:#1a7a44;
+  --p-amber:#ffb642;
+  --p-rust:#ff5f56;
+  --ash:#64757e;
+  --chalk:#c8d6dc;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--void);color:var(--chalk);
+  font-family:var(--mono);font-size:14px;
+  display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;
+}
+
+/* ---------- gate ---------- */
+#gate{position:fixed;inset:0;background:var(--void);z-index:999;
+  display:flex;align-items:center;justify-content:center}
+.gate-box{border:1px solid var(--edge);background:var(--slab);padding:34px 30px;min-width:250px}
+.gate-mark{font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:var(--p-green-dim);margin-bottom:20px}
+.gate-in{width:100%;padding:11px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:17px;letter-spacing:.4em;text-align:center;outline:none}
+.gate-in:focus{border-color:var(--p-green-dim)}
+.gate-in.bad{border-color:var(--p-rust);animation:nudge .3s}
+@keyframes nudge{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* ---------- chrome ---------- */
+#top{display:flex;align-items:center;gap:14px;padding:8px 12px;
+  border-bottom:1px solid var(--edge);flex-shrink:0;background:var(--slab)}
+.brand{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ash)}
+.brand b{color:var(--p-green);font-weight:600}
+.stat-strip{display:flex;gap:16px;margin-left:auto;align-items:center;font-size:11px}
+.stat-cell{display:flex;gap:6px;align-items:baseline}
+.stat-cell .k{color:var(--ash);text-transform:uppercase;letter-spacing:.1em;font-size:9px}
+.stat-cell .v{color:var(--chalk);font-variant-numeric:tabular-nums}
+.led{width:7px;height:7px;border-radius:50%;background:var(--edge-hi);flex-shrink:0}
+.led.on{background:var(--p-green);box-shadow:0 0 7px var(--p-green)}
+.led.warn{background:var(--p-amber);box-shadow:0 0 7px var(--p-amber)}
+.led.err{background:var(--p-rust);box-shadow:0 0 7px var(--p-rust)}
+
+#main{flex:1 1 auto;display:flex;min-height:0}
+#termwrap{flex:1 1 55%;min-width:0;position:relative;padding:6px 0 0 8px}
+#term{position:absolute;inset:6px 0 0 8px}
+#lab{flex:0 0 46%;max-width:560px;border-left:1px solid var(--edge);
+  display:flex;flex-direction:column;min-height:0;background:var(--slab)}
+
+/* ---------- tabs ---------- */
+#tabs{display:flex;border-bottom:1px solid var(--edge);flex-shrink:0}
+.tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--ash);font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;padding:10px 4px;cursor:pointer;outline:none}
+.tab:hover{color:var(--chalk)}
+.tab.on{color:var(--p-green);border-bottom-color:var(--p-green)}
+.tab:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:-2px}
+
+#panes{flex:1 1 auto;overflow-y:auto;padding:14px}
+.pane{display:none}
+.pane.on{display:block}
+
+/* ---------- forms ---------- */
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ash);margin-bottom:4px}
+.fld input{width:100%;padding:7px 9px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:13px;outline:none}
+.fld input:focus{border-color:var(--p-green-dim)}
+.fld .hint{font-size:10px;color:var(--ash);margin-top:4px;line-height:1.5}
+.row{display:flex;gap:10px}
+.row .fld{flex:1}
+
+.btn{background:var(--void);border:1px solid var(--edge-hi);color:var(--ash);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 13px;cursor:pointer;outline:none}
+.btn:hover{color:var(--chalk);border-color:var(--ash)}
+.btn:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:1px}
+.btn.go{color:var(--p-green);border-color:var(--p-green-dim)}
+.btn.go:hover{background:var(--p-green-dim);color:var(--void)}
+.btn.stop{color:var(--p-amber);border-color:var(--p-amber)}
+.btn.danger{color:var(--p-rust);border-color:var(--p-rust)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+/* ---------- section headers ---------- */
+.sec{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--p-green-dim);
+  border-bottom:1px solid var(--edge);padding-bottom:5px;margin:20px 0 12px}
+.sec:first-child{margin-top:0}
+
+/* ---------- feed ---------- */
+#feed{font-size:12px;line-height:1.75}
+.ev{display:flex;gap:9px;padding:3px 5px;border-left:2px solid transparent;
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.ev.clean{border-left-color:var(--p-green);color:var(--chalk)}
+.ev.flag{border-left-color:var(--p-amber);color:var(--p-amber)}
+.ev.tick{border-left-color:var(--p-rust);color:var(--ash)}
+.ev .dmg{color:var(--p-green);min-width:52px;font-weight:600}
+.ev.flag .dmg{color:var(--p-amber)}
+.ev.tick .dmg{color:var(--ash)}
+.ev .seq{color:var(--ash);min-width:74px}
+.ev .note{color:var(--ash);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+@keyframes persist{from{background:rgba(51,255,136,.22)}to{background:transparent}}
+.ev.fresh{animation:persist 1.1s ease-out}
+@media (prefers-reduced-motion:reduce){.ev.fresh{animation:none}}
+
+/* ---------- readouts ---------- */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--edge);
+  border:1px solid var(--edge);margin-bottom:14px}
+.cell{background:var(--slab);padding:10px 9px}
+.cell .k{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash);display:block;margin-bottom:3px}
+.cell .v{font-size:17px;color:var(--p-green);font-variant-numeric:tabular-nums}
+.cell .v.sm{font-size:13px;color:var(--chalk)}
+
+/* ---------- support map (signature) ---------- */
+.map-wrap{border:1px solid var(--edge);padding:11px;margin-bottom:14px;background:var(--void)}
+.map-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ash);margin-bottom:9px}
+#map{display:flex;gap:1px;align-items:flex-end;height:78px}
+.mcol{flex:1 1 0;min-width:2px;background:var(--p-green-dim);position:relative}
+.mcol.hot{background:var(--p-green)}
+.mcol.void{background:var(--edge);height:2px!important}
+.map-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--ash);
+  margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* ---------- verdicts ---------- */
+.note-box{border-left:2px solid var(--edge-hi);padding:8px 11px;margin:11px 0;
+  font-size:11px;line-height:1.65;color:var(--ash)}
+.note-box.good{border-left-color:var(--p-green);color:var(--chalk)}
+.note-box.warn{border-left-color:var(--p-amber);color:var(--p-amber)}
+.note-box.bad{border-left-color:var(--p-rust);color:var(--p-rust)}
+.note-box b{color:var(--chalk);font-weight:600}
+
+/* ---------- fits ---------- */
+.fit{display:flex;align-items:baseline;gap:11px;padding:8px 10px;
+  border:1px solid var(--edge);margin-bottom:6px;background:var(--void)}
+.fit:first-of-type{border-color:var(--p-green-dim)}
+.fit .rank{font-size:9px;color:var(--ash);min-width:16px}
+.fit .form{font-size:16px;color:var(--p-green);font-weight:600;min-width:106px}
+.fit .meta{font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:8px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ash);font-weight:400;padding:6px 7px;border-bottom:1px solid var(--edge)}
+td{padding:6px 7px;border-bottom:1px solid var(--edge);color:var(--chalk)}
+tr.here td{color:var(--p-green)}
+
+.empty{color:var(--ash);font-size:11px;line-height:1.7;padding:22px 4px}
+.empty b{color:var(--chalk);display:block;margin-bottom:6px;font-weight:600}
+
+/* ---------- command bar ---------- */
+#bar{display:flex;gap:6px;padding:8px;border-top:1px solid var(--edge);
+  flex-shrink:0;align-items:flex-end;background:var(--slab)}
+#cmd{flex:1;min-width:0;padding:10px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:15px;line-height:1.3;
+  outline:none;resize:none;max-height:140px;overflow-y:auto}
+#cmd:focus{border-color:var(--p-green-dim)}
+#cmd::selection{background:var(--p-green);color:var(--void)}
+.ic{background:var(--void);border:1px solid var(--edge-hi);color:var(--ash);
+  font-family:var(--mono);font-size:15px;padding:9px 12px;cursor:pointer;outline:none}
+.ic:hover{color:var(--chalk);border-color:var(--ash)}
+.ic.armed{color:var(--p-rust);border-color:var(--p-rust)}
+
+#swap{display:none}
+@media(max-width:900px){
+  #lab{position:absolute;inset:0;max-width:none;flex:none;z-index:5;display:none}
+  #lab.show{display:flex}
+  #main{position:relative}
+  #swap{display:block}
+}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-mark">Damage Lab</div>
+    <input type="password" id="pw" class="gate-in" autofocus autocomplete="off" />
+  </div>
+</div>
+
+<div id="top">
+  <div class="brand"><b>DMG</b> LAB</div>
+  <div class="stat-strip">
+    <div class="stat-cell"><span class="led" id="led-net"></span><span class="v" id="net">offline</span></div>
+    <div class="stat-cell"><span class="k">clean</span><span class="v" id="hud-n">0</span></div>
+    <div class="stat-cell"><span class="k">mean</span><span class="v" id="hud-mean">&mdash;</span></div>
+    <div class="stat-cell"><span class="led" id="led-rec"></span><span class="v" id="rec">idle</span></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="termwrap"><div id="term"></div></div>
+  <div id="lab">
+    <div id="tabs">
+      <button class="tab on" data-p="setup">Setup</button>
+      <button class="tab" data-p="live">Live</button>
+      <button class="tab" data-p="analyze">Analyze</button>
+      <button class="tab" data-p="runs">Runs</button>
+      <button class="tab" data-p="data">Data</button>
+    </div>
+    <div id="panes">
+
+      <!-- SETUP -->
+      <div class="pane on" data-p="setup">
+        <div class="sec">Character</div>
+        <div class="row">
+          <div class="fld"><label>Max HP</label><input id="c-max" value="2840" /></div>
+          <div class="fld"><label>Level</label><input id="c-lvl" value="0" /></div>
+          <div class="fld"><label>Saving spell</label><input id="c-sav" value="0" /></div>
+        </div>
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn" id="grab">Use current HP as max</button>
+        </div>
+        <div class="fld"><div class="hint">Stand at full health outside combat, then capture.
+          A wrong max poisons every sample.</div></div>
+
+        <div class="sec">Spell under test</div>
+        <div class="fld"><label>Name</label><input id="c-spell" value="detonate" /></div>
+        <div class="fld"><label>Damage line</label><input id="c-dmg" value="detonates your liver" />
+          <div class="hint">Regex. A distinctive fragment beats the whole line &mdash; avoid the mob's name.</div></div>
+        <div class="fld"><label>Heal line</label><input id="c-heal" value="You feel totally healed from all ailments" /></div>
+        <div class="fld"><label>Prompt</label><input id="c-prompt" value="(\d+)Hp\s+(\d+)Ma\s+(\d+)Mv" />
+          <div class="hint">Three capture groups: hp, mana, moves.</div></div>
+
+        <div class="btnrow">
+          <button class="btn go" id="go">Start collecting</button>
+          <button class="btn stop" id="halt">Stop</button>
+        </div>
+
+        <div class="sec">Mob setup</div>
+        <div class="note-box">Prog should be two lines: <b>mpcast 61 $n</b> then <b>mpcast 88 $n</b>.
+          Heal immediately before damage means a desync costs you a heal and reads as
+          obviously wrong rather than plausibly right.<br><br>
+          Drop the <b>$i</b> self-heal, set the mob's damnodice to 0, strip your gear,
+          and don't swing back &mdash; weapon procs corrupt rounds.</div>
+      </div>
+
+      <!-- LIVE -->
+      <div class="pane" data-p="live">
+        <div class="grid">
+          <div class="cell"><span class="k">Clean</span><span class="v" id="l-clean">0</span></div>
+          <div class="cell"><span class="k">Flagged</span><span class="v sm" id="l-flag">0</span></div>
+          <div class="cell"><span class="k">Discarded</span><span class="v sm" id="l-tick">0</span></div>
+        </div>
+        <div id="feed"><div class="empty"><b>No rounds recorded.</b>
+          Set your max HP, start collecting, and stand still while the mob works.</div></div>
+      </div>
+
+      <!-- ANALYZE -->
+      <div class="pane" data-p="analyze">
+        <div id="an"></div>
+      </div>
+
+      <!-- RUNS -->
+      <div class="pane" data-p="runs">
+        <div id="runs"></div>
+      </div>
+
+      <!-- DATA -->
+      <div class="pane" data-p="data">
+        <div class="sec">Keep your samples</div>
+        <div class="note-box">Saved in this browser automatically after every round.
+          Export before switching machines or clearing site data.</div>
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn" id="ex-csv">Export CSV</button>
+          <button class="btn" id="ex-json">Export JSON</button>
+          <button class="btn" id="im">Import JSON</button>
+          <input type="file" id="imf" accept=".json" style="display:none" />
+        </div>
+        <div class="sec">Remove</div>
+        <div class="btnrow" style="margin-top:0">
+          <button class="btn danger" id="del-run">Delete this run</button>
+          <button class="btn danger" id="del-all">Delete everything</button>
+        </div>
+        <div id="store-note" class="note-box" style="margin-top:18px"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="bar">
+  <button class="ic" id="swap">&#9776;</button>
+  <textarea id="cmd" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+  <button class="ic" id="rc" title="Reconnect">&#8635;</button>
+  <button class="ic" id="kl" title="End session">&#9211;</button>
+</div>
+
+<script>
+/*===================================================================
+  CONNECTION
+===================================================================*/
+const REG     = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
+const TUNNEL  = "wss://artist-bytes-pushed-email.trycloudflare.com";
+const TOKEN   = "3";
+const SEND_DELAY = 120, PING_EVERY = 50000, RETRY_MAX = 15, RETRY_CAP = 30000;
+const PING = new Uint8Array([255,241]);
+
+let term, fit, ws = null, tries = 0, retryTimer = null, sending = false;
+let hist = [], hi = -1, draft = "";
+
+const $ = id => document.getElementById(id);
+
+async function verify(v){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') === REG;
+}
+
+$('pw').addEventListener('keypress', async e => {
+  if(e.key !== 'Enter') return;
+  if(await verify($('pw').value)){ $('gate').style.display='none'; boot(); }
+  else { $('pw').value=''; $('pw').classList.add('bad'); setTimeout(()=>$('pw').classList.remove('bad'),400); }
+});
+
+function net(state, txt){
+  const led = $('led-net');
+  led.className = 'led' + (state==='on'?' on':state==='warn'?' warn':state==='err'?' err':'');
+  $('net').textContent = txt;
+}
+
+function connect(){
+  if(retryTimer){ clearTimeout(retryTimer); retryTimer=null; }
+  if(ws){ ws.onmessage=ws.onclose=ws.onerror=ws.onopen=null; try{ws.close()}catch(e){} }
+  net('warn','opening');
+  term.writeln('\x1b[90m--- opening ' + TOKEN + ' ---\x1b[0m');
+  ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(TOKEN));
+  ws.onopen = () => { tries=0; net('on','online'); term.writeln('\x1b[90m--- open ---\x1b[0m'); };
+  ws.onmessage = async e => {
+    const txt = e.data instanceof Blob ? await e.data.text() : e.data;
+    term.write(txt);
+    LAB.feed(txt);
+  };
+  ws.onclose = e => {
+    ws = null;
+    term.writeln('\x1b[31m--- closed code=' + e.code + ' ---\x1b[0m');
+    if(tries < RETRY_MAX){
+      const wait = Math.min(2000 * Math.pow(2, tries), RETRY_CAP);
+      tries++;
+      net('err','retry ' + tries);
+      term.writeln('\x1b[33m--- retry ' + tries + '/' + RETRY_MAX + ' in ' + Math.round(wait/1000) + 's ---\x1b[0m');
+      retryTimer = setTimeout(connect, wait);
+    } else { net('err','dropped'); term.writeln('\x1b[31m--- gave up ---\x1b[0m'); }
+  };
+  ws.onerror = () => {};
+}
+
+async function sendBlock(text){
+  if(sending) return;
+  const lines = text === '' ? [''] : text.split(/\r?\n/);
+  sending = true;
+  for(let i=0;i<lines.length;i++){
+    term.writeln('\x1b[36m> ' + lines[i] + '\x1b[0m');
+    if(ws && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(lines[i] + '\r\n'));
+    if(i < lines.length-1) await new Promise(r=>setTimeout(r, SEND_DELAY));
+  }
+  sending = false;
+}
+
+/*===================================================================
+  DAMAGE LAB ENGINE
+===================================================================*/
+const LAB = {
+  cfg: { maxhp:2840, level:0, save:0, spell:'detonate',
+         dmg:'detonates your liver',
+         heal:'You feel totally healed from all ailments',
+         prompt:'(\\d+)Hp\\s+(\\d+)Ma\\s+(\\d+)Mv' },
+  re: {},
+  samples: [],
+  active: false,
+  buf: '', seq: [], tick: false, fired: false,
+  last: { ma:null, mv:null }, lastHp: null,
+  DICE: [2,3,4,6,8,10,12,20,100],
+
+  key(){ return this.cfg.spell + '|L' + this.cfg.level + '|S' + this.cfg.save; },
+
+  compile(){
+    try{
+      this.re.dmg    = new RegExp(this.cfg.dmg, 'i');
+      this.re.heal   = new RegExp(this.cfg.heal, 'i');
+      this.re.prompt = new RegExp(this.cfg.prompt);
+      this.re.tickHint = /^You are (hungry|thirsty)\./i;
+      return true;
+    }catch(e){ return false; }
+  },
+
+  /* ---- stream ---- */
+  strip(s){ return s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g,'').replace(/\x1b[()][B0]/g,''); },
+
+  feed(text){
+    this.buf += text;
+    let i;
+    while((i = this.buf.indexOf('\n')) !== -1){
+      const raw = this.buf.slice(0,i).replace(/\r$/,'');
+      this.buf = this.buf.slice(i+1);
+      const line = this.strip(raw);
+      // this prompt already counted from the residual tail
+      if(this.fired && this.re.prompt && this.re.prompt.test(line)){ this.fired=false; continue; }
+      this.fired = false;
+      this.line(line);
+    }
+    // the prompt arrives with no trailing newline, so inspect the tail
+    if(this.buf && !this.fired && this.re.prompt){
+      const m = this.strip(this.buf).match(this.re.prompt);
+      if(m){ this.fired = true; this.prompt(+m[1], +m[2], +m[3]); }
+    }
+  },
+
+  line(l){
+    if(!l) return;
+    if(this.re.prompt){
+      const m = l.match(this.re.prompt);
+      if(m){ this.prompt(+m[1], +m[2], +m[3]); return; }
+    }
+    if(!this.active) return;
+    if(this.re.tickHint.test(l)){ this.tick = true; return; }
+    if(this.re.dmg.test(l)){ this.seq.push('D'); return; }
+    if(this.re.heal.test(l)){ this.seq.push('H'); return; }
+  },
+
+  prompt(hp, ma, mv){
+    this.lastHp = hp;
+    if(!this.active){ this.last = {ma,mv}; this.seq=[]; this.tick=false; return; }
+
+    // regen landed inside the measurement window
+    if(this.last.ma !== null && (ma > this.last.ma || mv > this.last.mv)) this.tick = true;
+    this.last = {ma,mv};
+
+    if(!this.seq.length){ this.tick=false; return; }
+
+    let trailing = 0;
+    for(let i=this.seq.length-1; i>=0 && this.seq[i]==='D'; i--) trailing++;
+    if(trailing === 0){ this.seq=[]; this.tick=false; return; }
+
+    const s = {
+      key: this.key(), spell:this.cfg.spell, level:this.cfg.level, save:this.cfg.save,
+      hp, deficit: this.cfg.maxhp - hp, trailing, tick:this.tick,
+      seq: this.seq.join(''), t: Date.now()
+    };
+    s.per = s.deficit / trailing;
+    this.samples.push(s);
+    this.seq = []; this.tick = false;
+    UI.onSample(s);
+    store.save();
+  },
+
+  /* ---- stats ---- */
+  clean(k){
+    k = k || this.key();
+    return this.samples.filter(s => s.key===k && s.trailing===1 && !s.tick).map(s=>s.deficit);
+  },
+  counts(k){
+    k = k || this.key();
+    let c=0,f=0,t=0;
+    for(const s of this.samples) if(s.key===k){
+      if(s.tick) t++; else if(s.trailing>1) f++; else c++;
+    }
+    return {clean:c, flag:f, tick:t};
+  },
+  describe(a){
+    const n=a.length; if(!n) return null;
+    let sum=0, mn=Infinity, mx=-Infinity;
+    for(const v of a){ sum+=v; if(v<mn)mn=v; if(v>mx)mx=v; }
+    const mean=sum/n;
+    let ss=0; for(const v of a) ss+=(v-mean)**2;
+    const varr = n>1 ? ss/(n-1) : 0;
+    return {n, mean, var:varr, sd:Math.sqrt(varr), min:mn, max:mx,
+            se: n>1 ? Math.sqrt(varr/n) : 0};
+  },
+
+  /* GCD of gaps from the minimum. >1 proves a multiplier or divisor. */
+  step(a){
+    if(a.length < 8) return 1;
+    const mn = Math.min(...a);
+    const gcd = (x,y) => y ? gcd(y, x%y) : x;
+    let g = 0;
+    for(const v of a){ g = gcd(g, v-mn); if(g===1) return 1; }
+    return g || 1;
+  },
+
+  /* Die sizes a coder actually types, and how unusual each one is.
+     Moment matching alone cannot separate 11d8+11 from 83d3-105 — both hit
+     the same mean and variance. What separates them is that nobody writes
+     83d3. This prior encodes that. */
+  RARITY: {2:1.0, 3:1.0, 4:0.20, 6:0.05, 8:0.00, 10:0.20, 12:0.35, 20:0.45, 100:1.2},
+
+  fit(k){
+    const a = this.clean(k), d = this.describe(a);
+    if(!d) return null;
+    const mTol = Math.max(2.5*d.se, .75);
+    const vRel = d.n>2 ? Math.max(2.5*Math.sqrt(2/(d.n-1)), .20) : 1;
+    const out = [];
+    for(let N=1;N<=60;N++) for(const S of this.DICE){
+      const B  = Math.round(d.mean - N*(S+1)/2);
+      const pm = N*(S+1)/2 + B, pv = N*(S*S-1)/12;
+      if(Math.abs(pm-d.mean) > mTol) continue;
+      const vOK = (d.var===0 && pv===0) || (pv>0 && Math.abs(pv-d.var) <= vRel*Math.max(d.var,pv));
+      if(!vOK) continue;
+      if(d.min < N+B || d.max > N*S+B) continue;
+      const err = Math.abs(pm-d.mean)/Math.max(mTol,.01)
+                + (pv>0 ? Math.abs(pv-d.var)/Math.max(d.var,1) : 0);
+      const prior = N*0.045 + (this.RARITY[S] ?? .6);
+      out.push({N,S,B,pm,pv, err, score: err + prior});
+    }
+    out.sort((x,y)=>x.score-y.score);
+    return {d, fits:out, mTol, vRel, total:out.length};
+  },
+
+  keys(){
+    const seen = new Map();
+    for(const s of this.samples) if(!seen.has(s.key)) seen.set(s.key, s);
+    return [...seen.values()];
+  }
+};
+
+/*===================================================================
+  STORAGE  (localStorage when available, memory otherwise)
+===================================================================*/
+const store = {
+  KEY:'dmglab.v1', ok:true, mem:null,
+  save(){
+    const blob = JSON.stringify({cfg:LAB.cfg, samples:LAB.samples});
+    try{ localStorage.setItem(this.KEY, blob); }
+    catch(e){ this.ok=false; this.mem=blob; }
+  },
+  load(){
+    let blob=null;
+    try{ blob = localStorage.getItem(this.KEY); }catch(e){ this.ok=false; }
+    if(!blob) return;
+    try{
+      const o = JSON.parse(blob);
+      if(o.samples) LAB.samples = o.samples;
+      if(o.cfg) Object.assign(LAB.cfg, o.cfg);
+    }catch(e){}
+  },
+  wipe(){ try{ localStorage.removeItem(this.KEY); }catch(e){} }
+};
+
+function download(name, text, mime){
+  const b = new Blob([text], {type:mime||'text/plain'});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href=u; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(u), 1500);
+}
+
+/*===================================================================
+  UI
+===================================================================*/
+const UI = {
+  onSample(s){
+    const feed = $('feed');
+    if(feed.querySelector('.empty')) feed.innerHTML='';
+    const cls = s.tick ? 'tick' : (s.trailing>1 ? 'flag' : 'clean');
+    const note = s.tick ? 'regen tick &mdash; discarded'
+               : s.trailing>1 ? (s.trailing + ' casts, ' + s.per.toFixed(1) + ' each')
+               : 'clean';
+    const row = document.createElement('div');
+    row.className = 'ev ' + cls + ' fresh';
+    row.innerHTML = '<span class="dmg">' + s.deficit + '</span>' +
+                    '<span class="seq">' + s.seq + '</span>' +
+                    '<span class="note">' + note + '</span>';
+    feed.prepend(row);
+    while(feed.children.length > 220) feed.lastChild.remove();
+    setTimeout(()=>row.classList.remove('fresh'), 1200);
+    this.hud();
+  },
+
+  hud(){
+    const c = LAB.counts();
+    $('l-clean').textContent = c.clean;
+    $('l-flag').textContent  = c.flag;
+    $('l-tick').textContent  = c.tick;
+    $('hud-n').textContent   = c.clean;
+    const d = LAB.describe(LAB.clean());
+    $('hud-mean').textContent = d ? d.mean.toFixed(1) : '\u2014';
+  },
+
+  rec(){
+    $('led-rec').className = 'led' + (LAB.active ? ' on' : '');
+    $('rec').textContent = LAB.active ? 'recording' : 'idle';
+  },
+
+  /* ---------- analyze ---------- */
+  analyze(){
+    const box = $('an');
+    const r = LAB.fit();
+    if(!r || r.d.n < 3){
+      box.innerHTML = '<div class="empty"><b>Not enough clean rounds yet.</b>' +
+        'Statistics need roughly 150 samples before the variance estimate is tight ' +
+        'enough to rule out impostor formulas. Keep collecting.</div>';
+      return;
+    }
+    const d = r.d, c = LAB.counts();
+    const step = LAB.step(LAB.clean());
+    let h = '';
+
+    h += '<div class="grid">' +
+      cell('Samples', d.n) + cell('Mean', d.mean.toFixed(2)) + cell('&plusmn;95%', (1.96*d.se).toFixed(2)) +
+      cell('Variance', d.var.toFixed(1), 1) + cell('Std dev', d.sd.toFixed(2), 1) +
+      cell('Spread', d.min + '\u2013' + d.max, 1) + '</div>';
+
+    /* --- signature: support map --- */
+    h += '<div class="map-wrap"><div class="map-head"><span>Support map</span>' +
+         '<span>every value from ' + d.min + ' to ' + d.max + '</span></div>' +
+         '<div id="map"></div><div class="map-axis"><span>' + d.min +
+         '</span><span>' + d.max + '</span></div></div>';
+
+    if(step > 1){
+      h += '<div class="note-box bad"><b>Values step by ' + step + '.</b> ' +
+        'Damage is never anything but a multiple of ' + step + ' above ' + d.min +
+        '. Pure dice can\'t do that &mdash; there is a multiplication or an integer ' +
+        'division in the formula. Try fitting ' + step + ' \u00d7 dice(N,S) + B instead.</div>';
+    }
+
+    /* --- shape read --- */
+    const shape = this.shape(LAB.clean(), d);
+    if(shape) h += '<div class="note-box ' + shape.tone + '">' + shape.txt + '</div>';
+
+    /* --- flagged verdict --- */
+    if(c.flag > 0){
+      const per = LAB.samples.filter(s=>s.key===LAB.key() && s.trailing>1 && !s.tick).map(s=>s.per);
+      const pd = LAB.describe(per);
+      if(pd){
+        const match = Math.abs(pd.mean - d.mean) < 3*Math.max(d.se,1);
+        h += '<div class="note-box ' + (match?'good':'warn') + '">' +
+          '<b>' + c.flag + ' multi-cast rounds</b> average ' + pd.mean.toFixed(1) +
+          ' per cast against a clean mean of ' + d.mean.toFixed(1) + '. ' +
+          (match ? 'Consistent with casts simply stacking &mdash; nothing exotic.'
+                 : 'That does not match. Something is halving or doubling: suspect a saving throw or a crit tier.') +
+          '</div>';
+      }
+    }
+
+    /* --- fits --- */
+    h += '<div class="sec">Candidate formulas</div>';
+    if(!r.fits.length){
+      h += '<div class="note-box bad">Nothing of the form dice(N,S)+B fits both the mean and ' +
+        'the variance. Check the support map above for gaps, and read the ' +
+        'flagged-round verdict &mdash; if saves are live you are measuring halved damage.</div>';
+    } else {
+      r.fits.slice(0,8).forEach((f,i)=>{
+        h += '<div class="fit"><span class="rank">' + (i+1) + '</span>' +
+          '<span class="form">' + f.N + 'd' + f.S + (f.B>=0?'+':'') + f.B + '</span>' +
+          '<span class="meta">mean ' + f.pm.toFixed(2) + ' &nbsp; var ' + f.pv.toFixed(1) +
+          ' &nbsp; range ' + (f.N+f.B) + '\u2013' + (f.N*f.S+f.B) + '</span></div>';
+      });
+      h += '<div class="note-box"><b>' + r.total + ' formulas fit your data.</b> ' +
+        'These eight are the ones a person would plausibly have typed into a spell file &mdash; ' +
+        'ranked by fit first, then by how ordinary the dice look. Mean and variance genuinely ' +
+        'cannot separate 11d8+11 from 83d3-105, so treat this as a shortlist to test, not an answer.</div>';
+      if(d.n < 600)
+        h += '<div class="note-box warn">At ' + d.n + ' samples this shortlist contains the true ' +
+             'formula roughly ' + (d.n<300?'half':'two thirds') + ' of the time. Around 600 clean rounds ' +
+             'is where it becomes reliable &mdash; variance is a noisy estimator and it is variance, ' +
+             'not the mean, that separates 6d8 from 12d4.</div>';
+    }
+
+    if(LAB.cfg.level > 0)
+      h += '<div class="note-box">Mean per level: <b>' + (d.mean/LAB.cfg.level).toFixed(3) +
+           '</b>. Only meaningful once you have a second level in Runs.</div>';
+
+    box.innerHTML = h;
+    this.drawMap(LAB.clean(), d);
+
+    function cell(k,v,sm){
+      return '<div class="cell"><span class="k">' + k + '</span>' +
+             '<span class="v' + (sm?' sm':'') + '">' + v + '</span></div>';
+    }
+  },
+
+  drawMap(a, d){
+    const el = $('map'); if(!el) return;
+    const span = d.max - d.min + 1;
+    const bucket = span > 160 ? Math.ceil(span/160) : 1;
+    const bins = new Array(Math.ceil(span/bucket)).fill(0);
+    for(const v of a) bins[Math.floor((v-d.min)/bucket)]++;
+    const peak = Math.max(...bins);
+    el.innerHTML = bins.map(c=>{
+      if(c===0) return '<div class="mcol void" title="no hits"></div>';
+      const hgt = Math.max(6, Math.round(c/peak*100));
+      const hot = c >= peak*0.6 ? ' hot' : '';
+      return '<div class="mcol' + hot + '" style="height:' + hgt + '%" title="' + c + '"></div>';
+    }).join('');
+  },
+
+  shape(a, d){
+    if(d.n < 40) return null;
+    const span = d.max - d.min + 1;
+    if(span <= 1) return {tone:'warn', txt:'<b>Every roll identical.</b> No random component at all &mdash; this is a flat or purely level-derived number.'};
+    // bimodality: split at midpoint, look for a hollow centre
+    const mid = (d.min + d.max)/2, band = span*0.12;
+    let centre = 0;
+    for(const v of a) if(Math.abs(v-mid) < band) centre++;
+    const expect = a.length * (2*band/span);
+    if(centre < expect*0.35 && d.n >= 60)
+      return {tone:'bad', txt:'<b>Two clusters, hollow middle.</b> That is the signature of saving throws halving damage on a success. Push your saving spell high positive and collect again &mdash; if the low cluster vanishes, saves are live and the high cluster is the real spell.'};
+    const rel = d.sd / d.mean;
+    if(rel < 0.05)
+      return {tone:'good', txt:'<b>Tight spread</b> (sd is ' + (rel*100).toFixed(1) + '% of the mean). Most of this damage is fixed or level-scaled, with only light dice on top. Expect a formula shaped like level \u00d7 K plus small dice.'};
+    return null;
+  },
+
+  /* ---------- runs ---------- */
+  runs(){
+    const box = $('runs');
+    const ks = LAB.keys();
+    if(!ks.length){
+      box.innerHTML = '<div class="empty"><b>No runs recorded.</b>' +
+        'A run is one spell at one level with one saving-spell value. ' +
+        'Change any of those in Setup and new rounds file themselves separately.</div>';
+      return;
+    }
+    let h = '<table><thead><tr><th>Run</th><th>N</th><th>Mean</th><th>Var</th><th>Range</th></tr></thead><tbody>';
+    const byLevel = [];
+    for(const r of ks){
+      const d = LAB.describe(LAB.clean(r.key));
+      if(!d) continue;
+      h += '<tr class="' + (r.key===LAB.key()?'here':'') + '"><td>' + r.key + '</td><td>' + d.n +
+           '</td><td>' + d.mean.toFixed(1) + '</td><td>' + d.var.toFixed(1) +
+           '</td><td>' + d.min + '\u2013' + d.max + '</td></tr>';
+      if(r.spell === LAB.cfg.spell && d.n >= 20) byLevel.push({lvl:r.level, ...d});
+    }
+    h += '</tbody></table>';
+
+    if(byLevel.length >= 2){
+      byLevel.sort((a,b)=>a.lvl-b.lvl);
+      const lo = byLevel[0], hiL = byLevel[byLevel.length-1];
+      if(hiL.lvl !== lo.lvl){
+        const K = (hiL.mean - lo.mean)/(hiL.lvl - lo.lvl);
+        const base = lo.mean - K*lo.lvl;
+        h += '<div class="sec">Level term</div>';
+        h += '<div class="grid">' +
+          '<div class="cell"><span class="k">Per level</span><span class="v">' + K.toFixed(2) + '</span></div>' +
+          '<div class="cell"><span class="k">Intercept</span><span class="v sm">' + base.toFixed(1) + '</span></div>' +
+          '<div class="cell"><span class="k">Levels</span><span class="v sm">' + lo.lvl + '\u2192' + hiL.lvl + '</span></div></div>';
+        h += '<div class="note-box ' + (Math.abs(K)<0.15?'good':'') + '">' +
+          (Math.abs(K)<0.15
+            ? '<b>No level scaling.</b> Damage held flat across levels, so pool every run together and fit once.'
+            : '<b>Damage grows ' + K.toFixed(2) + ' per level.</b> The formula contains roughly ' +
+              K.toFixed(2) + ' \u00d7 level, with about ' + base.toFixed(0) + ' left over for dice and constants.') +
+          '</div>';
+        const vr = hiL.var / Math.max(lo.var, .01);
+        h += '<div class="note-box ' + (vr>1.6?'warn':'good') + '">' +
+          (vr>1.6
+            ? '<b>Variance grew ' + vr.toFixed(1) + '\u00d7 with level.</b> The dice count itself scales &mdash; not just a flat adder on top.'
+            : '<b>Variance held steady across levels.</b> Level enters as a flat adder; the dice stay the same size.') +
+          '</div>';
+      }
+    } else {
+      h += '<div class="note-box">Collect a second level to separate the fixed part from the ' +
+           'level-scaled part. Two widely spaced levels beat five close ones.</div>';
+    }
+    box.innerHTML = h;
+  }
+};
+
+/*===================================================================
+  WIRING
+===================================================================*/
+function readCfg(){
+  LAB.cfg.maxhp  = parseInt($('c-max').value) || 0;
+  LAB.cfg.level  = parseInt($('c-lvl').value) || 0;
+  LAB.cfg.save   = parseInt($('c-sav').value) || 0;
+  LAB.cfg.spell  = ($('c-spell').value || 'spell').trim();
+  LAB.cfg.dmg    = $('c-dmg').value;
+  LAB.cfg.heal   = $('c-heal').value;
+  LAB.cfg.prompt = $('c-prompt').value;
+  const ok = LAB.compile();
+  store.save();
+  UI.hud();
+  return ok;
+}
+function writeCfg(){
+  $('c-max').value=LAB.cfg.maxhp; $('c-lvl').value=LAB.cfg.level; $('c-sav').value=LAB.cfg.save;
+  $('c-spell').value=LAB.cfg.spell; $('c-dmg').value=LAB.cfg.dmg;
+  $('c-heal').value=LAB.cfg.heal; $('c-prompt').value=LAB.cfg.prompt;
+}
+
+function boot(){
+  store.load();
+  writeCfg();
+  LAB.compile();
+
+  term = new Terminal({theme:{background:'#05070a', foreground:'#c8d6dc'},
+    fontSize: window.innerWidth<=900 ? 11 : 14, fontFamily:'monospace', scrollback:2000});
+  fit = new FitAddon.FitAddon();
+  term.loadAddon(fit); term.open($('term'));
+  setTimeout(()=>{try{fit.fit()}catch(e){}}, 120);
+  window.addEventListener('resize', ()=>{try{fit.fit()}catch(e){}});
+  if(window.ResizeObserver) new ResizeObserver(()=>{try{fit.fit()}catch(e){}}).observe($('termwrap'));
+
+  connect();
+  setInterval(()=>{ if(ws && ws.readyState===WebSocket.OPEN) ws.send(PING); }, PING_EVERY);
+
+  UI.hud(); UI.rec();
+  $('store-note').innerHTML = store.ok
+    ? 'Samples persist in this browser. <b>' + LAB.samples.length + '</b> rows stored.'
+    : '<b>This browser is blocking local storage.</b> Samples live only in memory &mdash; export before you close the tab.';
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      document.querySelector('.pane[data-p="'+b.dataset.p+'"]').classList.add('on');
+      if(b.dataset.p==='analyze') UI.analyze();
+      if(b.dataset.p==='runs')    UI.runs();
+    });
+  });
+
+  // config inputs
+  ['c-max','c-lvl','c-sav','c-spell','c-dmg','c-heal','c-prompt']
+    .forEach(id => $(id).addEventListener('change', readCfg));
+
+  $('grab').addEventListener('click', ()=>{
+    if(LAB.lastHp){ $('c-max').value = LAB.lastHp; readCfg(); }
+  });
+
+  $('go').addEventListener('click', ()=>{
+    if(!readCfg()){ alert('One of the patterns is not valid regex. Check Setup.'); return; }
+    if(!LAB.cfg.maxhp){ alert('Set your max HP first.'); return; }
+    LAB.active = true; LAB.seq=[]; LAB.tick=false; UI.rec();
+    document.querySelector('.tab[data-p="live"]').click();
+  });
+  $('halt').addEventListener('click', ()=>{ LAB.active=false; UI.rec(); });
+
+  // data
+  $('ex-csv').addEventListener('click', ()=>{
+    const rows = ['spell,level,save,hp,deficit,trailing,per,tick,seq'];
+    for(const s of LAB.samples)
+      rows.push([s.spell,s.level,s.save,s.hp,s.deficit,s.trailing,s.per.toFixed(2),s.tick,s.seq].join(','));
+    download('damage_samples.csv', rows.join('\n'), 'text/csv');
+  });
+  $('ex-json').addEventListener('click', ()=>{
+    download('damage_samples.json', JSON.stringify({cfg:LAB.cfg, samples:LAB.samples}, null, 1), 'application/json');
+  });
+  $('im').addEventListener('click', ()=> $('imf').click());
+  $('imf').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const o = JSON.parse(r.result);
+        if(Array.isArray(o.samples)){
+          LAB.samples = LAB.samples.concat(o.samples);
+          store.save(); UI.hud(); UI.runs();
+          alert('Added ' + o.samples.length + ' rows.');
+        }
+      }catch(err){ alert('That file is not readable JSON.'); }
+    };
+    r.readAsText(f);
+  });
+  $('del-run').addEventListener('click', ()=>{
+    const k = LAB.key();
+    if(!confirm('Delete every round recorded under ' + k + '?')) return;
+    LAB.samples = LAB.samples.filter(s=>s.key!==k);
+    store.save(); UI.hud(); UI.runs(); $('feed').innerHTML='';
+  });
+  $('del-all').addEventListener('click', ()=>{
+    if(!confirm('Delete all ' + LAB.samples.length + ' recorded rounds? This cannot be undone.')) return;
+    LAB.samples = []; store.wipe(); store.save(); UI.hud(); UI.runs(); $('feed').innerHTML='';
+  });
+
+  // command bar
+  const cmd = $('cmd');
+  const autosize = ()=>{ cmd.style.height='auto'; cmd.style.height=(cmd.scrollHeight+2)+'px'; };
+  const selAll = ()=>{ if(cmd.value){ cmd.focus(); setTimeout(()=>cmd.setSelectionRange(0,cmd.value.length),0);} };
+  const atTop = ()=>{ const n=cmd.value.indexOf('\n'); return n===-1 || cmd.selectionStart<=n; };
+  const atEnd = ()=>{ const n=cmd.value.lastIndexOf('\n'); return n===-1 || cmd.selectionEnd>n; };
+  cmd.addEventListener('input', autosize);
+  cmd.addEventListener('keydown', e=>{
+    if(e.key==='ArrowUp' && atTop()){
+      if(!hist.length || hi>=hist.length-1) return;
+      e.preventDefault(); if(hi===-1) draft=cmd.value;
+      hi++; cmd.value=hist[hist.length-1-hi]; autosize(); selAll(); return;
+    }
+    if(e.key==='ArrowDown' && atEnd()){
+      if(hi<0) return; e.preventDefault(); hi--;
+      cmd.value = hi===-1 ? draft : hist[hist.length-1-hi]; autosize(); selAll(); return;
+    }
+    if(e.key==='Enter' && !e.shiftKey){
+      e.preventDefault();
+      const t = cmd.value;
+      sendBlock(t);
+      if(t && hist[hist.length-1]!==t) hist.push(t);
+      if(hist.length>100) hist.shift();
+      hi=-1; draft=''; selAll();
+    }
+  });
+  autosize();
+
+  $('rc').addEventListener('click', ()=>{ tries=0; connect(); });
+  let armed=false, armT=null;
+  $('kl').addEventListener('click', ()=>{
+    const kl=$('kl');
+    if(armed){
+      clearTimeout(armT); armed=false; kl.classList.remove('armed');
+      term.writeln('\x1b[33m--- ending ' + TOKEN + ' ---\x1b[0m');
+      const k = new WebSocket(TUNNEL + '/?token=k' + TOKEN);
+      k.onopen = ()=> setTimeout(()=>{try{k.close()}catch(e){}}, 300);
+      k.onerror = ()=>{};
+      return;
+    }
+    armed=true; kl.classList.add('armed');
+    term.writeln('\x1b[33m--- press again to end ' + TOKEN + ' ---\x1b[0m');
+    armT = setTimeout(()=>{armed=false; kl.classList.remove('armed');}, 5000);
+  });
+
+  $('swap').addEventListener('click', ()=> $('lab').classList.toggle('show'));
+
+  if('wakeLock' in navigator){
+    const wake = async ()=>{ try{ await navigator.wakeLock.request('screen'); }catch(e){} };
+    wake();
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') wake(); });
+  }
+}
+</script>
+</body>
+</html>
