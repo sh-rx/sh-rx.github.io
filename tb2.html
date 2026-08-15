@@ -601,14 +601,59 @@ const LAB = {
     offset = offset || 0;
     const raw = this.clean(k);
     if(!raw.length) return null;
-    const a = offset ? raw.map(v=>v-offset) : raw;
+    // once the level term is subtracted, a leftover equal to the spell level
+    // is coincidence, so the "B = level" heuristic must not apply
+    return offset ? this.fitCore(raw.map(v=>v-offset), 0) : this.fitCore(raw);
+  },
+
+  /* Pool every level of this spell into one sample.
+     Only valid when the dice are fixed — if they scale with level, the
+     levels are drawing from different distributions and combining them
+     would manufacture variance that isn't there. */
+  pool(){
+    const rows = this.samples.filter(s =>
+      s.spell===this.cfg.spell && s.trailing===1 && !s.tick && typeof s.slevel==='number');
+    const lv = [...new Set(rows.map(s=>s.slevel))];
+    if(lv.length < 2) return null;
+
+    const pts = lv.map(L=>{
+      const d = this.describe(rows.filter(s=>s.slevel===L).map(s=>s.deficit));
+      return d ? {x:L, y:d.mean, v:d.var, n:d.n} : null;
+    }).filter(Boolean).sort((a,b)=>a.x-b.x);
+    if(pts.length < 2) return null;
+
+    const rg = this.diceRegime(pts);
+    if(rg && rg.kind !== 'fixed')
+      return {blocked: rg.kind, levels:pts.length};
+
+    const lt = this.levelTerm();
+    if(lt && lt.r2 < 0.98) return {blocked:'noisy', levels:pts.length};
+    const K = lt ? lt.K : 0;
+
+    return {vals: rows.map(s => s.deficit - K*s.slevel),
+            K, levels: pts.length, n: rows.length, lt};
+  },
+
+  fitCore(a, lvlOverride){
+    if(!a || !a.length) return null;
     const d = this.describe(a);
     const mTol = Math.max(2.5*d.se, .75);
     const vRel = d.n>2 ? Math.max(2.5*Math.sqrt(2/(d.n-1)), .20) : 1;
-    const lvl  = this.cfg.slevel || 0;
+    const lvl  = lvlOverride !== undefined ? lvlOverride : (this.cfg.slevel || 0);
     const out = [];
 
-    for(let N=1;N<=60;N++) for(const S of this.DICE){
+    /* A fixed list of die sizes can only ever find dice it already knows.
+       For any dice count N there is exactly one die size that reproduces the
+       observed variance: var = N(S^2-1)/12, so S = sqrt(12*var/N + 1).
+       Solving it per N sweeps in odd sizes like d22 that no list would hold. */
+    const sizes = new Set(this.DICE);
+    if(d.var > 0) for(let N=1;N<=60;N++){
+      const s = Math.sqrt(12*d.var/N + 1);
+      for(const c of [Math.floor(s), Math.ceil(s)]) if(c>=2 && c<=120) sizes.add(c);
+    }
+    const SIZES = [...sizes].sort((a,b)=>a-b);
+
+    for(let N=1;N<=60;N++) for(const S of SIZES){
       const pv = N*(S*S-1)/12;
       const vOK = (d.var===0 && pv===0) || (pv>0 && Math.abs(pv-d.var) <= vRel*Math.max(d.var,pv));
       if(!vOK) continue;
@@ -625,13 +670,13 @@ const LAB = {
         if(d.min < N+B || d.max > N*S+B) continue;
         const err = Math.abs(pm-d.mean)/Math.max(mTol,.01)
                   + (pv>0 ? Math.abs(pv-d.var)/Math.max(d.var,1) : 0);
-        const sc = err + N*0.030 + (this.RARITY[S] ?? .6) + 2.5*this.bPrior(B, N, lvl, S);
+        const sc = err + N*0.030 + (this.RARITY[S] ?? 1.05) + 2.5*this.bPrior(B, N, lvl, S);
         if(!best || sc < best.score) best = {N,S,B,pm,pv,err,score:sc,round:this.bPrior(B,N,lvl,S)<0};
       }
       if(best) out.push(best);
     }
     out.sort((x,y)=>x.score-y.score);
-    return {d, fits:out, mTol, vRel, total:out.length, offset};
+    return {d, fits:out, mTol, vRel, total:out.length};
   },
 
   /* Assemble the complete formula and grade how well it is nailed down.
@@ -639,13 +684,16 @@ const LAB = {
      formula were wrong — a matching mean proves little on its own. */
   solve(){
     const lt  = this.levelTerm();
-    const off = lt ? lt.offset : 0;
-    const r   = this.fit(null, off);
+    const pl  = this.pool();
+    const usePool = pl && pl.vals;
+    const r = usePool ? this.fitCore(pl.vals, 0) : this.fit(null, lt ? lt.offset : 0);
     if(!r || !r.fits.length) return null;
     const f = r.fits[0], d = r.d;
-    const step = this.step(this.clean());
-    const levels = this.keys().filter(k=>k.spell===this.cfg.spell).length;
+    const step = this.step(usePool ? pl.vals : this.clean());
+    const levels = usePool ? pl.levels
+                 : this.keys().filter(k=>k.spell===this.cfg.spell).length;
     const ck = [];
+    const pooled = usePool ? pl : null;
 
     const vErr = d.var>0 ? Math.abs(f.pv-d.var)/d.var : 1;
     const vGate = Math.max(0.06, 1.5*Math.sqrt(2/Math.max(2,d.n-1)));
@@ -697,7 +745,8 @@ const LAB = {
 
     const bad = ck.filter(c=>!c.ok).length;
     const state = bad===0 ? 'solved' : bad===1 ? 'likely' : 'open';
-    return {state, formula:s, checks:ck, f, d, lt, step, levels, rival: close?rival:null};
+    return {state, formula:s, checks:ck, f, d, lt, step, levels, pooled,
+            blocked: pl && pl.blocked ? pl.blocked : null, rival: close?rival:null};
   },
 
   /* Where does level enter the dice?
@@ -727,8 +776,13 @@ const LAB = {
               N: Math.round((n1+n2)/2), n1, n2, agree: Math.abs(n1-n2) < Math.max(1, n1*0.15)};
     }
 
+    /* (S-1)/6 = slopeVar / slopeMean when the dice carry the whole level term,
+       so the die size falls straight out of the two slopes. */
+    const direct = mn.m>0 ? 6*lin.m/mn.m + 1 : 0;
+    const cand = new Set(this.DICE);
+    if(direct>=3 && direct<=120){ cand.add(Math.round(direct)); cand.add(Math.floor(direct)); cand.add(Math.ceil(direct)); }
     const opts = [];
-    for(const S of this.DICE){
+    for(const S of [...cand].sort((a,b)=>a-b)){
       if(S < 4) continue;
       const fp = 12*lin.m/(S*S-1);              // dice added per level
       if(fp <= 0.01) continue;
@@ -740,10 +794,10 @@ const LAB = {
          damage shrinking with level, which no formula does. Wrong die sizes
          reveal themselves precisely by driving this negative. */
       const errG = g < -0.15 ? 4*Math.abs(g) : Math.abs(g);
-      opts.push({S, fp, nearF, g, score: errF*2.5 + errG*0.9, errF});
+      opts.push({S, fp, nearF, g, score: errF*2.5 + errG*0.9 + (this.DICE.includes(S)?0:0.25), errF});
     }
     opts.sort((a,b)=>a.score-b.score);
-    return {kind:'count', ratio, lo, hi, r2:lin.r2, opts, best:opts[0]};
+    return {kind:'count', ratio, lo, hi, r2:lin.r2, opts, best:opts[0], direct};
   },
 
   /* plain unweighted least squares on [x,y] pairs */
@@ -930,22 +984,47 @@ const UI = {
              (sol.state==='solved'?'on':sol.state==='likely'?'warn':'') + '"></span>' + label + '</div>' +
            '<div class="v-formula">' + sol.formula + '</div>' +
            '<div class="v-sub">' + LAB.cfg.spell + ' &mdash; fitted from ' + sol.d.n +
-             ' clean rounds' + (sol.levels>1 ? ' across ' + sol.levels + ' spell levels' : ' at one spell level') + '</div>';
+             ' clean rounds' +
+             (sol.pooled ? ' pooled across all ' + sol.levels + ' spell levels'
+                         : sol.levels>1 ? ' at this spell level only' : ' at one spell level') + '</div>';
       sol.checks.forEach(c=>{
         h += '<div class="v-ck ' + (c.ok?'y':'n') + '"><span class="v-mark">' +
              (c.ok?'\u2713':'\u2022') + '</span><b>' + c.k + '</b><span>' + c.d + '</span></div>';
       });
+      if(sol.blocked === 'count' || sol.blocked === 'size')
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Levels not pooled</b>' +
+             '<span>the dice themselves change with level, so the levels are drawing from ' +
+             'different distributions and cannot be combined \u2014 see Runs</span></div>';
+      else if(sol.blocked === 'noisy')
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Levels not pooled</b>' +
+             '<span>the level term is not clean enough to subtract reliably; more rounds at your ' +
+             'thinnest level would fix it</span></div>';
       if(sol.state==='solved')
         h += '<div class="v-copy"><button class="btn sm go" id="cpf">Copy formula</button></div>';
       h += '</div>';
     }
 
+    const impS = d.mean>0 ? 6*d.var/d.mean + 1 : 0;
+    const impN = impS>1 ? 2*d.mean/(Math.round(impS)+1) : 0;
     h += '<div class="grid">' +
       cell('Samples', d.n) +
       cell(this.adj ? 'Mean less lvl' : 'Mean', d.mean.toFixed(2)) +
       cell('&plusmn;95%', (1.96*d.se).toFixed(2)) +
       cell('Variance', d.var.toFixed(1), 1) + cell('Std dev', d.sd.toFixed(2), 1) +
       cell('Spread', d.min + '\u2013' + d.max, 1) + '</div>';
+
+    /* If the constant is zero then var/mean = (S-1)/6 pins the die exactly,
+       with no enumeration and no priors involved. Worth showing on its own. */
+    if(impS >= 2 && impS <= 130){
+      const rS = Math.round(impS), off = Math.abs(impS - rS);
+      h += '<div class="note-box ' + (off < 0.35 ? 'good' : '') + '"><b>If the constant is zero, ' +
+        'the die is d' + impS.toFixed(1) + '</b> and there are about ' + impN.toFixed(1) + ' of them. ' +
+        'This comes straight from var/mean and owes nothing to the ranking below' +
+        (off < 0.35
+          ? ' \u2014 landing this close to a whole number is a good sign the constant really is zero.'
+          : '. It is not near a whole number, which usually means there is a real constant.') +
+        '</div>';
+    }
 
     /* --- signature: support map --- */
     h += '<div class="map-wrap"><div class="map-head"><span>Support map</span>' +
