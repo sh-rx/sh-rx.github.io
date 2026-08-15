@@ -602,6 +602,65 @@ const LAB = {
     return {d, fits:out, mTol, vRel, total:out.length, offset};
   },
 
+  /* Where does level enter the dice?
+       fixed     - variance flat across the sweep
+       count     - variance grows linearly  (dice(level,S))
+       size      - variance grows with level squared  (dice(N,level))
+     Then recover S: for dice count scaling, slopeVar = f'(S^2-1)/12, so each
+     candidate S implies a dice-count growth rate. The right S is the one whose
+     implied rate is a simple fraction AND leaves a clean residual mean slope. */
+  SIMPLE: [1, 0.5, 1/3, 0.25, 0.2, 1/6, 0.125, 0.1, 1/15, 0.05, 2, 3, 4],
+  diceRegime(pts){
+    if(pts.length < 3) return null;
+    const lin = this.reg(pts.map(p=>[p.x, p.v]));
+    const qua = this.reg(pts.map(p=>[p.x*p.x, p.v]));
+    const mn  = this.reg(pts.map(p=>[p.x, p.y]));
+    const lo = pts[0], hi = pts[pts.length-1];
+    const ratio = hi.v / Math.max(lo.v, .01);
+
+    if(ratio < 1.6 || (lin.r2 < 0.6 && qua.r2 < 0.6))
+      return {kind:'fixed', ratio, lo, hi};
+
+    if(qua.r2 > lin.r2 + 0.02){
+      // dice(N, level): mean = N(level+1)/2  ->  N = 2*slopeMean
+      //                 var  = N(level^2-1)/12 -> N = 12*slopeVarQ
+      const n1 = 2*mn.m, n2 = 12*qua.m;
+      return {kind:'size', ratio, lo, hi, r2:qua.r2,
+              N: Math.round((n1+n2)/2), n1, n2, agree: Math.abs(n1-n2) < Math.max(1, n1*0.15)};
+    }
+
+    const opts = [];
+    for(const S of this.DICE){
+      if(S < 4) continue;
+      const fp = 12*lin.m/(S*S-1);              // dice added per level
+      if(fp <= 0.01) continue;
+      const g  = mn.m - fp*(S+1)/2;             // mean slope left over
+      const nearF = this.SIMPLE.reduce((a,b)=>Math.abs(b-fp)<Math.abs(a-fp)?b:a);
+      const errF = Math.abs(fp-nearF)/nearF;
+      /* The leftover is a separate "+ K*level" term sitting on top of the
+         scaling dice. It can be zero or positive; a negative one would mean
+         damage shrinking with level, which no formula does. Wrong die sizes
+         reveal themselves precisely by driving this negative. */
+      const errG = g < -0.15 ? 4*Math.abs(g) : Math.abs(g);
+      opts.push({S, fp, nearF, g, score: errF*2.5 + errG*0.9, errF});
+    }
+    opts.sort((a,b)=>a.score-b.score);
+    return {kind:'count', ratio, lo, hi, r2:lin.r2, opts, best:opts[0]};
+  },
+
+  /* plain unweighted least squares on [x,y] pairs */
+  reg(rows){
+    const n = rows.length;
+    let sx=0,sy=0,sxx=0,sxy=0;
+    for(const [x,y] of rows){ sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; }
+    const den = n*sxx - sx*sx;
+    const m = den ? (n*sxy - sx*sy)/den : 0;
+    const b = (sy - m*sx)/n, my = sy/n;
+    let ssr=0, sst=0;
+    for(const [x,y] of rows){ const r=y-(m*x+b); ssr+=r*r; sst+=(y-my)**2; }
+    return {m, b, r2: sst ? 1-ssr/sst : 1};
+  },
+
   /* Regression slope comes back as 2.98 rather than 3. Snap it when it is
      clearly one of the values a coder would have written. */
   SNAP: [0.25, 1/3, 0.5, 2/3, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10],
@@ -819,6 +878,15 @@ const UI = {
     } else {
       const L = LAB.cfg.slevel;
       r.fits.slice(0,8).forEach((f,i)=>{
+        let ntag = '';
+        if(L){
+          if(f.N === L)                        ntag = 'N = spell level';
+          else if(f.N === Math.floor(L/2))     ntag = 'N = level/2';
+          else if(f.N === Math.floor(L/3))     ntag = 'N = level/3';
+          else if(f.N === Math.floor(L/4))     ntag = 'N = level/4';
+          else if(f.N === Math.floor(L/5))     ntag = 'N = level/5';
+          else if(f.N === Math.floor(L/10))    ntag = 'N = level/10';
+        }
         let tag = '';
         if(f.B === 0)             tag = 'no constant';
         else if(f.B === f.N)      tag = 'B = dice count';
@@ -831,10 +899,21 @@ const UI = {
         else if(f.B % 10 === 0)   tag = 'multiple of 10';
         h += '<div class="fit"><span class="rank">' + (i+1) + '</span>' +
           '<span class="form">' + f.N + 'd' + f.S + (f.B>=0?'+':'') + f.B + '</span>' +
-          '<span class="meta">' + (tag ? '<b style="color:var(--p-green-dim)">' + tag + '</b> &nbsp; ' : '') +
+          '<span class="meta">' +
+          (ntag ? '<b style="color:var(--p-amber)">' + ntag + '</b> &nbsp; ' : '') +
+          (tag ? '<b style="color:var(--p-green-dim)">' + tag + '</b> &nbsp; ' : '') +
           'mean ' + f.pm.toFixed(2) + ' &nbsp; var ' + f.pv.toFixed(1) +
           ' &nbsp; range ' + (f.N+f.B) + '\u2013' + (f.N*f.S+f.B) + '</span></div>';
       });
+      const Lv = LAB.cfg.slevel;
+      const nHit = Lv && r.fits.slice(0,5).find(f =>
+        f.N === Lv || f.N === Math.floor(Lv/2) || f.N === Math.floor(Lv/3) ||
+        f.N === Math.floor(Lv/4) || f.N === Math.floor(Lv/5) || f.N === Math.floor(Lv/10));
+      if(nHit && !lt)
+        h += '<div class="note-box warn"><b>' + nHit.N + 'd' + nHit.S + ' &mdash; and your spell level is ' +
+          Lv + '.</b> The dice count might not be a fixed number at all; it could be derived from level, ' +
+          'as in dice(level, ' + nHit.S + '). From a single level those look identical. Collect a second ' +
+          'level and the Runs card will tell them apart from how the variance moves.</div>';
       if(!r.fits.slice(0,8).some(f=>f.round))
         h += '<div class="note-box warn">None of these constants look like something a person ' +
           'would type. Either a level term is still baked in, or the formula is not ' +
@@ -977,18 +1056,61 @@ const UI = {
       }
     }
 
-    /* --- does the dice count scale too --- */
-    const vf = this.ols(pts.map(p=>({x:p.x, y:p.v})));
-    const lo = pts[0], hi = pts[pts.length-1];
-    const vr = hi.v / Math.max(lo.v, .01);
-    h += '<div class="note-box ' + (vr>1.6?'warn':'good') + '">' +
-      (vr>1.6
-        ? '<b>Variance grew ' + vr.toFixed(1) + '\u00d7 across the sweep</b> (' + lo.v.toFixed(0) +
-          ' at level ' + lo.x + ', ' + hi.v.toFixed(0) + ' at ' + hi.x + '). The dice count scales ' +
-          'with level too &mdash; the formula is not just a flat adder on fixed dice.'
-        : '<b>Variance held steady</b> across the sweep (' + lo.v.toFixed(0) + ' to ' + hi.v.toFixed(0) +
-          '). Level enters as an adder; the dice themselves stay the same.') +
-      '</div>';
+    /* --- where does level enter the dice --- */
+    h += '<div class="sec">Where level enters</div>';
+    const rg = LAB.diceRegime(pts);
+    if(rg){
+      const vspan = '(' + rg.lo.v.toFixed(0) + ' at level ' + rg.lo.x +
+                    ', ' + rg.hi.v.toFixed(0) + ' at ' + rg.hi.x + ')';
+      if(rg.kind === 'fixed'){
+        h += '<div class="note-box good"><b>The dice are fixed.</b> Variance held steady ' + vspan +
+          ', so level only shifts the total &mdash; it does not change how many dice are rolled ' +
+          'or how big they are. Fit the dice once at any level.</div>';
+      } else if(rg.kind === 'count'){
+        const b = rg.best;
+        h += '<div class="note-box warn"><b>The dice count scales with level.</b> Variance grew ' +
+          rg.ratio.toFixed(1) + '\u00d7 ' + vspan + ', and it grew in step with level rather than ' +
+          'level squared &mdash; that is dice(f(level), S), not a bigger die.</div>';
+        if(b){
+          const fmtF = v => v >= 1 ? String(Math.round(v*100)/100) : '1/' + Math.round(1/v);
+          const per = b.nearF === 1 ? 'one die per level'
+                    : b.nearF > 1   ? fmtF(b.nearF) + ' dice per level'
+                    : 'one die per ' + Math.round(1/b.nearF) + ' levels';
+          h += '<div class="note-box good"><b>Best read: d' + b.S + ', ' + per + '.</b> ' +
+            'That works out to <b>dice(level' + (b.nearF===1 ? '' : b.nearF>1 ? '*'+fmtF(b.nearF) : '/' + Math.round(1/b.nearF)) +
+            ', ' + b.S + ')</b>' + (Math.abs(b.g) > 0.2
+              ? ' plus about ' + b.g.toFixed(2) + ' more damage per level on top.'
+              : ', with no separate level adder.') + '</div>';
+          const minN = Math.min(...pts.map(q=>q.n));
+          if(minN < 250)
+            h += '<div class="note-box warn"><b>Treat the die size above as tentative.</b> ' +
+              'Your thinnest level has ' + minN + ' rounds, and pinning the die depends on the ' +
+              'variance estimate, which needs roughly 300 per level to settle. That the dice ' +
+              '<i>count</i> scales is solid; which die it is, is not yet.</div>';
+          if(rg.opts.length > 1){
+            h += '<table><thead><tr><th>If die is</th><th>Dice per level</th><th>Leftover /level</th></tr></thead><tbody>';
+            rg.opts.slice(0,4).forEach((o,i)=>{
+              h += '<tr class="' + (i===0?'here':'') + '"><td>d' + o.S + '</td><td>' +
+                o.fp.toFixed(3) + (o.errF<0.08 ? ' \u2248 ' + fmtF(o.nearF) : '') +
+                '</td><td>' + o.g.toFixed(2) + '</td></tr>';
+            });
+            h += '</tbody></table><div class="note-box">The winning row is the one whose dice-per-level ' +
+                 'lands on a simple fraction and leaves a clean remainder. Collect a wider level ' +
+                 'spread if two rows look equally good.</div>';
+          }
+        }
+      } else if(rg.kind === 'size'){
+        h += '<div class="note-box warn"><b>The die size tracks level.</b> Variance grew ' +
+          rg.ratio.toFixed(1) + '\u00d7 ' + vspan + ' and followed level <i>squared</i> ' +
+          '(R\u00b2 ' + rg.r2.toFixed(3) + '), which only happens when the die itself gets bigger. ' +
+          'This is dice(N, level).</div>';
+        h += '<div class="note-box ' + (rg.agree?'good':'warn') + '"><b>Dice count \u2248 ' + rg.N + '.</b> ' +
+          'From the mean slope: ' + rg.n1.toFixed(2) + '. From the variance slope: ' + rg.n2.toFixed(2) + '. ' +
+          (rg.agree ? 'Those agree, so read it as dice(' + rg.N + ', level).'
+                    : 'Those disagree &mdash; there may be a second level term as well. Collect more levels.') +
+          '</div>';
+      }
+    }
 
     if(pts.length < 5)
       h += '<div class="note-box">Only ' + pts.length + ' levels. A cap or a step pattern needs ' +
