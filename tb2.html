@@ -546,26 +546,93 @@ const LAB = {
      83d3. This prior encodes that. */
   RARITY: {2:1.0, 3:1.0, 4:0.20, 6:0.05, 8:0.00, 10:0.20, 12:0.35, 20:0.45, 100:1.2},
 
-  fit(k){
-    const a = this.clean(k), d = this.describe(a);
-    if(!d) return null;
+  /* How plausible a constant is as something a person typed. Negative is a
+     bonus. The classic Diku idiom is dice(N,8)+N, so B==N scores as well as
+     a round hundred. B==level covers the "+level" spells. */
+  bPrior(B, N, lvl){
+    if(B === 0)               return -0.40;
+    if(B === N)               return -0.38;
+    if(lvl && B === lvl)      return -0.38;
+    if(lvl && B === 2*lvl)    return -0.28;
+    if(lvl && lvl && B % lvl === 0) return -0.22;
+    if(B % 100 === 0)         return -0.34;
+    if(B % 50  === 0)         return -0.26;
+    if(B % 25  === 0)         return -0.20;
+    if(B % 10  === 0)         return -0.17;
+    if(B % 5   === 0)         return -0.09;
+    return 0;
+  },
+
+  /* offset: subtract a known level term from every sample before fitting,
+     so what is left is the dice and the true constant. */
+  fit(k, offset){
+    offset = offset || 0;
+    const raw = this.clean(k);
+    if(!raw.length) return null;
+    const a = offset ? raw.map(v=>v-offset) : raw;
+    const d = this.describe(a);
     const mTol = Math.max(2.5*d.se, .75);
     const vRel = d.n>2 ? Math.max(2.5*Math.sqrt(2/(d.n-1)), .20) : 1;
+    const lvl  = this.cfg.slevel || 0;
     const out = [];
+
     for(let N=1;N<=60;N++) for(const S of this.DICE){
-      const B  = Math.round(d.mean - N*(S+1)/2);
-      const pm = N*(S+1)/2 + B, pv = N*(S*S-1)/12;
-      if(Math.abs(pm-d.mean) > mTol) continue;
+      const pv = N*(S*S-1)/12;
       const vOK = (d.var===0 && pv===0) || (pv>0 && Math.abs(pv-d.var) <= vRel*Math.max(d.var,pv));
       if(!vOK) continue;
-      if(d.min < N+B || d.max > N*S+B) continue;
-      const err = Math.abs(pm-d.mean)/Math.max(mTol,.01)
-                + (pv>0 ? Math.abs(pv-d.var)/Math.max(d.var,1) : 0);
-      const prior = N*0.045 + (this.RARITY[S] ?? .6);
-      out.push({N,S,B,pm,pv, err, score: err + prior});
+
+      /* B is not one number. The mean carries sampling error, so every B
+         inside the tolerance window is admissible — search it and keep the
+         one that both fits and looks like something a person would type. */
+      const centre = d.mean - N*(S+1)/2;
+      const loB = Math.ceil(centre - mTol), hiB = Math.floor(centre + mTol);
+      let best = null;
+      for(let B=loB; B<=hiB; B++){
+        const pm = N*(S+1)/2 + B;
+        if(Math.abs(pm-d.mean) > mTol) continue;
+        if(d.min < N+B || d.max > N*S+B) continue;
+        const err = Math.abs(pm-d.mean)/Math.max(mTol,.01)
+                  + (pv>0 ? Math.abs(pv-d.var)/Math.max(d.var,1) : 0);
+        const sc = err + N*0.045 + (this.RARITY[S] ?? .6) + this.bPrior(B, N, lvl);
+        if(!best || sc < best.score) best = {N,S,B,pm,pv,err,score:sc,round:this.bPrior(B,N,lvl)<0};
+      }
+      if(best) out.push(best);
     }
     out.sort((x,y)=>x.score-y.score);
-    return {d, fits:out, mTol, vRel, total:out.length};
+    return {d, fits:out, mTol, vRel, total:out.length, offset};
+  },
+
+  /* Regression slope comes back as 2.98 rather than 3. Snap it when it is
+     clearly one of the values a coder would have written. */
+  SNAP: [0.25, 1/3, 0.5, 2/3, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10],
+  snapK(m){
+    for(const s of this.SNAP)
+      if(Math.abs(m - s) < Math.max(0.05, s*0.035)) return s;
+    return m;
+  },
+
+  /* Best available level term across the collected sweep, or null. */
+  levelTerm(){
+    const pts = [];
+    for(const r of this.keys()){
+      const d = this.describe(this.clean(r.key));
+      if(d && r.spell === this.cfg.spell && d.n >= 15 && typeof r.slevel === 'number')
+        pts.push({x:r.slevel, y:d.mean, n:d.n});
+    }
+    if(pts.length < 2) return null;
+    let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+    for(const p of pts){ const w=p.n; sw+=w; sx+=w*p.x; sy+=w*p.y; sxx+=w*p.x*p.x; sxy+=w*p.x*p.y; }
+    const den = sw*sxx - sx*sx;
+    if(!den) return null;
+    const m = (sw*sxy - sx*sy)/den;
+    const b = (sy - m*sx)/sw;
+    const my = sy/sw;
+    let ssr=0, sst=0;
+    for(const p of pts){ const r=p.y-(m*p.x+b); ssr+=r*r; sst+=(p.y-my)**2; }
+    const r2 = sst ? 1-ssr/sst : 1;
+    if(Math.abs(m) < 0.15 || r2 < 0.90) return null;
+    const K = this.snapK(m);
+    return {K, raw:m, r2, offset: Math.round(K * this.cfg.slevel), pts:pts.length};
   },
 
   keys(){
@@ -657,9 +724,12 @@ const UI = {
   },
 
   /* ---------- analyze ---------- */
+  adj: false,          // subtract the level term before fitting
   analyze(){
     const box = $('an');
-    const r = LAB.fit();
+    const lt = LAB.levelTerm();
+    if(!lt) this.adj = false;
+    const r = LAB.fit(null, this.adj && lt ? lt.offset : 0);
     if(!r || r.d.n < 3){
       box.innerHTML = '<div class="empty"><b>Not enough clean rounds yet.</b>' +
         'Statistics need roughly 150 samples before the variance estimate is tight ' +
@@ -671,7 +741,9 @@ const UI = {
     let h = '';
 
     h += '<div class="grid">' +
-      cell('Samples', d.n) + cell('Mean', d.mean.toFixed(2)) + cell('&plusmn;95%', (1.96*d.se).toFixed(2)) +
+      cell('Samples', d.n) +
+      cell(this.adj ? 'Mean less lvl' : 'Mean', d.mean.toFixed(2)) +
+      cell('&plusmn;95%', (1.96*d.se).toFixed(2)) +
       cell('Variance', d.var.toFixed(1), 1) + cell('Std dev', d.sd.toFixed(2), 1) +
       cell('Spread', d.min + '\u2013' + d.max, 1) + '</div>';
 
@@ -709,17 +781,46 @@ const UI = {
 
     /* --- fits --- */
     h += '<div class="sec">Candidate formulas</div>';
+
+    if(lt){
+      h += '<div class="note-box ' + (this.adj?'good':'warn') + '">' +
+        '<b>Level term detected: ' + fmtK(lt.K) + ' \u00d7 level</b> across ' + lt.pts +
+        ' spell levels (R\u00b2 ' + lt.r2.toFixed(3) + '). At level ' + LAB.cfg.slevel +
+        ' that is <b>' + lt.offset + '</b> damage before any dice are rolled &mdash; which is why ' +
+        'the constants below look arbitrary. ' +
+        (this.adj
+          ? 'Currently subtracting it, so the constants shown are the real leftover.'
+          : 'Subtract it and the leftover constant should come out round.') +
+        '<br><br><button class="btn sm ' + (this.adj?'stop':'go') + '" id="adjbtn">' +
+        (this.adj ? 'Show raw damage' : 'Subtract ' + lt.offset) + '</button></div>';
+    }
     if(!r.fits.length){
       h += '<div class="note-box bad">Nothing of the form dice(N,S)+B fits both the mean and ' +
         'the variance. Check the support map above for gaps, and read the ' +
         'flagged-round verdict &mdash; if saves are live you are measuring halved damage.</div>';
     } else {
+      const L = LAB.cfg.slevel;
       r.fits.slice(0,8).forEach((f,i)=>{
+        let tag = '';
+        if(f.B === 0)             tag = 'no constant';
+        else if(f.B === f.N)      tag = 'B = dice count';
+        else if(L && f.B === L)   tag = 'B = spell level';
+        else if(L && f.B === 2*L) tag = 'B = 2 \u00d7 level';
+        else if(L && f.B % L === 0) tag = 'B = ' + (f.B/L) + ' \u00d7 level';
+        else if(f.B % 100 === 0)  tag = 'round hundred';
+        else if(f.B % 50 === 0)   tag = 'round fifty';
+        else if(f.B % 25 === 0)   tag = 'multiple of 25';
+        else if(f.B % 10 === 0)   tag = 'multiple of 10';
         h += '<div class="fit"><span class="rank">' + (i+1) + '</span>' +
           '<span class="form">' + f.N + 'd' + f.S + (f.B>=0?'+':'') + f.B + '</span>' +
-          '<span class="meta">mean ' + f.pm.toFixed(2) + ' &nbsp; var ' + f.pv.toFixed(1) +
+          '<span class="meta">' + (tag ? '<b style="color:var(--p-green-dim)">' + tag + '</b> &nbsp; ' : '') +
+          'mean ' + f.pm.toFixed(2) + ' &nbsp; var ' + f.pv.toFixed(1) +
           ' &nbsp; range ' + (f.N+f.B) + '\u2013' + (f.N*f.S+f.B) + '</span></div>';
       });
+      if(!r.fits.slice(0,8).some(f=>f.round))
+        h += '<div class="note-box warn">None of these constants look like something a person ' +
+          'would type. Either a level term is still baked in, or the formula is not ' +
+          'dice + constant at all &mdash; check the support map for a step pattern.</div>';
       h += '<div class="note-box"><b>' + r.total + ' formulas fit your data.</b> ' +
         'These eight are the ones a person would plausibly have typed into a spell file &mdash; ' +
         'ranked by fit first, then by how ordinary the dice look. Mean and variance genuinely ' +
@@ -732,8 +833,15 @@ const UI = {
     }
 
     box.innerHTML = h;
-    this.drawMap(LAB.clean(), d);
+    this.drawMap(this.adj && lt ? LAB.clean().map(v=>v-lt.offset) : LAB.clean(), d);
+    const ab = $('adjbtn');
+    if(ab) ab.addEventListener('click', ()=>{ this.adj = !this.adj; this.analyze(); });
 
+    function fmtK(K){
+      const nice = {0.25:'level/4', 0.3333333333333333:'level/3', 0.5:'level/2',
+                    0.6666666666666666:'2\u00d7level/3', 0.75:'3\u00d7level/4'};
+      return nice[K] ? nice[K].replace('level','1') + ' i.e. ' + K.toFixed(2) : K.toFixed(2);
+    }
     function cell(k,v,sm){
       return '<div class="cell"><span class="k">' + k + '</span>' +
              '<span class="v' + (sm?' sm':'') + '">' + v + '</span></div>';
