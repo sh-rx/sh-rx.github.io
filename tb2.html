@@ -131,6 +131,29 @@ body{
 .cell .v{font-size:17px;color:var(--p-green);font-variant-numeric:tabular-nums}
 .cell .v.sm{font-size:13px;color:var(--chalk)}
 
+/* ---------- verdict ---------- */
+.verdict{border:1px solid var(--edge);background:var(--void);padding:15px;margin-bottom:16px}
+.verdict.solved{border-color:var(--p-green);box-shadow:inset 0 0 0 1px rgba(51,255,136,.18)}
+.verdict.likely{border-color:var(--p-amber)}
+.verdict.open{border-color:var(--edge-hi)}
+.v-state{font-size:9px;letter-spacing:.34em;text-transform:uppercase;margin-bottom:11px;display:flex;
+  align-items:center;gap:8px}
+.verdict.solved .v-state{color:var(--p-green)}
+.verdict.likely .v-state{color:var(--p-amber)}
+.verdict.open   .v-state{color:var(--ash)}
+.v-formula{font-size:20px;line-height:1.35;color:var(--p-green);font-weight:600;
+  word-break:break-word;margin-bottom:4px}
+.verdict.open .v-formula{color:var(--chalk);opacity:.75}
+.v-sub{font-size:10px;color:var(--ash);margin-bottom:13px}
+.v-ck{display:flex;gap:9px;padding:5px 0;font-size:11px;line-height:1.55;
+  border-top:1px solid var(--edge);align-items:baseline}
+.v-mark{flex:0 0 12px;font-weight:600}
+.v-ck.y .v-mark{color:var(--p-green)}
+.v-ck.n .v-mark{color:var(--p-amber)}
+.v-ck b{color:var(--chalk);font-weight:600;flex:0 0 auto}
+.v-ck span{color:var(--ash)}
+.v-copy{margin-top:12px}
+
 /* ---------- support map ---------- */
 .map-wrap{border:1px solid var(--edge);padding:11px;margin-bottom:14px;background:var(--void)}
 .map-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;
@@ -422,6 +445,12 @@ async function sendBlock(text){
 /*===================================================================
   DAMAGE LAB ENGINE
 ===================================================================*/
+function fmtNum(v){
+  if(Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+  const fr = {0.5:'level/2', 0.25:'level/4', 0.75:'3*level/4'};
+  return String(Math.round(v*1000)/1000);
+}
+
 const LAB = {
   cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate', idleCmd:'look',
          dmg:'detonates your liver',
@@ -432,7 +461,7 @@ const LAB = {
   active: false,
   buf: '', seq: [], tick: false, fired: false,
   last: { ma:null, mv:null }, lastHp: null,
-  DICE: [2,3,4,6,8,10,12,20,100],
+  DICE: [2,3,4,5,6,8,10,12,16,20,24,30,32,50,100],
 
   key(){ return this.cfg.spell + '|SL' + this.cfg.slevel + '|S' + this.cfg.save; },
 
@@ -544,14 +573,17 @@ const LAB = {
      Moment matching alone cannot separate 11d8+11 from 83d3-105 — both hit
      the same mean and variance. What separates them is that nobody writes
      83d3. This prior encodes that. */
-  RARITY: {2:1.0, 3:1.0, 4:0.20, 6:0.05, 8:0.00, 10:0.20, 12:0.35, 20:0.45, 100:1.2},
+  RARITY: {2:1.00, 3:1.00, 4:0.20, 5:0.75, 6:0.05, 8:0.00, 10:0.20, 12:0.35,
+           16:0.85, 20:0.45, 24:0.85, 30:0.70, 32:0.95, 50:0.85, 100:1.10},
 
   /* How plausible a constant is as something a person typed. Negative is a
      bonus. The classic Diku idiom is dice(N,8)+N, so B==N scores as well as
      a round hundred. B==level covers the "+level" spells. */
-  bPrior(B, N, lvl){
+  bPrior(B, N, lvl, S){
     if(B === 0)               return -0.40;
-    if(B === N)               return -0.38;
+    /* dice(N,8)+N is a stock Diku idiom, but only on the common dice —
+       "B happens to equal N" on a d30 is coincidence, not a signature. */
+    if(B === N && (S===6 || S===8 || S===10)) return -0.36;
     if(lvl && B === lvl)      return -0.38;
     if(lvl && B === 2*lvl)    return -0.28;
     if(lvl && lvl && B % lvl === 0) return -0.22;
@@ -593,13 +625,79 @@ const LAB = {
         if(d.min < N+B || d.max > N*S+B) continue;
         const err = Math.abs(pm-d.mean)/Math.max(mTol,.01)
                   + (pv>0 ? Math.abs(pv-d.var)/Math.max(d.var,1) : 0);
-        const sc = err + N*0.045 + (this.RARITY[S] ?? .6) + this.bPrior(B, N, lvl);
-        if(!best || sc < best.score) best = {N,S,B,pm,pv,err,score:sc,round:this.bPrior(B,N,lvl)<0};
+        const sc = err + N*0.030 + (this.RARITY[S] ?? .6) + 2.5*this.bPrior(B, N, lvl, S);
+        if(!best || sc < best.score) best = {N,S,B,pm,pv,err,score:sc,round:this.bPrior(B,N,lvl,S)<0};
       }
       if(best) out.push(best);
     }
     out.sort((x,y)=>x.score-y.score);
     return {d, fits:out, mTol, vRel, total:out.length, offset};
+  },
+
+  /* Assemble the complete formula and grade how well it is nailed down.
+     Every check has to be something that would actually be wrong if the
+     formula were wrong — a matching mean proves little on its own. */
+  solve(){
+    const lt  = this.levelTerm();
+    const off = lt ? lt.offset : 0;
+    const r   = this.fit(null, off);
+    if(!r || !r.fits.length) return null;
+    const f = r.fits[0], d = r.d;
+    const step = this.step(this.clean());
+    const levels = this.keys().filter(k=>k.spell===this.cfg.spell).length;
+    const ck = [];
+
+    const vErr = d.var>0 ? Math.abs(f.pv-d.var)/d.var : 1;
+    const vGate = Math.max(0.06, 1.5*Math.sqrt(2/Math.max(2,d.n-1)));
+    ck.push({ok: vErr<vGate, k:'Variance',
+      d:'predicted ' + f.pv.toFixed(0) + ' against observed ' + d.var.toFixed(0) +
+        ', ' + (vErr*100).toFixed(1) + '% apart (tolerance ' + (vGate*100).toFixed(0) + '% at this sample size)' +
+        (vErr<vGate ? ' \u2014 this is the check that actually proves a dice formula' : '')});
+
+    const mErr = Math.abs(f.pm-d.mean);
+    ck.push({ok: mErr <= Math.max(1.96*d.se, 0.75), k:'Mean',
+      d:'predicted ' + f.pm.toFixed(1) + ' against observed ' + d.mean.toFixed(1) +
+        ' (\u00b1' + (1.96*d.se).toFixed(1) + ')'});
+
+    ck.push({ok: step===1, k: step===1 ? 'No multiplier' : 'Multiplier present',
+      d: step===1 ? 'every value in the range is reachable, so nothing is scaling the dice'
+                  : 'values step by ' + step + ' — there is a \u00d7' + step +
+                    ' or an integer division not yet accounted for'});
+
+    ck.push({ok: d.n>=400, k:'Sample size',
+      d: d.n + ' clean rounds' + (d.n>=400 ? '' : ' — variance needs about 400 to settle')});
+
+    ck.push({ok: d.min>=f.N+f.B && d.max<=f.N*f.S+f.B, k:'Range',
+      d:'observed ' + d.min + '\u2013' + d.max + ' sits inside the possible ' +
+        (f.N+f.B) + '\u2013' + (f.N*f.S+f.B)});
+
+    if(levels < 2)
+      ck.push({ok:false, k:'Level dependence',
+        d:'only one spell level collected — a constant and a level term are indistinguishable from one level'});
+    else if(lt)
+      ck.push({ok: lt.r2>0.98, k:'Level term',
+        d: fmtNum(lt.K) + ' \u00d7 level, R\u00b2 ' + lt.r2.toFixed(4) + ' across ' + lt.pts + ' levels'});
+    else
+      ck.push({ok:true, k:'No level term',
+        d:'damage held flat across ' + levels + ' spell levels'});
+
+    let s = 'dice(' + f.N + ', ' + f.S + ')';
+    if(lt)   s += ' + ' + fmtNum(lt.K) + ' * level';
+    if(f.B)  s += (f.B>0 ? ' + ' : ' - ') + Math.abs(f.B);
+
+    /* Two formulas within a hair of each other means the data cannot pick
+       between them, however good each one looks on its own. */
+    const rival = r.fits[1];
+    const close = rival && (rival.score - f.score) < 0.18;
+    if(close)
+      ck.push({ok:false, k:'Clear winner',
+        d:'dice(' + rival.N + ', ' + rival.S + ')' +
+          (rival.B ? (rival.B>0?' + ':' - ') + Math.abs(rival.B) : '') +
+          ' fits almost as well — the numbers cannot separate them, so judge by which looks like real code'});
+
+    const bad = ck.filter(c=>!c.ok).length;
+    const state = bad===0 ? 'solved' : bad===1 ? 'likely' : 'open';
+    return {state, formula:s, checks:ck, f, d, lt, step, levels, rival: close?rival:null};
   },
 
   /* Where does level enter the dice?
@@ -663,10 +761,15 @@ const LAB = {
 
   /* Regression slope comes back as 2.98 rather than 3. Snap it when it is
      clearly one of the values a coder would have written. */
-  SNAP: [0.25, 1/3, 0.5, 2/3, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10],
+  SNAP: [0.25, 1/3, 0.5, 2/3, 0.75, 1.25, 1.5, 2.5, 3.5, 4.5],
   snapK(m){
+    const tol = v => Math.max(0.05, Math.abs(v)*0.02);
+    // a whole number is by far the most likely thing a coder wrote
+    const w = Math.round(m);
+    if(w !== 0 && Math.abs(m - w) < tol(w)) return w;
+    // fractions are rarer than whole numbers, so demand a closer match
     for(const s of this.SNAP)
-      if(Math.abs(m - s) < Math.max(0.05, s*0.035)) return s;
+      if(Math.abs(m - s) < Math.max(0.03, Math.abs(s)*0.012)) return s;
     return m;
   },
 
@@ -817,6 +920,26 @@ const UI = {
     const step = LAB.step(LAB.clean());
     let h = '';
 
+    /* --- verdict --- */
+    const sol = LAB.solve();
+    if(sol){
+      const label = sol.state==='solved' ? 'Solved'
+                  : sol.state==='likely' ? 'Almost there' : 'Not yet determined';
+      h += '<div class="verdict ' + sol.state + '">' +
+           '<div class="v-state"><span class="led ' +
+             (sol.state==='solved'?'on':sol.state==='likely'?'warn':'') + '"></span>' + label + '</div>' +
+           '<div class="v-formula">' + sol.formula + '</div>' +
+           '<div class="v-sub">' + LAB.cfg.spell + ' &mdash; fitted from ' + sol.d.n +
+             ' clean rounds' + (sol.levels>1 ? ' across ' + sol.levels + ' spell levels' : ' at one spell level') + '</div>';
+      sol.checks.forEach(c=>{
+        h += '<div class="v-ck ' + (c.ok?'y':'n') + '"><span class="v-mark">' +
+             (c.ok?'\u2713':'\u2022') + '</span><b>' + c.k + '</b><span>' + c.d + '</span></div>';
+      });
+      if(sol.state==='solved')
+        h += '<div class="v-copy"><button class="btn sm go" id="cpf">Copy formula</button></div>';
+      h += '</div>';
+    }
+
     h += '<div class="grid">' +
       cell('Samples', d.n) +
       cell(this.adj ? 'Mean less lvl' : 'Mean', d.mean.toFixed(2)) +
@@ -889,7 +1012,7 @@ const UI = {
         }
         let tag = '';
         if(f.B === 0)             tag = 'no constant';
-        else if(f.B === f.N)      tag = 'B = dice count';
+        else if(f.B === f.N && (f.S===6||f.S===8||f.S===10)) tag = 'B = dice count';
         else if(L && f.B === L)   tag = 'B = spell level';
         else if(L && f.B === 2*L) tag = 'B = 2 \u00d7 level';
         else if(L && f.B % L === 0) tag = 'B = ' + (f.B/L) + ' \u00d7 level';
@@ -933,6 +1056,12 @@ const UI = {
     this.drawMap(this.adj && lt ? LAB.clean().map(v=>v-lt.offset) : LAB.clean(), d);
     const ab = $('adjbtn');
     if(ab) ab.addEventListener('click', ()=>{ this.adj = !this.adj; this.analyze(); });
+    const cp = $('cpf');
+    if(cp) cp.addEventListener('click', ()=>{
+      navigator.clipboard.writeText(sol.formula).then(
+        ()=>{ cp.textContent='Copied'; setTimeout(()=>cp.textContent='Copy formula',1400); },
+        ()=>{ cp.textContent='Copy failed'; });
+    });
 
     function fmtK(K){
       const nice = {0.25:'level/4', 0.3333333333333333:'level/3', 0.5:'level/2',
