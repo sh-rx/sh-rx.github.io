@@ -806,6 +806,246 @@ const LAB = {
             outliers:(opts.outliers||0) + tr.out.length, hist, mult, rem};
   },
 
+  /*=================================================================
+    PRODUCT FORMS:  dice(Nb,Sb) * M  +  small dice  +  C
+    A big die times a multiplier makes the support a COMB: clusters
+    every M damage with dead space between. No dice(N,S)+B can make
+    gaps, so the moment screen returns nothing — the comb has to be
+    found first, then the two halves fitted separately.
+  =================================================================*/
+
+  /* Find the tooth spacing with a circular concentration (Rayleigh)
+     test: at the true period, all values land at the same phase.
+     Smooth dice data caps out around R≈0.10 under the span/2 limit,
+     a real comb scores 0.7+, so the 0.45 bar has a wide moat on both
+     sides. Then decompose, and demand real hollows between teeth —
+     that is what separates a comb from any smooth distribution. */
+  comb(raw){
+    if(!raw || raw.length < 60) return null;
+    const tr = this.trim(raw);
+    const a = tr.kept.map(v=>Math.round(v));
+    const d = this.describe(a);
+    if(!d) return null;
+    const span = d.max - d.min;
+    if(span < 24) return null;
+    const pMax = Math.floor(span/2.05), pMin = 8;
+    if(pMax < pMin) return null;
+    let best = {p:0, R:0, cx:0, cy:0};
+    for(let p=pMin; p<=pMax; p++){
+      let cx=0, cy=0;
+      const w = 2*Math.PI/p;
+      for(const v of a){ cx += Math.cos(w*v); cy += Math.sin(w*v); }
+      const R = Math.sqrt(cx*cx + cy*cy)/a.length;
+      /* zero-width teeth (constant small part) tie every divisor period at
+         R=1.0 — the true spacing is the LARGEST tied period, so ties break
+         upward; real fundamentals beat their harmonics by a clear margin,
+         so the epsilon window never touches the noisy case */
+      if(R > best.R + 1e-6 || (R > best.R - 1e-6 && p > best.p)) best = {p, R, cx, cy};
+    }
+    if(best.R < 0.45) return null;
+    const p = best.p;
+    let c = Math.atan2(best.cy, best.cx)/(2*Math.PI)*p;   // tooth centre phase
+    if(c < 0) c += p;
+    const Q = [], R = [];
+    for(const v of a){
+      const q = Math.round((v - c)/p);
+      Q.push(q); R.push(v - q*p);
+    }
+    // hollowness: between-teeth space must be essentially empty
+    let far = 0;
+    for(const r of R) if(Math.abs(r - c) > 0.35*p) far++;
+    if(far > Math.max(2, a.length*0.04)) return null;
+    if(new Set(Q).size < 3) return null;                  // need 3+ teeth
+    return {p, conc:best.R, Q, R, vals:a, out:tr.out.length};
+  },
+
+  /* Exact log-likelihood of the values under bigDice*p + small, by summing
+     the big-die pmf against the small part shifted to each tooth. */
+  logLProd(hist, p, bf, sm){
+    const EPS = 1e-3;
+    const pb = this.pmf(bf.N, bf.S);
+    const ps = sm.const ? null : this.pmf(sm.N, sm.S);
+    const lenC = p*(pb.length-1) + (ps ? ps.length : 1);
+    let ll = 0;
+    for(const [v, cnt] of hist){
+      let s = 0;
+      for(let i=0;i<pb.length;i++){
+        const x = v - p*(i + bf.N + bf.B);
+        if(sm.const){ if(x === sm.Bs) s += pb[i]; }
+        else { const j = x - sm.N - sm.Bs; if(j>=0 && j<ps.length) s += pb[i]*ps[j]; }
+      }
+      ll += cnt*Math.log((1-EPS)*s + EPS/lenC);
+    }
+    return ll;
+  },
+
+  /* Fit both halves of a detected comb, compose candidates, and make them
+     race the plain dice(N,S)+B family on the same likelihood scale. */
+  fitProduct(c, lvlOverride){
+    const lvl = lvlOverride !== undefined ? lvlOverride : (this.cfg.slevel || 0);
+    const p = c.p;
+    const d = this.describe(c.vals);
+    if(!d) return null;
+    const hist = new Map();
+    for(const v of c.vals) hist.set(v, (hist.get(v)||0)+1);
+
+    const bigR = this.fitCore(c.Q, lvl, {});
+    if(!bigR || !bigR.fits.length) return null;
+
+    const ds = this.describe(c.R);
+    let smalls;
+    if(!ds || ds.var < 0.5){
+      smalls = [{const:true, Bs: Math.round(ds ? ds.mean : 0)}];
+    } else {
+      const sR = this.fitCore(c.R, lvl, {});
+      smalls = (sR && sR.fits.length)
+        ? sR.fits.slice(0,4).map(f=>({const:false, N:f.N, S:f.S, Bs:f.B}))
+        : [{const:true, Bs: Math.round(ds.mean)}];
+    }
+
+    const out = [];
+    for(const bf of bigR.fits.slice(0,4)){
+      for(const sm of smalls){
+        const CT = p*bf.B + sm.Bs;         // total constant as the coder wrote it
+        const ll = this.logLProd(hist, p, bf, sm);
+        /* multiplier-form prior: *level is the natural thing to write, simple
+           fractions/multiples of level and round numbers plausible, an
+           arbitrary multiplier suspicious */
+        let fp;
+        if(lvl && p === lvl)                         fp = -0.45;
+        else if(lvl && lvl % p === 0 && lvl/p <= 4)  fp = -0.25;
+        else if(lvl && p % lvl === 0 && p/lvl <= 4)  fp = -0.25;
+        else if(p % 100 === 0)                       fp = -0.30;
+        else if(p % 50 === 0)                        fp = -0.25;
+        else if(p % 10 === 0)                        fp = -0.12;
+        else                                         fp = 0.5;
+        if(!sm.const && lvl && sm.S === lvl) fp -= 0.30;   // dice(_, level) rider
+        const rarS = sm.const ? 0 : (this.RARITY[sm.S] ?? 1.9);
+        const prior = -( this.W_RARITY*((this.RARITY[bf.S] ?? 1.9) + rarS)
+                       + this.W_N*(bf.N + (sm.const?0:sm.N))
+                       + this.W_B*this.bPrior(CT, bf.N, lvl, bf.S)
+                       + 2.0*fp );
+        const pm  = p*(bf.N*(bf.S+1)/2 + bf.B) + (sm.const?0:sm.N*(sm.S+1)/2) + sm.Bs;
+        const pv  = p*p*bf.N*(bf.S*bf.S-1)/12 + (sm.const?0:sm.N*(sm.S*sm.S-1)/12);
+        const loA = p*(bf.N + bf.B)      + (sm.const?0:sm.N)       + sm.Bs;
+        const hiA = p*(bf.N*bf.S + bf.B) + (sm.const?0:sm.N*sm.S)  + sm.Bs;
+        out.push({kind:'prod', p, Nb:bf.N, Sb:bf.S, Bq:bf.B, sm, C:CT,
+                  N:bf.N, S:bf.S, B:CT,
+                  pm, pv, pmA:pm, pvA:pv, loA, hiA, ll, prior, score: ll+prior,
+                  round: this.bPrior(CT, bf.N, lvl, bf.S) < 0});
+      }
+    }
+    // the plain family competes on the same data — on a real comb it loses
+    // by hundreds of nats, and if the comb was spurious it wins honestly
+    const plain = this.fitCore(c.vals, lvlOverride, {});
+    if(plain) for(const f of plain.fits) out.push(f);
+    out.sort((x,y)=>y.score-x.score);
+    if(out.length){
+      const mx = out[0].score;
+      let Z = 0;
+      for(const f of out) Z += Math.exp(f.score - mx);
+      for(const f of out) f.post = Math.exp(f.score - mx)/Z;
+    }
+    return {d, fits:out, comb:c, total:out.length,
+            outliers:c.out, hist, mult:1, rem:0};
+  },
+
+  /* Verdict for a product-form fit. The decisive extra check: does the
+     tooth spacing FOLLOW level across the other collected runs? That is
+     the one thing that separates *level from a fixed *98. */
+  solveProd(r){
+    const f = r.fits[0], d = r.d, c = r.comb, lvl = this.cfg.slevel || 0;
+    const ck = [];
+
+    ck.push({ok:true, k:'Comb detected',
+      d:'values cluster every ' + c.p + ' damage with hollow space between ' +
+        '(phase concentration ' + (c.conc*100).toFixed(0) + '%) \u2014 a big die is being multiplied by ' + c.p});
+
+    const vErr = d.var>0 ? Math.abs(f.pv-d.var)/d.var : 1;
+    const vGate = Math.max(0.06, 1.5*Math.sqrt(2/Math.max(2,d.n-1)));
+    ck.push({ok: vErr<vGate, k:'Variance',
+      d:'predicted ' + f.pv.toFixed(0) + ' against observed ' + d.var.toFixed(0) +
+        ', ' + (vErr*100).toFixed(1) + '% apart (tolerance ' + (vGate*100).toFixed(0) + '% at this sample size)'});
+
+    const mErr = Math.abs(f.pm - d.mean);
+    ck.push({ok: mErr <= Math.max(1.96*d.se, 0.75), k:'Mean',
+      d:'predicted ' + f.pm.toFixed(1) + ' against observed ' + d.mean.toFixed(1) +
+        ' (\u00b1' + (1.96*d.se).toFixed(1) + ')'});
+
+    ck.push({ok: d.min>=f.loA && d.max<=f.hiA, k:'Range',
+      d:'observed ' + d.min + '\u2013' + d.max + ' sits inside the possible ' + f.loA + '\u2013' + f.hiA +
+        (r.outliers ? ' (' + r.outliers + ' stray line' + (r.outliers>1?'s':'') + ' excluded)' : '')});
+
+    ck.push({ok: d.n>=400, k:'Sample size',
+      d: d.n + ' clean rounds' + (d.n>=400 ? '' : ' \u2014 the distribution shape needs about 400 to settle')});
+
+    /* does the spacing track level? test every sibling run automatically */
+    const sib = this.keys().filter(k =>
+      k.spell===this.cfg.spell && k.save===this.cfg.save &&
+      typeof k.slevel==='number' && k.slevel!==lvl);
+    let tested=0, follows=0, fixed=0;
+    for(const k of sib){
+      const arr = this.clean(k.key);
+      if(arr.length < 60) continue;
+      const cc = this.comb(arr);
+      if(!cc) continue;
+      tested++;
+      const expL = lvl ? k.slevel*(c.p/lvl) : -1;
+      if(expL>0 && Math.abs(cc.p - expL) <= Math.max(1, expL*0.03)) follows++;
+      else if(Math.abs(cc.p - c.p) <= 1) fixed++;
+    }
+    const isLvl = lvl && c.p === lvl;
+    if(tested && follows === tested)
+      ck.push({ok:true, k:'Tracks level',
+        d:'the tooth spacing follows the spell level in ' + tested + ' other run' + (tested>1?'s':'') +
+          ' \u2014 the multiplier really is ' + (c.p===lvl?'level':'level\u00d7' + fmtNum(c.p/lvl))});
+    else if(tested && fixed === tested)
+      ck.push({ok:true, k:'Fixed multiplier',
+        d:'the tooth spacing stayed at ' + c.p + ' across ' + tested + ' other run' + (tested>1?'s':'') +
+          ' at different levels \u2014 the \u00d7' + c.p + ' is a hard-coded number, not level'});
+    else if(tested)
+      ck.push({ok:false, k:'Spacing inconsistent',
+        d:'other runs show tooth spacings that neither follow level nor stay fixed \u2014 ' +
+          'the form may be more complicated, or those runs are too thin'});
+    else if(isLvl)
+      ck.push({ok:false, k:'Level link unconfirmed',
+        d:'the \u00d7' + c.p + ' equals your spell level, but from one level a fixed \u00d7' + c.p +
+          ' and \u00d7level are identical \u2014 collect 60+ rounds at a second level; ' +
+          'if the spacing follows, it is \u00d7level'});
+    else
+      ck.push({ok:false, k:'Multiplier origin unknown',
+        d:'\u00d7' + c.p + ' does not match your spell level \u2014 collect a second level to see ' +
+          'whether it moves with level or stays fixed'});
+
+    const rival = r.fits[1];
+    const gap = rival ? f.score - rival.score : Infinity;
+    if(rival){
+      ck.push({ok: gap>=3, k: gap>=3 ? 'Clear winner' : 'No clear winner',
+        d: gap>=3
+          ? 'leads the runner-up by ' + gap.toFixed(1) + ' nats and holds ' +
+            (f.post*100).toFixed(0) + '% of the posterior'
+          : 'the runner-up is only ' + gap.toFixed(1) + ' nats behind (posterior ' +
+            (f.post*100).toFixed(0) + '% vs ' + (rival.post*100).toFixed(0) +
+            '%) \u2014 more rounds will separate them'});
+    }
+
+    const mStr = isLvl ? 'level' : (tested && follows===tested && lvl ? fmtNum(c.p/lvl) + ' * level' : String(c.p));
+    let s = 'dice(' + f.Nb + ', ' + f.Sb + ') * ' + mStr;
+    if(!f.sm.const)
+      s += ' + dice(' + f.sm.N + ', ' + ((lvl && f.sm.S===lvl) ? 'level' : f.sm.S) + ')';
+    if(f.C) s += (f.C>0 ? ' + ' : ' - ') + Math.abs(f.C);
+
+    const bad = ck.filter(x=>!x.ok).length;
+    const state = bad===0 ? 'solved' : bad===1 ? 'likely' : 'open';
+    const lvSet = new Set(this.keys()
+      .filter(k=>k.spell===this.cfg.spell && k.save===this.cfg.save && typeof k.slevel==='number')
+      .map(k=>k.slevel));
+    return {state, formula:s, checks:ck, f, d, kind:'prod', comb:c,
+            levels: lvSet.size, lt:null, step:1, pooled:null,
+            multiUsed:0, multiDropped:0, outliers:r.outliers, blocked:null,
+            rival: gap<3 ? rival : null};
+  },
+
   /* offset: subtract a known level term from every sample before fitting,
      so what is left is the dice and the true constant. Detects a ×g step,
      divides it out, and folds it back into the reported formula. */
@@ -813,6 +1053,16 @@ const LAB = {
     offset = offset || 0;
     const raw = this.clean(k);
     if(!raw.length) return null;
+    /* product forms first: if the support is a comb, level-term subtraction
+       and pooling don't apply (the level lives inside the multiplier) */
+    const cb = this.comb(raw);
+    if(cb){
+      const pr = this.fitProduct(cb, undefined);
+      if(pr && pr.fits.length){
+        pr.step = 1; pr.rawd = this.describe(cb.vals); pr.multiUsed = 0;
+        return pr;
+      }
+    }
     const shifted = offset ? raw.map(v=>v-offset) : raw;
     const tr = this.trim(shifted);
     const d0 = this.describe(tr.kept);
@@ -883,6 +1133,13 @@ const LAB = {
      Every check has to be something that would actually be wrong if the
      formula were wrong — a matching mean proves little on its own. */
   solve(){
+    /* comb first: on a product form, levelTerm/pool would chase artifacts */
+    const cbRaw = this.comb(this.clean());
+    if(cbRaw){
+      const pr = this.fitProduct(cbRaw, undefined);
+      if(pr && pr.fits.length && pr.fits[0].kind === 'prod')
+        return this.solveProd(pr);
+    }
     const lt  = this.levelTerm();
     const pl  = this.pool();
     const usePool = pl && pl.vals;
@@ -1220,6 +1477,14 @@ const UI = {
 
   /* one display string for a candidate, in actual (un-divided) units */
   formStr(f, g){
+    if(f.kind === 'prod'){
+      const L = LAB.cfg.slevel;
+      const m = (L && f.p===L) ? 'L' : f.p;
+      let s = f.Nb + 'd' + f.Sb + '\u00d7' + m;
+      if(!f.sm.const) s += '+' + f.sm.N + 'd' + ((L && f.sm.S===L) ? 'L' : f.sm.S);
+      if(f.C) s += (f.C>0?'+':'\u2212') + Math.abs(f.C);
+      return s;
+    }
     if(g > 1){
       return g + '\u00d7(' + f.N + 'd' + f.S + ')' +
              (f.C ? (f.C>0?'+':'\u2212') + Math.abs(f.C) : '');
@@ -1295,7 +1560,8 @@ const UI = {
     /* var/mean = (S-1)/6 pins the die exactly — but ONLY on damage with the
        level term already taken out, and only when no ×g multiplier is
        distorting the ratio. */
-    const base = sol && sol.step===1 ? sol.d : (lt && !this.adj ? null : (g===1 ? r.d : null));
+    const base = (sol && sol.kind==='prod') || r.comb ? null
+               : sol && sol.step===1 ? sol.d : (lt && !this.adj ? null : (g===1 ? r.d : null));
     if(base && base.mean > 0){
       const impS = 6*base.var/base.mean + 1;
       const rS   = Math.round(impS);
@@ -1362,7 +1628,17 @@ const UI = {
     /* --- fits --- */
     h += '<div class="sec">Candidate formulas</div>';
 
-    if(lt){
+    if(r.comb){
+      h += '<div class="note-box good"><b>Comb pattern: values cluster every ' + r.comb.p +
+        ' damage</b> (phase concentration ' + (r.comb.conc*100).toFixed(0) + '%). ' +
+        'That can only come from a big die times ' + r.comb.p +
+        (LAB.cfg.slevel && r.comb.p===LAB.cfg.slevel ? ' \u2014 which is your spell level' : '') +
+        '. The big die was fitted from which tooth each value lands on, the small dice from the ' +
+        'spread inside a tooth, and the composites below race the plain dice(N,S)+B family ' +
+        'on the same likelihood scale. Level-term subtraction and cross-level pooling are off: ' +
+        'on this form the level lives inside the multiplier.</div>';
+    }
+    if(lt && !r.comb){
       h += '<div class="note-box ' + (this.adj?'good':'warn') + '">' +
         '<b>Level term detected: ' + fmtK(lt.K) + ' \u00d7 level</b> across ' + lt.pts +
         ' spell levels (R\u00b2 ' + lt.r2.toFixed(3) + '). At level ' + LAB.cfg.slevel +
@@ -1387,7 +1663,7 @@ const UI = {
       const top = r.fits[0];
       r.fits.slice(0,8).forEach((f,i)=>{
         let ntag = '';
-        if(L){
+        if(L && f.kind !== 'prod'){
           if(f.N === L)                        ntag = 'N = spell level';
           else if(f.N === Math.floor(L/2))     ntag = 'N = level/2';
           else if(f.N === Math.floor(L/3))     ntag = 'N = level/3';
@@ -1637,6 +1913,10 @@ const UI = {
           (rg.agree ? 'Those agree, so read it as dice(' + rg.N + ', level).'
                     : 'Those disagree &mdash; there may be a second level term as well. Collect more levels.') +
           '</div>';
+        h += '<div class="note-box">A product form <b>dice(N,S) * level</b> grows variance with ' +
+          'level\u00b2 in exactly the same way. The two are told apart by the support map on the ' +
+          'Analysis card: a product form is a comb (clusters with hollow space between), ' +
+          'dice(N, level) fills its whole range. The Analysis card checks this automatically.</div>';
       }
     }
 
