@@ -1,1 +1,2227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title></title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+:root{
+  --void:#05070a;
+  --slab:#0b1015;
+  --edge:#1b242c;
+  --edge-hi:#2e3d47;
+  --p-green:#33ff88;
+  --p-green-dim:#1a7a44;
+  --p-amber:#ffb642;
+  --p-rust:#ff5f56;
+  --ash:#64757e;
+  --chalk:#c8d6dc;
+  --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--void);color:var(--chalk);
+  font-family:var(--mono);font-size:14px;
+  display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;
+}
 
+/* ---------- gate ---------- */
+#gate{position:fixed;inset:0;background:var(--void);z-index:999;
+  display:flex;align-items:center;justify-content:center}
+.gate-box{border:1px solid var(--edge);background:var(--slab);padding:26px 26px;min-width:230px}
+.gate-in{width:100%;padding:11px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:17px;letter-spacing:.4em;text-align:center;outline:none}
+.gate-in:focus{border-color:var(--p-green-dim)}
+.gate-in.bad{border-color:var(--p-rust);animation:nudge .3s}
+@keyframes nudge{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* ---------- top strip ---------- */
+#top{display:flex;align-items:center;gap:14px;padding:8px 12px;
+  border-bottom:1px solid var(--edge);flex-shrink:0;background:var(--slab)}
+.brand{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:var(--ash);white-space:nowrap}
+.brand b{color:var(--p-green);font-weight:600}
+.stat-strip{display:flex;gap:16px;margin-left:auto;align-items:center;font-size:11px;flex-wrap:wrap}
+.stat-cell{display:flex;gap:6px;align-items:baseline}
+.stat-cell .k{color:var(--ash);text-transform:uppercase;letter-spacing:.1em;font-size:9px}
+.stat-cell .v{color:var(--chalk);font-variant-numeric:tabular-nums}
+.led{width:7px;height:7px;border-radius:50%;background:var(--edge-hi);flex-shrink:0}
+.led.on{background:var(--p-green);box-shadow:0 0 7px var(--p-green)}
+.led.warn{background:var(--p-amber);box-shadow:0 0 7px var(--p-amber)}
+.led.err{background:var(--p-rust);box-shadow:0 0 7px var(--p-rust)}
+
+#main{flex:1 1 auto;display:flex;min-height:0}
+
+/* ---------- terminal ---------- */
+#termwrap{flex:1 1 auto;min-width:0;position:relative;padding:6px 0 0 8px}
+#term{position:absolute;inset:6px 0 0 8px}
+
+/* ---------- lab ---------- */
+#lab{display:flex;flex-direction:column;min-height:0;background:var(--slab)}
+
+#tabs{display:flex;border-bottom:1px solid var(--edge);flex-shrink:0}
+.tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--ash);font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;padding:10px 4px;cursor:pointer;outline:none}
+.tab:hover{color:var(--chalk)}
+.tab.on{color:var(--p-green);border-bottom-color:var(--p-green)}
+.tab:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:-2px}
+
+#panes{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
+.col{display:flex;flex-direction:column;min-width:0}
+.card{padding:14px}
+.card + .card{border-top:1px solid var(--edge)}
+
+/* card headers only appear when everything is on screen at once */
+.card-head{display:none;font-size:9px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--p-green-dim);margin-bottom:13px;align-items:center;gap:9px}
+.card-head::after{content:"";flex:1;height:1px;background:var(--edge)}
+
+/* ---------- forms ---------- */
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ash);margin-bottom:4px}
+.fld input{width:100%;padding:7px 9px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:13px;outline:none}
+.fld input:focus{border-color:var(--p-green-dim)}
+.fld .hint{font-size:10px;color:var(--ash);margin-top:4px;line-height:1.5}
+.row{display:flex;gap:10px}
+.row .fld{flex:1}
+
+.btn{background:var(--void);border:1px solid var(--edge-hi);color:var(--ash);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 13px;cursor:pointer;outline:none;white-space:nowrap}
+.btn:hover{color:var(--chalk);border-color:var(--ash)}
+.btn:focus-visible{outline:1px solid var(--p-green-dim);outline-offset:1px}
+.btn.go{color:var(--p-green);border-color:var(--p-green-dim)}
+.btn.go:hover{background:var(--p-green-dim);color:var(--void)}
+.btn.stop{color:var(--p-amber);border-color:var(--p-amber)}
+.btn.danger{color:var(--p-rust);border-color:var(--p-rust)}
+.btn.sm{padding:6px 9px;font-size:10px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+.sec{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--p-green-dim);
+  border-bottom:1px solid var(--edge);padding-bottom:5px;margin:20px 0 12px}
+.sec:first-child{margin-top:0}
+
+/* ---------- live feed ---------- */
+#feed{font-size:12px;line-height:1.75;overflow-y:auto}
+.ev{display:flex;gap:9px;padding:3px 5px;border-left:2px solid transparent;
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.ev.clean{border-left-color:var(--p-green);color:var(--chalk)}
+.ev.flag{border-left-color:var(--p-amber);color:var(--p-amber)}
+.ev.tick{border-left-color:var(--p-rust);color:var(--ash)}
+.ev .dmg{color:var(--p-green);min-width:52px;font-weight:600}
+.ev.flag .dmg{color:var(--p-amber)}
+.ev.tick .dmg{color:var(--ash)}
+.ev .seq{color:var(--ash);min-width:74px}
+.ev .note{color:var(--ash);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+@keyframes persist{from{background:rgba(51,255,136,.22)}to{background:transparent}}
+.ev.fresh{animation:persist 1.1s ease-out}
+@media (prefers-reduced-motion:reduce){.ev.fresh{animation:none}}
+
+/* ---------- readouts ---------- */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--edge);
+  border:1px solid var(--edge);margin-bottom:14px}
+.cell{background:var(--slab);padding:10px 9px;min-width:0}
+.cell .k{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash);display:block;margin-bottom:3px}
+.cell .v{font-size:17px;color:var(--p-green);font-variant-numeric:tabular-nums}
+.cell .v.sm{font-size:13px;color:var(--chalk)}
+
+/* ---------- verdict ---------- */
+.verdict{border:1px solid var(--edge);background:var(--void);padding:15px;margin-bottom:16px}
+.verdict.solved{border-color:var(--p-green);box-shadow:inset 0 0 0 1px rgba(51,255,136,.18)}
+.verdict.likely{border-color:var(--p-amber)}
+.verdict.open{border-color:var(--edge-hi)}
+.v-state{font-size:9px;letter-spacing:.34em;text-transform:uppercase;margin-bottom:11px;display:flex;
+  align-items:center;gap:8px}
+.verdict.solved .v-state{color:var(--p-green)}
+.verdict.likely .v-state{color:var(--p-amber)}
+.verdict.open   .v-state{color:var(--ash)}
+.v-formula{font-size:20px;line-height:1.35;color:var(--p-green);font-weight:600;
+  word-break:break-word;margin-bottom:4px}
+.verdict.open .v-formula{color:var(--chalk);opacity:.75}
+.v-sub{font-size:10px;color:var(--ash);margin-bottom:13px}
+.v-ck{display:flex;gap:9px;padding:5px 0;font-size:11px;line-height:1.55;
+  border-top:1px solid var(--edge);align-items:baseline}
+.v-mark{flex:0 0 12px;font-weight:600}
+.v-ck.y .v-mark{color:var(--p-green)}
+.v-ck.n .v-mark{color:var(--p-amber)}
+.v-ck b{color:var(--chalk);font-weight:600;flex:0 0 auto}
+.v-ck span{color:var(--ash)}
+.v-copy{margin-top:12px}
+
+/* ---------- support map ---------- */
+.map-wrap{border:1px solid var(--edge);padding:11px;margin-bottom:14px;background:var(--void)}
+.map-head{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ash);margin-bottom:9px;gap:10px}
+#map{display:flex;gap:1px;align-items:flex-end;height:78px}
+.mcol{flex:1 1 0;min-width:2px;background:var(--p-green-dim)}
+.mcol.hot{background:var(--p-green)}
+.mcol.void{background:var(--edge);height:2px!important}
+.map-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--ash);
+  margin-top:6px;font-variant-numeric:tabular-nums}
+
+/* ---------- notes ---------- */
+.note-box{border-left:2px solid var(--edge-hi);padding:8px 11px;margin:11px 0;
+  font-size:11px;line-height:1.65;color:var(--ash)}
+.note-box.good{border-left-color:var(--p-green);color:var(--chalk)}
+.note-box.warn{border-left-color:var(--p-amber);color:var(--p-amber)}
+.note-box.bad{border-left-color:var(--p-rust);color:var(--p-rust)}
+.note-box b{color:var(--chalk);font-weight:600}
+
+/* ---------- fits ---------- */
+.fit{display:flex;align-items:baseline;gap:11px;padding:8px 10px;
+  border:1px solid var(--edge);margin-bottom:6px;background:var(--void)}
+.fit:first-of-type{border-color:var(--p-green-dim)}
+.fit .rank{font-size:9px;color:var(--ash);min-width:16px}
+.fit .form{font-size:16px;color:var(--p-green);font-weight:600;min-width:106px}
+.fit .meta{font-size:10px;color:var(--ash);font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-size:8px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ash);font-weight:400;padding:6px 7px;border-bottom:1px solid var(--edge)}
+td{padding:6px 7px;border-bottom:1px solid var(--edge);color:var(--chalk)}
+tr.here td{color:var(--p-green)}
+
+.empty{color:var(--ash);font-size:11px;line-height:1.7;padding:22px 4px}
+.empty b{color:var(--chalk);display:block;margin-bottom:6px;font-weight:600}
+
+/* ---------- command bar ---------- */
+#bar{display:flex;gap:6px;padding:8px;border-top:1px solid var(--edge);
+  flex-shrink:0;align-items:flex-end;background:var(--slab)}
+#cmd{flex:1;min-width:0;padding:10px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:15px;line-height:1.3;
+  outline:none;resize:none;max-height:140px;overflow-y:auto}
+#cmd:focus{border-color:var(--p-green-dim)}
+#cmd::selection{background:var(--p-green);color:var(--void)}
+.ic{background:var(--void);border:1px solid var(--edge-hi);color:var(--ash);
+  font-family:var(--mono);font-size:15px;padding:9px 12px;cursor:pointer;outline:none}
+.ic:hover{color:var(--chalk);border-color:var(--ash)}
+.ic.armed{color:var(--p-rust);border-color:var(--p-rust)}
+
+/*==================================================================
+  MOBILE (default): lab is an overlay driven by tabs
+==================================================================*/
+#lab{position:absolute;inset:0;z-index:5;display:none}
+#lab.show{display:flex}
+#main{position:relative}
+.card{display:none}
+.card.on{display:block}
+.card + .card{border-top:none}
+
+/*==================================================================
+  DESKTOP: everything visible at once, no tabs, terminal steps back
+==================================================================*/
+@media(min-width:900px){
+  #swap{display:none}
+  #tabs{display:none}
+  #lab{position:static;display:flex;flex:0 0 62%;border-left:1px solid var(--edge)}
+  #termwrap{flex:1 1 38%;max-width:460px}
+  .card{display:block}
+  .card-head{display:flex}
+  .card + .card{border-top:1px solid var(--edge)}
+  #feed{max-height:300px}
+}
+
+/* two lab columns once there is room for them */
+@media(min-width:1180px){
+  #panes{flex-direction:row;overflow:hidden}
+  .col{flex:1 1 0;overflow-y:auto}
+  .col + .col{border-left:1px solid var(--edge)}
+  #feed{max-height:none;flex:1 1 auto}
+  .col.a{display:flex;flex-direction:column}
+  .col.a .card.livecard{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+}
+
+@media(min-width:1500px){
+  #termwrap{flex:0 0 30%;max-width:520px}
+  #lab{flex:1 1 auto}
+}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-box">
+    <input type="password" id="pw" class="gate-in" autofocus autocomplete="off" />
+  </div>
+</div>
+
+<div id="top">
+  <div class="brand"><b>DMG</b> LAB</div>
+  <div class="stat-strip">
+    <div class="stat-cell"><span class="led" id="led-net"></span><span class="v" id="net">offline</span></div>
+    <div class="stat-cell"><span class="k">run</span><span class="v" id="hud-run">&mdash;</span></div>
+    <div class="stat-cell"><span class="k">clean</span><span class="v" id="hud-n">0</span></div>
+    <div class="stat-cell"><span class="k">mean</span><span class="v" id="hud-mean">&mdash;</span></div>
+    <div class="stat-cell"><span class="led" id="led-rec"></span><span class="v" id="rec">idle</span></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="termwrap"><div id="term"></div></div>
+
+  <div id="lab">
+    <div id="tabs">
+      <button class="tab on" data-p="setup">Setup</button>
+      <button class="tab" data-p="live">Live</button>
+      <button class="tab" data-p="analyze">Analyze</button>
+      <button class="tab" data-p="runs">Runs</button>
+      <button class="tab" data-p="data">Data</button>
+    </div>
+
+    <div id="panes">
+      <div class="col a">
+
+        <div class="card on" data-p="setup">
+          <div class="card-head">Setup</div>
+          <div class="row">
+            <div class="fld"><label>Max HP</label><input id="c-max" value="2840" /></div>
+            <div class="fld"><label>Spell lvl</label><input id="c-lvl" value="98" /></div>
+            <div class="fld"><label>Save</label><input id="c-sav" value="0" /></div>
+          </div>
+          <div class="row">
+            <div class="fld"><label>Spell</label><input id="c-spell" value="detonate" /></div>
+          </div>
+          <div class="fld"><label>Damage line</label><input id="c-dmg" value="detonates your liver" />
+            <div class="hint">Regex. A distinctive fragment beats the whole line &mdash; avoid the mob's name.</div></div>
+          <div class="fld"><label>Heal line</label><input id="c-heal" value="You feel totally healed from all ailments" /></div>
+          <div class="fld"><label>Prompt</label><input id="c-prompt" value="(\d+)Hp\s+(\d+)Ma\s+(\d+)Mv" />
+            <div class="hint">Three capture groups: hp, mana, moves.</div></div>
+          <div class="fld"><label>Anti-idle</label><input id="c-idle" value="look" />
+            <div class="hint">Sent every 30s while collecting so the MUD doesn't idle you out.
+              Pick something with no output you'd mistake for a damage or heal line.</div></div>
+          <div class="btnrow">
+            <button class="btn go" id="go">Start collecting</button>
+            <button class="btn stop" id="halt">Stop</button>
+            <button class="btn sm" id="grab">Max = current HP</button>
+          </div>
+          <div class="note-box">Prog is two lines: <b>mpcast 61 $n</b> then <b>mpcast 88 $n</b>.
+            Drop the <b>$i</b> self-heal, zero the mob's damnodice, strip your gear, and don't swing back.
+            <br><br>Spell level comes from the prog &mdash; with no argument it inherits the mob's level.
+            Change it there, reload the mob, then update the field above <b>before</b> collecting again.
+            <br><br><b>Burn a little mana or moves before you start.</b> Regen ticks are detected by
+            mana/moves rising &mdash; at full ma/mv they are invisible and quietly contaminate rounds.</div>
+        </div>
+
+        <div class="card livecard" data-p="live">
+          <div class="card-head">Rounds</div>
+          <div class="grid">
+            <div class="cell"><span class="k">Clean</span><span class="v" id="l-clean">0</span></div>
+            <div class="cell"><span class="k">Flagged</span><span class="v sm" id="l-flag">0</span></div>
+            <div class="cell"><span class="k">Discarded</span><span class="v sm" id="l-tick">0</span></div>
+          </div>
+          <div id="feed"><div class="empty"><b>No rounds recorded.</b>
+            Set your max HP, start collecting, and stand still while the mob works.</div></div>
+        </div>
+
+      </div>
+
+      <div class="col b">
+
+        <div class="card" data-p="analyze">
+          <div class="card-head">Analysis</div>
+          <div id="an"></div>
+        </div>
+
+        <div class="card" data-p="runs">
+          <div class="card-head">Runs</div>
+          <div id="runs"></div>
+        </div>
+
+        <div class="card" data-p="data">
+          <div class="card-head">Data</div>
+          <div class="btnrow" style="margin-top:0">
+            <button class="btn sm" id="ex-csv">Export CSV</button>
+            <button class="btn sm" id="ex-json">Export JSON</button>
+            <button class="btn sm" id="im">Import</button>
+            <button class="btn sm danger" id="del-run">Delete run</button>
+            <button class="btn sm danger" id="del-all">Delete all</button>
+            <input type="file" id="imf" accept=".json" style="display:none" />
+          </div>
+          <div id="store-note" class="note-box"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bar">
+  <button class="ic" id="swap">&#9776;</button>
+  <textarea id="cmd" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+  <button class="ic" id="rc" title="Reconnect">&#8635;</button>
+  <button class="ic" id="kl" title="End session">&#9211;</button>
+</div>
+
+<script>
+/*===================================================================
+  CONNECTION
+===================================================================*/
+const REG     = "025ac3ddef52e0aaa62896954c6fe57948a7c144cb203610499a912b832fd473";
+const TUNNEL  = "wss://pgp-petersburg-collar-commands.trycloudflare.com";
+const TOKEN   = "3";
+const SEND_DELAY = 120, PING_EVERY = 50000, RETRY_MAX = 15, RETRY_CAP = 30000;
+const PING = new Uint8Array([255,241]);
+
+/* The telnet ping keeps the socket alive but the MUD still counts you idle,
+   so while collecting we send a real command on a timer. */
+const IDLE_CMD = 'look', IDLE_EVERY = 30000;
+let idleTimer = null;
+
+function idleOn(){
+  idleOff();
+  idleTimer = setInterval(()=>{
+    if(!LAB.active) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(new TextEncoder().encode(LAB.cfg.idleCmd + '\r\n'));
+    term.writeln('\x1b[90m> ' + LAB.cfg.idleCmd + ' (keepalive)\x1b[0m');
+  }, IDLE_EVERY);
+}
+function idleOff(){ if(idleTimer){ clearInterval(idleTimer); idleTimer = null; } }
+
+let term, fit, ws = null, tries = 0, retryTimer = null, sending = false;
+let hist = [], hi = -1, draft = "";
+
+const $ = id => document.getElementById(id);
+
+async function verify(v){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
+  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('') === REG;
+}
+
+$('pw').addEventListener('keypress', async e => {
+  if(e.key !== 'Enter') return;
+  if(await verify($('pw').value)){ $('gate').style.display='none'; boot(); }
+  else { $('pw').value=''; $('pw').classList.add('bad'); setTimeout(()=>$('pw').classList.remove('bad'),400); }
+});
+
+function net(state, txt){
+  const led = $('led-net');
+  led.className = 'led' + (state==='on'?' on':state==='warn'?' warn':state==='err'?' err':'');
+  $('net').textContent = txt;
+}
+
+function connect(){
+  if(retryTimer){ clearTimeout(retryTimer); retryTimer=null; }
+  if(ws){ ws.onmessage=ws.onclose=ws.onerror=ws.onopen=null; try{ws.close()}catch(e){} }
+  net('warn','opening');
+  term.writeln('\x1b[90m--- opening ' + TOKEN + ' ---\x1b[0m');
+  ws = new WebSocket(TUNNEL + '/?token=' + encodeURIComponent(TOKEN));
+  ws.onopen = () => { tries=0; net('on','online'); term.writeln('\x1b[90m--- open ---\x1b[0m'); };
+  ws.onmessage = async e => {
+    const txt = e.data instanceof Blob ? await e.data.text() : e.data;
+    term.write(txt);
+    LAB.feed(txt);
+  };
+  ws.onclose = e => {
+    ws = null;
+    term.writeln('\x1b[31m--- closed code=' + e.code + ' ---\x1b[0m');
+    if(tries < RETRY_MAX){
+      const wait = Math.min(2000 * Math.pow(2, tries), RETRY_CAP);
+      tries++;
+      net('err','retry ' + tries);
+      term.writeln('\x1b[33m--- retry ' + tries + '/' + RETRY_MAX + ' in ' + Math.round(wait/1000) + 's ---\x1b[0m');
+      retryTimer = setTimeout(connect, wait);
+    } else { net('err','dropped'); term.writeln('\x1b[31m--- gave up ---\x1b[0m'); }
+  };
+  ws.onerror = () => {};
+}
+
+async function sendBlock(text){
+  if(sending) return;
+  const lines = text === '' ? [''] : text.split(/\r?\n/);
+  sending = true;
+  for(let i=0;i<lines.length;i++){
+    term.writeln('\x1b[36m> ' + lines[i] + '\x1b[0m');
+    if(ws && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(lines[i] + '\r\n'));
+    if(i < lines.length-1) await new Promise(r=>setTimeout(r, SEND_DELAY));
+  }
+  sending = false;
+}
+
+/*===================================================================
+  DAMAGE LAB ENGINE
+===================================================================*/
+function fmtNum(v){
+  if(Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+  return String(Math.round(v*1000)/1000);
+}
+
+const LAB = {
+  cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate', idleCmd:'look',
+         dmg:'detonates your liver',
+         heal:'You feel totally healed from all ailments',
+         prompt:'(\\d+)Hp\\s+(\\d+)Ma\\s+(\\d+)Mv' },
+  re: {},
+  samples: [],
+  active: false,
+  buf: '', seq: [], tick: false, fired: false,
+  last: { ma:null, mv:null }, lastHp: null,
+  /* regen visibility: at full mana AND full moves, regen ticks are invisible
+     to the ma/mv heuristic and silently contaminate samples */
+  regenPrompts: 0, regenMoved: 0,
+  DICE: [2,3,4,5,6,8,10,12,14,15,16,18,20,22,24,25,30,32,36,40,48,50,60,64,80,100],
+
+  key(){ return this.cfg.spell + '|SL' + this.cfg.slevel + '|S' + this.cfg.save; },
+
+  compile(){
+    try{
+      this.re.dmg    = new RegExp(this.cfg.dmg, 'i');
+      this.re.heal   = new RegExp(this.cfg.heal, 'i');
+      this.re.prompt = new RegExp(this.cfg.prompt);
+      this.re.tickHint = /^You are (hungry|thirsty)\./i;
+      return true;
+    }catch(e){ return false; }
+  },
+
+  /* ---- stream ---- */
+  strip(s){ return s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g,'').replace(/\x1b[()][B0]/g,''); },
+
+  feed(text){
+    this.buf += text;
+    let i;
+    while((i = this.buf.indexOf('\n')) !== -1){
+      const raw = this.buf.slice(0,i).replace(/\r$/,'');
+      this.buf = this.buf.slice(i+1);
+      const line = this.strip(raw);
+      // this prompt already counted from the residual tail
+      if(this.fired && this.re.prompt && this.re.prompt.test(line)){ this.fired=false; continue; }
+      this.fired = false;
+      this.line(line);
+    }
+    // the prompt arrives with no trailing newline, so inspect the tail
+    if(this.buf && !this.fired && this.re.prompt){
+      const m = this.strip(this.buf).match(this.re.prompt);
+      if(m){ this.fired = true; this.prompt(+m[1], +m[2], +m[3]); }
+    }
+  },
+
+  line(l){
+    if(!l) return;
+    if(this.re.prompt){
+      const m = l.match(this.re.prompt);
+      if(m){ this.prompt(+m[1], +m[2], +m[3]); return; }
+    }
+    if(!this.active) return;
+    if(this.re.tickHint.test(l)){ this.tick = true; return; }
+    if(this.re.dmg.test(l)){ this.seq.push('D'); return; }
+    if(this.re.heal.test(l)){ this.seq.push('H'); return; }
+  },
+
+  prompt(hp, ma, mv){
+    this.lastHp = hp;
+    if(!this.active){ this.last = {ma,mv}; this.seq=[]; this.tick=false; return; }
+
+    // regen visibility bookkeeping: any ma/mv movement at all proves headroom
+    if(this.last.ma !== null){
+      this.regenPrompts++;
+      if(ma !== this.last.ma || mv !== this.last.mv) this.regenMoved++;
+    }
+
+    // regen landed inside the measurement window
+    if(this.last.ma !== null && (ma > this.last.ma || mv > this.last.mv)) this.tick = true;
+    this.last = {ma,mv};
+
+    if(!this.seq.length){ this.tick=false; return; }
+
+    let trailing = 0;
+    for(let i=this.seq.length-1; i>=0 && this.seq[i]==='D'; i--) trailing++;
+
+    /* trailing===0 means the window ended in a heal — the deficit is
+       meaningless, but the round still happened, so record it as a
+       discard rather than silently under-counting. */
+    const s = {
+      key: this.key(), spell:this.cfg.spell, slevel:this.cfg.slevel, save:this.cfg.save,
+      hp, deficit: this.cfg.maxhp - hp, trailing, tick:this.tick,
+      seq: this.seq.join(''), t: Date.now()
+    };
+    s.per = trailing > 0 ? s.deficit / trailing : 0;
+    this.samples.push(s);
+    this.seq = []; this.tick = false;
+    UI.onSample(s);
+    store.save();
+  },
+
+  /* ---- basic stats ---- */
+  clean(k){
+    k = k || this.key();
+    return this.samples.filter(s => s.key===k && s.trailing===1 && !s.tick).map(s=>s.deficit);
+  },
+  counts(k){
+    k = k || this.key();
+    let c=0,f=0,t=0;
+    for(const s of this.samples) if(s.key===k){
+      if(s.tick || s.trailing===0) t++; else if(s.trailing>1) f++; else c++;
+    }
+    return {clean:c, flag:f, tick:t};
+  },
+  describe(a){
+    const n=a.length; if(!n) return null;
+    let sum=0, mn=Infinity, mx=-Infinity;
+    for(const v of a){ sum+=v; if(v<mn)mn=v; if(v>mx)mx=v; }
+    const mean=sum/n;
+    let ss=0; for(const v of a) ss+=(v-mean)**2;
+    const varr = n>1 ? ss/(n-1) : 0;
+    return {n, mean, var:varr, sd:Math.sqrt(varr), min:mn, max:mx,
+            se: n>1 ? Math.sqrt(varr/n) : 0};
+  },
+
+  /* Fence off gross outliers (regex false positives, another mob's hit
+     sneaking into the window). 4×IQR is far outside anything a bounded
+     dice sum can reach, so genuine rolls are never cut. */
+  trim(a){
+    if(a.length < 20) return {kept: a.slice(), out: []};
+    const s = [...a].sort((x,y)=>x-y);
+    const q = p => s[Math.min(s.length-1, Math.max(0, Math.round(p*(s.length-1))))];
+    const q1 = q(0.25), q3 = q(0.75);
+    const iqr = Math.max(q3-q1, 1);
+    const lo = q1 - 4*iqr, hi = q3 + 4*iqr;
+    const kept = [], out = [];
+    for(const v of a) (v < lo || v > hi ? out : kept).push(v);
+    return {kept, out};
+  },
+
+  /* GCD of gaps from the minimum. >1 proves a multiplier or divisor. */
+  step(a){
+    if(a.length < 8) return 1;
+    const mn = Math.min(...a);
+    const gcd = (x,y) => y ? gcd(y, x%y) : x;
+    let g = 0;
+    for(const v of a){ g = gcd(g, v-mn); if(g===1) return 1; }
+    return g || 1;
+  },
+
+  /*=================================================================
+    EXACT LIKELIHOOD MACHINERY
+    The full distribution of NdS is exactly computable, and samples
+    are integers — so candidates are scored by exact log-likelihood
+    instead of matching two moments. This implicitly uses skew and
+    kurtosis (which is what really separates 6d8 from 12d4 from 83d3),
+    turns the range check into graded evidence instead of a veto, and
+    makes the plausibility priors a coherent log-posterior.
+  =================================================================*/
+  _pmfCache: new Map(),
+  /* PMF of the sum of N fair S-sided dice; index i => value N+i.
+     Each die is a uniform convolution = sliding window sum, done with
+     prefix sums, so building NdS is O(N * range) — trivial. */
+  pmf(N, S){
+    const key = N + '|' + S;
+    const hit = this._pmfCache.get(key);
+    if(hit) return hit;
+    let p = new Float64Array(S).fill(1/S);
+    for(let k=2; k<=N; k++){
+      const oldLen = p.length, newLen = oldLen + S - 1;
+      const pre = new Float64Array(oldLen+1);
+      for(let i=0;i<oldLen;i++) pre[i+1] = pre[i] + p[i];
+      const q = new Float64Array(newLen);
+      for(let j=0;j<newLen;j++){
+        const hi2 = Math.min(j+1, oldLen), lo2 = Math.max(0, j-S+1);
+        q[j] = (pre[hi2] - pre[lo2]) / S;
+      }
+      p = q;
+    }
+    if(this._pmfCache.size > 400) this._pmfCache.clear();
+    this._pmfCache.set(key, p);
+    return p;
+  },
+
+  /* Log-likelihood of a value→count histogram under dice(N,S)+B, with a
+     tiny outlier mixture so one stray line costs a few nats instead of
+     eliminating the true formula outright. `multi` optionally carries
+     histograms of k-cast rounds, scored against the k-fold convolution
+     dice(kN,S)+kB — flagged rounds become evidence instead of waste. */
+  logL(hist, N, S, B, multi){
+    const EPS = 1e-3;
+    const p = this.pmf(N, S), len = p.length;
+    let ll = 0;
+    for(const [v, c] of hist){
+      const i = v - B - N;
+      const base = (i >= 0 && i < len) ? p[i] : 0;
+      ll += c * Math.log((1-EPS)*base + EPS/len);
+    }
+    if(multi && multi.hists){
+      for(const [k, h] of multi.hists){
+        const pk = this.pmf(k*N, S), lk = pk.length;
+        for(const [v, c] of h){
+          const i = v - k*B - k*N;
+          const base = (i >= 0 && i < lk) ? pk[i] : 0;
+          ll += c * Math.log((1-EPS)*base + EPS/lk);
+        }
+      }
+    }
+    return ll;
+  },
+
+  /* Multi-cast rounds grouped by cast count, offset removed, gated on the
+     per-cast mean agreeing with the clean mean (if it doesn't, saves or
+     crits are live on stacked casts and they must not enter the fit). */
+  multiHists(refd, filter, offPerCast){
+    const rows = this.samples.filter(s => s.trailing > 1 && s.trailing <= 4 && !s.tick && filter(s));
+    if(!rows.length || !refd) return null;
+    const per = rows.map(s => (s.deficit - s.trailing*offPerCast(s)) / s.trailing);
+    const pd = this.describe(per);
+    if(!pd || Math.abs(pd.mean - refd.mean) > 3*Math.max(refd.se, 1))
+      return {excluded: rows.length};
+    const hists = new Map();
+    for(const s of rows){
+      const k = s.trailing;
+      if(!hists.has(k)) hists.set(k, new Map());
+      const h = hists.get(k);
+      const v = Math.round(s.deficit - k*offPerCast(s));
+      h.set(v, (h.get(v)||0) + 1);
+    }
+    return {hists, n: rows.length};
+  },
+
+  /* How ordinary each die is as something a person typed into a spell file.
+     d4-d12 and d20 are everywhere; d22/d25/d30 turn up; d48 and d64 basically
+     never do, so they must clear a high bar before winning. */
+  RARITY: {2:1.00, 3:1.00, 4:0.20, 5:0.75, 6:0.05, 8:0.00, 10:0.20, 12:0.35,
+           14:1.00, 15:1.00, 16:0.90, 18:1.00, 20:0.45, 22:0.85, 24:0.95, 25:0.85,
+           30:0.75, 32:1.15, 36:1.45, 40:1.35, 48:1.60, 50:0.95, 60:1.55, 64:1.60,
+           80:1.70, 100:1.15},
+
+  /* How plausible a constant is as something a person typed. Negative is a
+     bonus. The classic Diku idiom is dice(N,8)+N, so B==N scores as well as
+     a round hundred. B==level covers the "+level" spells. */
+  bPrior(B, N, lvl, S){
+    if(B === 0)               return -0.40;
+    /* dice(N,8)+N is a stock Diku idiom, but only on the common dice —
+       "B happens to equal N" on a d30 is coincidence, not a signature. */
+    if(B === N && (S===6 || S===8 || S===10)) return -0.36;
+    if(lvl && B === lvl)      return -0.38;
+    if(lvl && B === 2*lvl)    return -0.28;
+    if(lvl && B % lvl === 0)  return -0.22;
+    if(B % 100 === 0)         return -0.34;
+    if(B % 50  === 0)         return -0.26;
+    if(B % 25  === 0)         return -0.20;
+    if(B % 10  === 0)         return -0.17;
+    if(B % 5   === 0)         return -0.09;
+    return 0;
+  },
+
+  /* Prior weights, in nats, applied on top of the exact log-likelihood.
+     Tuned by simulation against a battery of realistic Diku formulas:
+     these values pick the true formula ~77% of the time at 600 samples
+     (vs 63% unweighted), without steamrolling awkward constants. */
+  W_RARITY: 1.5, W_N: 0.02, W_B: 4.0,
+
+  /*----------------------------------------------------------------
+    fitCore: moment matching as a cheap PRE-SCREEN, exact likelihood
+    as the SCORE. opts:
+      mult / rem : a detected ×g step has been divided out; the constant
+                   the person typed is C = g*B + rem, and priors and
+                   display use C, not B.
+      multi      : multi-cast histograms from multiHists().
+      outliers   : count trimmed upstream (informational).
+  ----------------------------------------------------------------*/
+  fitCore(a, lvlOverride, opts){
+    opts = opts || {};
+    if(!a || !a.length) return null;
+    const tr = this.trim(a);
+    const kept = tr.kept;
+    const d = this.describe(kept);
+    if(!d) return null;
+
+    const hist = new Map();
+    for(const v of kept){ const k = Math.round(v); hist.set(k, (hist.get(k)||0)+1); }
+
+    const mult = opts.mult || 1, rem = opts.rem || 0;
+    const lvl  = lvlOverride !== undefined ? lvlOverride : (this.cfg.slevel || 0);
+
+    /* pre-screen tolerances — deliberately looser than before, because the
+       likelihood does the real discrimination now */
+    const mTol = Math.max(3*d.se, 1.0);
+    const vRel = d.n>2 ? Math.max(3*Math.sqrt(2/(d.n-1)), .25) : 1;
+
+    /* Ordinary dice first; derived sizes only when no stock die can match
+       the variance with a plausible constant. (The old gate here compared
+       the mean against d.mean+400, which was always true — fixed to bound
+       the implied constant instead.) */
+    let SIZES = this.DICE;
+    if(d.var > 0){
+      let bestZ = Infinity;
+      for(let N=1;N<=60;N++) for(const S of this.DICE){
+        const pv = N*(S*S-1)/12;
+        const impliedB = d.mean - N*(S+1)/2;
+        if(Math.abs(impliedB) > Math.max(400, d.mean)) continue;
+        const z = Math.abs(pv-d.var)/Math.max(d.var,1);
+        if(z < bestZ) bestZ = z;
+      }
+      if(bestZ > 0.05){
+        const sizes = new Set(this.DICE);
+        for(let N=1;N<=60;N++){
+          const s = Math.sqrt(12*d.var/N + 1);
+          for(const c of [Math.floor(s), Math.ceil(s)]) if(c>=2 && c<=120) sizes.add(c);
+        }
+        SIZES = [...sizes].sort((a,b)=>a-b);
+      }
+    }
+
+    const out = [];
+    for(let N=1;N<=60;N++) for(const S of SIZES){
+      const pv = N*(S*S-1)/12;
+      const vOK = pv>0 && Math.abs(pv-d.var) <= vRel*Math.max(d.var,pv);
+      if(!vOK) continue;
+
+      /* B is not one number: every constant inside the mean tolerance is
+         admissible. The likelihood picks among them (alignment of the whole
+         distribution), the prior breaks near-ties. No hard range veto —
+         impossible observed values cost likelihood via the outlier mixture,
+         so one stray line no longer eliminates the true formula. */
+      const centre = d.mean - N*(S+1)/2;
+      const loB = Math.ceil(centre - mTol), hiB = Math.floor(centre + mTol);
+      let best = null;
+      for(let B=loB; B<=hiB; B++){
+        const pm = N*(S+1)/2 + B;
+        if(Math.abs(pm-d.mean) > mTol) continue;
+        const C = mult*B + rem;   // the constant as the coder wrote it
+        const bp = this.bPrior(C, N, lvl, S);
+        const prior = -( this.W_RARITY*(this.RARITY[S] ?? 1.9) + this.W_N*N + this.W_B*bp );
+        const ll = this.logL(hist, N, S, B, mult===1 ? opts.multi : null);
+        const score = ll + prior;
+        if(!best || score > best.score)
+          best = {N,S,B,C, pm, pv, ll, prior, score, round: bp < 0,
+                  pmA: mult*pm + rem, pvA: mult*mult*pv,
+                  loA: mult*(N+B) + rem, hiA: mult*(N*S+B) + rem};
+      }
+      if(best) out.push(best);
+    }
+
+    /* THE UNIFORM FAMILY: number(A, B) — CircleMUD's other RNG idiom.
+       One flat draw over a wide range is invisible to the dice loop above
+       (a d4800 is outside any sane dice table), but it is just dice(1, S)
+       with a huge S, so it goes through the exact same logL machinery.
+       Only offered when the span exceeds the dice family's universe, so
+       the two families never duplicate. Endpoint candidates are the
+       observed min/max (the flat-likelihood MLE) plus every round or
+       level-related value just outside them — widening the range costs
+       n·log(S'/S) nats of likelihood, and the endpoint prior can pay for
+       it exactly when the round endpoints are the truth sitting just past
+       what you have sampled so far. */
+    if(mult === 1){
+      const S0 = d.max - d.min + 1;
+      if(S0 >= 131 && d.var >= 0.5*(S0*S0)/12){
+        const win = Math.max(10, Math.ceil(S0*0.04));
+        const As = new Set([Math.round(d.min)]), Bs = new Set([Math.round(d.max)]);
+        for(const m of [5,10,25,50,100,500,1000]){
+          const a = Math.floor(d.min/m)*m; if(a >= d.min - win) As.add(a);
+          const b = Math.ceil(d.max/m)*m;  if(b <= d.max + win) Bs.add(b);
+        }
+        if(lvl){
+          const a = Math.floor(d.min/lvl)*lvl; if(a >= d.min - win) As.add(a);
+          const b = Math.ceil(d.max/lvl)*lvl;  if(b <= d.max + win) Bs.add(b);
+          for(const t of [lvl*lvl, Math.round(lvl*lvl/2)]){
+            if(t >= d.min - win && t <= d.min) As.add(t);
+            if(t >= d.max && t <= d.max + win) Bs.add(t);
+          }
+        }
+        if(d.min - 1 <= win) As.add(1);
+        const up = e => {
+          if(lvl){
+            if(e === lvl*lvl)                  return -0.50;
+            if(2*e === lvl*lvl)                return -0.45;
+            if(e % lvl === 0 && e/lvl <= 150)  return -0.40;
+          }
+          if(e === 1)        return -0.40;
+          if(e % 100 === 0)  return -0.30;
+          if(e % 50 === 0)   return -0.25;
+          if(e % 25 === 0)   return -0.18;
+          if(e % 10 === 0)   return -0.12;
+          if(e % 5 === 0)    return -0.06;
+          return 0;
+        };
+        for(const A of As) for(const B of Bs){
+          const S = B - A + 1;
+          if(S < 131) continue;
+          const struct = (B === 2*A || B === 2*A - 1 || B === 2*A + 1) ? -0.35 : 0;
+          const prior = -(0.4 + this.W_B*(up(A) + up(B) + struct));
+          const ll = this.logL(hist, 1, S, A-1, opts.multi);
+          out.push({kind:'unif', A, Bhi:B, N:1, S, B:A-1, C:A-1,
+                    pm:(A+B)/2, pv:(S*S-1)/12, pmA:(A+B)/2, pvA:(S*S-1)/12,
+                    loA:A, hiA:B, ll, prior, score: ll+prior,
+                    round: up(A) < 0 || up(B) < 0});
+        }
+      }
+    }
+
+    out.sort((x,y)=>y.score-x.score);
+
+    /* normalized posterior across every admissible candidate — an honest
+       statement of how settled the ranking is */
+    if(out.length){
+      const mx = out[0].score;
+      let Z = 0;
+      for(const f of out) Z += Math.exp(f.score - mx);
+      for(const f of out) f.post = Math.exp(f.score - mx)/Z;
+    }
+    return {d, fits:out, mTol, vRel, total:out.length,
+            outliers:(opts.outliers||0) + tr.out.length, hist, mult, rem};
+  },
+
+  /*=================================================================
+    PRODUCT FORMS:  dice(Nb,Sb) * M  +  small dice  +  C
+    A big die times a multiplier makes the support a COMB: clusters
+    every M damage with dead space between. No dice(N,S)+B can make
+    gaps, so the moment screen returns nothing — the comb has to be
+    found first, then the two halves fitted separately.
+  =================================================================*/
+
+  /* Find the tooth spacing with a circular concentration (Rayleigh)
+     test: at the true period, all values land at the same phase.
+     Smooth dice data caps out around R≈0.10 under the span/2 limit,
+     a real comb scores 0.7+, so the 0.45 bar has a wide moat on both
+     sides. Then decompose, and demand real hollows between teeth —
+     that is what separates a comb from any smooth distribution. */
+  comb(raw){
+    if(!raw || raw.length < 60) return null;
+    const tr = this.trim(raw);
+    const a = tr.kept.map(v=>Math.round(v));
+    const d = this.describe(a);
+    if(!d) return null;
+    const span = d.max - d.min;
+    if(span < 24) return null;
+    const pMax = Math.floor(span/2.05), pMin = 8;
+    if(pMax < pMin) return null;
+    let best = {p:0, R:0, cx:0, cy:0};
+    for(let p=pMin; p<=pMax; p++){
+      let cx=0, cy=0;
+      const w = 2*Math.PI/p;
+      for(const v of a){ cx += Math.cos(w*v); cy += Math.sin(w*v); }
+      const R = Math.sqrt(cx*cx + cy*cy)/a.length;
+      /* zero-width teeth (constant small part) tie every divisor period at
+         R=1.0 — the true spacing is the LARGEST tied period, so ties break
+         upward; real fundamentals beat their harmonics by a clear margin,
+         so the epsilon window never touches the noisy case */
+      if(R > best.R + 1e-6 || (R > best.R - 1e-6 && p > best.p)) best = {p, R, cx, cy};
+    }
+    if(best.R < 0.45) return null;
+    const p = best.p;
+    let c = Math.atan2(best.cy, best.cx)/(2*Math.PI)*p;   // tooth centre phase
+    if(c < 0) c += p;
+    const Q = [], R = [];
+    for(const v of a){
+      const q = Math.round((v - c)/p);
+      Q.push(q); R.push(v - q*p);
+    }
+    // hollowness: between-teeth space must be essentially empty
+    let far = 0;
+    for(const r of R) if(Math.abs(r - c) > 0.35*p) far++;
+    if(far > Math.max(2, a.length*0.04)) return null;
+    if(new Set(Q).size < 3) return null;                  // need 3+ teeth
+    return {p, conc:best.R, Q, R, vals:a, out:tr.out.length};
+  },
+
+  /* Exact log-likelihood of the values under bigDice*p + small, by summing
+     the big-die pmf against the small part shifted to each tooth. */
+  logLProd(hist, p, bf, sm){
+    const EPS = 1e-3;
+    const pb = this.pmf(bf.N, bf.S);
+    const ps = sm.const ? null : this.pmf(sm.N, sm.S);
+    const lenC = p*(pb.length-1) + (ps ? ps.length : 1);
+    let ll = 0;
+    for(const [v, cnt] of hist){
+      let s = 0;
+      for(let i=0;i<pb.length;i++){
+        const x = v - p*(i + bf.N + bf.B);
+        if(sm.const){ if(x === sm.Bs) s += pb[i]; }
+        else { const j = x - sm.N - sm.Bs; if(j>=0 && j<ps.length) s += pb[i]*ps[j]; }
+      }
+      ll += cnt*Math.log((1-EPS)*s + EPS/lenC);
+    }
+    return ll;
+  },
+
+  /* Fit both halves of a detected comb, compose candidates, and make them
+     race the plain dice(N,S)+B family on the same likelihood scale. */
+  fitProduct(c, lvlOverride){
+    const lvl = lvlOverride !== undefined ? lvlOverride : (this.cfg.slevel || 0);
+    const p = c.p;
+    const d = this.describe(c.vals);
+    if(!d) return null;
+    const hist = new Map();
+    for(const v of c.vals) hist.set(v, (hist.get(v)||0)+1);
+
+    const bigR = this.fitCore(c.Q, lvl, {});
+    if(!bigR || !bigR.fits.length) return null;
+
+    const ds = this.describe(c.R);
+    let smalls;
+    if(!ds || ds.var < 0.5){
+      smalls = [{const:true, Bs: Math.round(ds ? ds.mean : 0)}];
+    } else {
+      const sR = this.fitCore(c.R, lvl, {});
+      smalls = (sR && sR.fits.length)
+        ? sR.fits.slice(0,4).map(f=>({const:false, N:f.N, S:f.S, Bs:f.B}))
+        : [{const:true, Bs: Math.round(ds.mean)}];
+    }
+
+    const out = [];
+    for(const bf of bigR.fits.slice(0,4)){
+      for(const sm of smalls){
+        const CT = p*bf.B + sm.Bs;         // total constant as the coder wrote it
+        const ll = this.logLProd(hist, p, bf, sm);
+        /* multiplier-form prior: *level is the natural thing to write, simple
+           fractions/multiples of level and round numbers plausible, an
+           arbitrary multiplier suspicious */
+        let fp;
+        if(lvl && p === lvl)                         fp = -0.45;
+        else if(lvl && lvl % p === 0 && lvl/p <= 4)  fp = -0.25;
+        else if(lvl && p % lvl === 0 && p/lvl <= 4)  fp = -0.25;
+        else if(p % 100 === 0)                       fp = -0.30;
+        else if(p % 50 === 0)                        fp = -0.25;
+        else if(p % 10 === 0)                        fp = -0.12;
+        else                                         fp = 0.5;
+        if(!sm.const && lvl && sm.S === lvl) fp -= 0.30;   // dice(_, level) rider
+        const rarS = sm.const ? 0 : (this.RARITY[sm.S] ?? 1.9);
+        const prior = -( this.W_RARITY*((this.RARITY[bf.S] ?? 1.9) + rarS)
+                       + this.W_N*(bf.N + (sm.const?0:sm.N))
+                       + this.W_B*this.bPrior(CT, bf.N, lvl, bf.S)
+                       + 2.0*fp );
+        const pm  = p*(bf.N*(bf.S+1)/2 + bf.B) + (sm.const?0:sm.N*(sm.S+1)/2) + sm.Bs;
+        const pv  = p*p*bf.N*(bf.S*bf.S-1)/12 + (sm.const?0:sm.N*(sm.S*sm.S-1)/12);
+        const loA = p*(bf.N + bf.B)      + (sm.const?0:sm.N)       + sm.Bs;
+        const hiA = p*(bf.N*bf.S + bf.B) + (sm.const?0:sm.N*sm.S)  + sm.Bs;
+        out.push({kind:'prod', p, Nb:bf.N, Sb:bf.S, Bq:bf.B, sm, C:CT,
+                  N:bf.N, S:bf.S, B:CT,
+                  pm, pv, pmA:pm, pvA:pv, loA, hiA, ll, prior, score: ll+prior,
+                  round: this.bPrior(CT, bf.N, lvl, bf.S) < 0});
+      }
+    }
+    // the plain family competes on the same data — on a real comb it loses
+    // by hundreds of nats, and if the comb was spurious it wins honestly
+    const plain = this.fitCore(c.vals, lvlOverride, {});
+    if(plain) for(const f of plain.fits) out.push(f);
+    out.sort((x,y)=>y.score-x.score);
+    if(out.length){
+      const mx = out[0].score;
+      let Z = 0;
+      for(const f of out) Z += Math.exp(f.score - mx);
+      for(const f of out) f.post = Math.exp(f.score - mx)/Z;
+    }
+    return {d, fits:out, comb:c, total:out.length,
+            outliers:c.out, hist, mult:1, rem:0};
+  },
+
+  /* Verdict for a product-form fit. The decisive extra check: does the
+     tooth spacing FOLLOW level across the other collected runs? That is
+     the one thing that separates *level from a fixed *98. */
+  solveProd(r){
+    const f = r.fits[0], d = r.d, c = r.comb, lvl = this.cfg.slevel || 0;
+    const ck = [];
+
+    ck.push({ok:true, k:'Comb detected',
+      d:'values cluster every ' + c.p + ' damage with hollow space between ' +
+        '(phase concentration ' + (c.conc*100).toFixed(0) + '%) \u2014 a big die is being multiplied by ' + c.p});
+
+    const vErr = d.var>0 ? Math.abs(f.pv-d.var)/d.var : 1;
+    const vGate = Math.max(0.06, 1.5*Math.sqrt(2/Math.max(2,d.n-1)));
+    ck.push({ok: vErr<vGate, k:'Variance',
+      d:'predicted ' + f.pv.toFixed(0) + ' against observed ' + d.var.toFixed(0) +
+        ', ' + (vErr*100).toFixed(1) + '% apart (tolerance ' + (vGate*100).toFixed(0) + '% at this sample size)'});
+
+    const mErr = Math.abs(f.pm - d.mean);
+    ck.push({ok: mErr <= Math.max(1.96*d.se, 0.75), k:'Mean',
+      d:'predicted ' + f.pm.toFixed(1) + ' against observed ' + d.mean.toFixed(1) +
+        ' (\u00b1' + (1.96*d.se).toFixed(1) + ')'});
+
+    ck.push({ok: d.min>=f.loA && d.max<=f.hiA, k:'Range',
+      d:'observed ' + d.min + '\u2013' + d.max + ' sits inside the possible ' + f.loA + '\u2013' + f.hiA +
+        (r.outliers ? ' (' + r.outliers + ' stray line' + (r.outliers>1?'s':'') + ' excluded)' : '')});
+
+    ck.push({ok: d.n>=400, k:'Sample size',
+      d: d.n + ' clean rounds' + (d.n>=400 ? '' : ' \u2014 the distribution shape needs about 400 to settle')});
+
+    /* does the spacing track level? test every sibling run automatically */
+    const sib = this.keys().filter(k =>
+      k.spell===this.cfg.spell && k.save===this.cfg.save &&
+      typeof k.slevel==='number' && k.slevel!==lvl);
+    let tested=0, follows=0, fixed=0;
+    for(const k of sib){
+      const arr = this.clean(k.key);
+      if(arr.length < 60) continue;
+      const cc = this.comb(arr);
+      if(!cc) continue;
+      tested++;
+      const expL = lvl ? k.slevel*(c.p/lvl) : -1;
+      if(expL>0 && Math.abs(cc.p - expL) <= Math.max(1, expL*0.03)) follows++;
+      else if(Math.abs(cc.p - c.p) <= 1) fixed++;
+    }
+    const isLvl = lvl && c.p === lvl;
+    if(tested && follows === tested)
+      ck.push({ok:true, k:'Tracks level',
+        d:'the tooth spacing follows the spell level in ' + tested + ' other run' + (tested>1?'s':'') +
+          ' \u2014 the multiplier really is ' + (c.p===lvl?'level':'level\u00d7' + fmtNum(c.p/lvl))});
+    else if(tested && fixed === tested)
+      ck.push({ok:true, k:'Fixed multiplier',
+        d:'the tooth spacing stayed at ' + c.p + ' across ' + tested + ' other run' + (tested>1?'s':'') +
+          ' at different levels \u2014 the \u00d7' + c.p + ' is a hard-coded number, not level'});
+    else if(tested)
+      ck.push({ok:false, k:'Spacing inconsistent',
+        d:'other runs show tooth spacings that neither follow level nor stay fixed \u2014 ' +
+          'the form may be more complicated, or those runs are too thin'});
+    else if(isLvl)
+      ck.push({ok:false, k:'Level link unconfirmed',
+        d:'the \u00d7' + c.p + ' equals your spell level, but from one level a fixed \u00d7' + c.p +
+          ' and \u00d7level are identical \u2014 collect 60+ rounds at a second level; ' +
+          'if the spacing follows, it is \u00d7level'});
+    else
+      ck.push({ok:false, k:'Multiplier origin unknown',
+        d:'\u00d7' + c.p + ' does not match your spell level \u2014 collect a second level to see ' +
+          'whether it moves with level or stays fixed'});
+
+    const rival = r.fits[1];
+    const gap = rival ? f.score - rival.score : Infinity;
+    if(rival){
+      ck.push({ok: gap>=3, k: gap>=3 ? 'Clear winner' : 'No clear winner',
+        d: gap>=3
+          ? 'leads the runner-up by ' + gap.toFixed(1) + ' nats and holds ' +
+            (f.post*100).toFixed(0) + '% of the posterior'
+          : 'the runner-up is only ' + gap.toFixed(1) + ' nats behind (posterior ' +
+            (f.post*100).toFixed(0) + '% vs ' + (rival.post*100).toFixed(0) +
+            '%) \u2014 more rounds will separate them'});
+    }
+
+    const mStr = isLvl ? 'level' : (tested && follows===tested && lvl ? fmtNum(c.p/lvl) + ' * level' : String(c.p));
+    let s = 'dice(' + f.Nb + ', ' + f.Sb + ') * ' + mStr;
+    if(!f.sm.const)
+      s += ' + dice(' + f.sm.N + ', ' + ((lvl && f.sm.S===lvl) ? 'level' : f.sm.S) + ')';
+    if(f.C) s += (f.C>0 ? ' + ' : ' - ') + Math.abs(f.C);
+
+    const bad = ck.filter(x=>!x.ok).length;
+    const state = bad===0 ? 'solved' : bad===1 ? 'likely' : 'open';
+    const lvSet = new Set(this.keys()
+      .filter(k=>k.spell===this.cfg.spell && k.save===this.cfg.save && typeof k.slevel==='number')
+      .map(k=>k.slevel));
+    return {state, formula:s, checks:ck, f, d, kind:'prod', comb:c,
+            levels: lvSet.size, lt:null, step:1, pooled:null,
+            multiUsed:0, multiDropped:0, outliers:r.outliers, blocked:null,
+            rival: gap<3 ? rival : null};
+  },
+
+  /* offset: subtract a known level term from every sample before fitting,
+     so what is left is the dice and the true constant. Detects a ×g step,
+     divides it out, and folds it back into the reported formula. */
+  fit(k, offset){
+    offset = offset || 0;
+    const raw = this.clean(k);
+    if(!raw.length) return null;
+    /* product forms first: if the support is a comb, level-term subtraction
+       and pooling don't apply (the level lives inside the multiplier) */
+    const cb = this.comb(raw);
+    if(cb){
+      const pr = this.fitProduct(cb, undefined);
+      if(pr && pr.fits.length){
+        pr.step = 1; pr.rawd = this.describe(cb.vals); pr.multiUsed = 0;
+        return pr;
+      }
+    }
+    const shifted = offset ? raw.map(v=>v-offset) : raw;
+    const tr = this.trim(shifted);
+    const d0 = this.describe(tr.kept);
+    const g = this.step(tr.kept.map(v=>Math.round(v)));
+    const opts = {outliers: tr.out.length};
+    let vals = tr.kept;
+    if(g > 1){
+      const mnR = Math.round(Math.min(...tr.kept));
+      const rm = ((mnR % g) + g) % g;
+      vals = tr.kept.map(v => (Math.round(v) - rm)/g);
+      opts.mult = g; opts.rem = rm;
+    } else {
+      const kk = k || this.key();
+      opts.multi = this.multiHists(d0, s=>s.key===kk, ()=>offset);
+    }
+    // once the level term is subtracted, a leftover equal to the spell level
+    // is coincidence, so the "B = level" heuristic must not apply
+    const r = this.fitCore(vals, offset ? 0 : undefined, opts);
+    if(r){ r.step = g; r.rawd = d0; r.multiUsed = opts.multi && opts.multi.hists ? opts.multi.n : 0; }
+    return r;
+  },
+
+  /* Pool every level of this spell AT THIS SAVE into one sample.
+     Only valid when the dice are fixed — if they scale with level, the
+     levels are drawing from different distributions and combining them
+     would manufacture variance that isn't there. */
+  pool(){
+    const rows = this.samples.filter(s =>
+      s.spell===this.cfg.spell && s.save===this.cfg.save &&
+      s.trailing===1 && !s.tick && typeof s.slevel==='number');
+    const lv = [...new Set(rows.map(s=>s.slevel))];
+    if(lv.length < 2) return null;
+
+    const pts = lv.map(L=>{
+      const d = this.describe(rows.filter(s=>s.slevel===L).map(s=>s.deficit));
+      return d ? {x:L, y:d.mean, v:d.var, n:d.n} : null;
+    }).filter(Boolean).sort((a,b)=>a.x-b.x);
+    if(pts.length < 2) return null;
+
+    const rg = this.diceRegime(pts);
+    if(rg && rg.kind !== 'fixed')
+      return {blocked: rg.kind, levels:pts.length};
+
+    const lt = this.levelTerm();
+    if(lt && lt.r2 < 0.98) return {blocked:'noisy', levels:pts.length};
+    const K = lt ? lt.K : 0;
+
+    /* No detected level term does NOT mean no level term: a real slope with
+       a sloppy fit returns lt=null and would pool raw damage across levels
+       with different means — manufacturing variance and green-lighting a
+       wrong fit. Refuse to pool raw unless the per-level means truly agree. */
+    if(!lt){
+      let sw=0, sy=0;
+      for(const p of pts){ sw+=p.n; sy+=p.n*p.y; }
+      const grand = sy/sw;
+      for(const p of pts){
+        const se = Math.sqrt(Math.max(p.v,1)/p.n);
+        if(Math.abs(p.y - grand) > 3*se + 1.5)
+          return {blocked:'unstable', levels:pts.length};
+      }
+    }
+
+    return {vals: rows.map(s => s.deficit - K*s.slevel),
+            K, levels: pts.length, n: rows.length, lt};
+  },
+
+  /* Assemble the complete formula and grade how well it is nailed down.
+     Every check has to be something that would actually be wrong if the
+     formula were wrong — a matching mean proves little on its own. */
+  solve(){
+    /* comb first: on a product form, levelTerm/pool would chase artifacts */
+    const cbRaw = this.comb(this.clean());
+    if(cbRaw){
+      const pr = this.fitProduct(cbRaw, undefined);
+      if(pr && pr.fits.length && pr.fits[0].kind === 'prod')
+        return this.solveProd(pr);
+    }
+    const lt  = this.levelTerm();
+    const pl  = this.pool();
+    const usePool = pl && pl.vals;
+
+    const baseVals = usePool ? pl.vals
+                   : (lt ? this.clean().map(v=>v-lt.offset) : this.clean());
+    if(!baseVals.length) return null;
+
+    const tr = this.trim(baseVals);
+    const d0 = this.describe(tr.kept);
+    if(!d0) return null;
+    const g = this.step(tr.kept.map(v=>Math.round(v)));
+
+    const opts = {outliers: tr.out.length};
+    let vals = tr.kept;
+    if(g > 1){
+      const mnR = Math.round(Math.min(...tr.kept));
+      const rm = ((mnR % g) + g) % g;
+      vals = tr.kept.map(v => (Math.round(v) - rm)/g);
+      opts.mult = g; opts.rem = rm;
+    } else {
+      const offPerCast = usePool ? (s => pl.K*s.slevel) : (s => lt ? lt.offset : 0);
+      const filter = usePool
+        ? (s => s.spell===this.cfg.spell && s.save===this.cfg.save)
+        : (s => s.key===this.key());
+      opts.multi = this.multiHists(d0, filter, offPerCast);
+    }
+
+    const r = this.fitCore(vals, (usePool || lt) ? 0 : undefined, opts);
+    if(!r || !r.fits.length) return null;
+    const f = r.fits[0], d = r.d;
+    const multiUsed = (g===1 && opts.multi && opts.multi.hists) ? opts.multi.n : 0;
+    const multiDropped = (g===1 && opts.multi && opts.multi.excluded) ? opts.multi.excluded : 0;
+
+    /* distinct spell levels at THIS save — runs that differ only in the
+       saving-spell value are not extra levels */
+    const lvSet = new Set(this.keys()
+      .filter(k => k.spell===this.cfg.spell && k.save===this.cfg.save && typeof k.slevel==='number')
+      .map(k => k.slevel));
+    const levels = usePool ? pl.levels : lvSet.size;
+
+    const ck = [];
+    const sc = g;                       // scale factor for displaying actual units
+
+    const vObs = d.var * sc*sc, vPred = f.pv * sc*sc;
+    const vErr = vObs>0 ? Math.abs(vPred-vObs)/vObs : 1;
+    const vGate = Math.max(0.06, 1.5*Math.sqrt(2/Math.max(2,d.n-1)));
+    ck.push({ok: vErr<vGate, k:'Variance',
+      d:'predicted ' + vPred.toFixed(0) + ' against observed ' + vObs.toFixed(0) +
+        ', ' + (vErr*100).toFixed(1) + '% apart (tolerance ' + (vGate*100).toFixed(0) + '% at this sample size)'});
+
+    const mObs = d.mean*sc + (g>1 ? opts.rem : 0);
+    const mErr = Math.abs(f.pmA - mObs);
+    ck.push({ok: mErr <= Math.max(1.96*d.se*sc, 0.75), k:'Mean',
+      d:'predicted ' + f.pmA.toFixed(1) + ' against observed ' + mObs.toFixed(1) +
+        ' (\u00b1' + (1.96*d.se*sc).toFixed(1) + ')'});
+
+    ck.push({ok: true, k: g===1 ? 'No multiplier' : 'Multiplier \u00d7' + g,
+      d: g===1 ? 'every value in the range is reachable, so nothing is scaling the dice'
+               : 'values step by ' + g + '; the \u00d7' + g + ' has been divided out and folded back into the formula'});
+
+    ck.push({ok: d.n>=400, k:'Sample size',
+      d: d.n + ' clean rounds' + (multiUsed ? ' + ' + multiUsed + ' multi-cast rounds in the likelihood' : '') +
+         (d.n>=400 ? '' : ' — the distribution shape needs about 400 to settle')});
+
+    const obsLo = d.min*sc + (g>1?opts.rem:0), obsHi = d.max*sc + (g>1?opts.rem:0);
+    ck.push({ok: obsLo>=f.loA && obsHi<=f.hiA, k:'Range',
+      d:'observed ' + obsLo + '\u2013' + obsHi + ' sits inside the possible ' + f.loA + '\u2013' + f.hiA +
+        (r.outliers ? ' (' + r.outliers + ' stray line' + (r.outliers>1?'s':'') + ' excluded as outliers)' : '')});
+
+    if(r.outliers > Math.max(2, d.n*0.02))
+      ck.push({ok:false, k:'Outliers',
+        d: r.outliers + ' values fell far outside the distribution — the damage regex is probably ' +
+           'matching something else in the room; tighten it and recollect'});
+
+    if(levels < 2)
+      ck.push({ok:false, k:'Level dependence',
+        d:'only one spell level collected — a constant and a level term are indistinguishable from one level'});
+    else if(lt)
+      ck.push({ok: lt.r2>0.98, k:'Level term',
+        d: fmtNum(lt.K) + ' \u00d7 level, R\u00b2 ' + lt.r2.toFixed(4) + ' across ' + lt.pts + ' levels'});
+    else
+      ck.push({ok:true, k:'No level term',
+        d:'damage held flat across ' + levels + ' spell levels'});
+
+    /* formula string in actual units */
+    const fstr = x => {
+      if(x.kind === 'unif'){
+        let t = 'number(' + x.A + ', ' + x.Bhi + ')';
+        if(lt) t += ' + ' + fmtNum(lt.K) + ' * level';
+        return t;
+      }
+      let t = g>1 ? g + ' * dice(' + x.N + ', ' + x.S + ')' : 'dice(' + x.N + ', ' + x.S + ')';
+      if(lt) t += ' + ' + fmtNum(lt.K) + ' * level';
+      if(x.C) t += (x.C>0 ? ' + ' : ' - ') + Math.abs(x.C);
+      return t;
+    };
+    let s = fstr(f);
+
+    /* Clear winner is now a Bayes factor: Δ nats between the top two.
+       Δ≥3 (BF≈20) is a real preference; below that the data cannot pick. */
+    const rival = r.fits[1];
+    const gap = rival ? f.score - rival.score : Infinity;
+    if(rival){
+      const rs = fstr(rival);
+      ck.push({ok: gap >= 3, k: gap >= 3 ? 'Clear winner' : 'No clear winner',
+        d: gap >= 3
+          ? 'leads ' + rs + ' by ' + gap.toFixed(1) + ' nats (Bayes factor \u2248 ' +
+            (gap>12 ? '>10\u2074' : Math.exp(gap).toFixed(0)) + ') and holds ' +
+            (f.post*100).toFixed(0) + '% of the posterior'
+          : rs + ' is only ' + gap.toFixed(1) + ' nats behind (posterior ' +
+            (f.post*100).toFixed(0) + '% vs ' + (rival.post*100).toFixed(0) +
+            '%) — the data cannot yet separate them; more rounds will'});
+    }
+
+    const bad = ck.filter(c=>!c.ok).length;
+    const state = bad===0 ? 'solved' : bad===1 ? 'likely' : 'open';
+    return {state, formula:s, checks:ck, f, d, lt, step:g, levels,
+            pooled: usePool ? pl : null, multiUsed, multiDropped,
+            outliers: r.outliers,
+            blocked: pl && pl.blocked ? pl.blocked : null,
+            rival: gap < 3 ? rival : null};
+  },
+
+  /* Where does level enter the dice?
+       fixed     - variance flat across the sweep
+       count     - variance grows linearly  (dice(level,S))
+       size      - variance grows with level squared  (dice(N,level))
+     Then recover S: for dice count scaling, slopeVar = f'(S^2-1)/12, so each
+     candidate S implies a dice-count growth rate. The right S is the one whose
+     implied rate is a simple fraction AND leaves a clean residual mean slope. */
+  SIMPLE: [1, 0.5, 1/3, 0.25, 0.2, 1/6, 0.125, 0.1, 1/15, 0.05, 2, 3, 4],
+  diceRegime(pts){
+    if(pts.length < 3) return null;
+    const lin = this.reg(pts.map(p=>[p.x, p.v]));
+    const qua = this.reg(pts.map(p=>[p.x*p.x, p.v]));
+    const mn  = this.reg(pts.map(p=>[p.x, p.y]));
+    const lo = pts[0], hi = pts[pts.length-1];
+    const ratio = hi.v / Math.max(lo.v, .01);
+
+    if(ratio < 1.6 || (lin.r2 < 0.6 && qua.r2 < 0.6))
+      return {kind:'fixed', ratio, lo, hi};
+
+    if(qua.r2 > lin.r2 + 0.02){
+      // dice(N, level): mean = N(level+1)/2  ->  N = 2*slopeMean
+      //                 var  = N(level^2-1)/12 -> N = 12*slopeVarQ
+      const n1 = 2*mn.m, n2 = 12*qua.m;
+      return {kind:'size', ratio, lo, hi, r2:qua.r2,
+              N: Math.round((n1+n2)/2), n1, n2, agree: Math.abs(n1-n2) < Math.max(1, n1*0.15)};
+    }
+
+    /* (S-1)/6 = slopeVar / slopeMean when the dice carry the whole level term,
+       so the die size falls straight out of the two slopes. */
+    const direct = mn.m>0 ? 6*lin.m/mn.m + 1 : 0;
+    const cand = new Set(this.DICE);
+    if(direct>=3 && direct<=120){ cand.add(Math.round(direct)); cand.add(Math.floor(direct)); cand.add(Math.ceil(direct)); }
+    const opts = [];
+    for(const S of [...cand].sort((a,b)=>a-b)){
+      if(S < 4) continue;
+      const fp = 12*lin.m/(S*S-1);              // dice added per level
+      if(fp <= 0.01) continue;
+      const g  = mn.m - fp*(S+1)/2;             // mean slope left over
+      const nearF = this.SIMPLE.reduce((a,b)=>Math.abs(b-fp)<Math.abs(a-fp)?b:a);
+      const errF = Math.abs(fp-nearF)/nearF;
+      /* The leftover is a separate "+ K*level" term sitting on top of the
+         scaling dice. It can be zero or positive; a negative one would mean
+         damage shrinking with level, which no formula does. Wrong die sizes
+         reveal themselves precisely by driving this negative. */
+      const errG = g < -0.15 ? 4*Math.abs(g) : Math.abs(g);
+      opts.push({S, fp, nearF, g, score: errF*2.5 + errG*0.9 + (this.DICE.includes(S)?0:0.25), errF});
+    }
+    opts.sort((a,b)=>a.score-b.score);
+    return {kind:'count', ratio, lo, hi, r2:lin.r2, opts, best:opts[0], direct};
+  },
+
+  /* plain unweighted least squares on [x,y] pairs */
+  reg(rows){
+    const n = rows.length;
+    let sx=0,sy=0,sxx=0,sxy=0;
+    for(const [x,y] of rows){ sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; }
+    const den = n*sxx - sx*sx;
+    const m = den ? (n*sxy - sx*sy)/den : 0;
+    const b = (sy - m*sx)/n, my = sy/n;
+    let ssr=0, sst=0;
+    for(const [x,y] of rows){ const r=y-(m*x+b); ssr+=r*r; sst+=(y-my)**2; }
+    return {m, b, r2: sst ? 1-ssr/sst : 1};
+  },
+
+  /* Regression slope comes back as 2.98 rather than 3. Snap it when it is
+     clearly one of the values a coder would have written. */
+  SNAP: [0.25, 1/3, 0.5, 2/3, 0.75, 1.25, 1.5, 2.5, 3.5, 4.5],
+  snapK(m){
+    const tol = v => Math.max(0.05, Math.abs(v)*0.02);
+    // a whole number is by far the most likely thing a coder wrote
+    const w = Math.round(m);
+    if(w !== 0 && Math.abs(m - w) < tol(w)) return w;
+    // fractions are rarer than whole numbers, so demand a closer match
+    for(const s of this.SNAP)
+      if(Math.abs(m - s) < Math.max(0.03, Math.abs(s)*0.012)) return s;
+    return m;
+  },
+
+  /* Best available level term across the collected sweep, or null.
+     Runs at other save values are excluded — mixing halved and full damage
+     into one regression silently corrupts the slope. Points are weighted
+     by n/var (inverse variance of the mean), not by n alone: when the dice
+     scale with level, high levels are noisier and must count for less. */
+  levelTerm(){
+    const pts = [];
+    for(const r of this.keys()){
+      if(r.spell !== this.cfg.spell || r.save !== this.cfg.save) continue;
+      const arr = this.clean(r.key);
+      const d = this.describe(arr);
+      if(d && d.n >= 15 && typeof r.slevel === 'number')
+        pts.push({x:r.slevel, y:d.mean, v:Math.max(d.var,1), n:d.n});
+    }
+    if(pts.length < 2) return null;
+    let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+    for(const p of pts){ const w=p.n/p.v; sw+=w; sx+=w*p.x; sy+=w*p.y; sxx+=w*p.x*p.x; sxy+=w*p.x*p.y; }
+    const den = sw*sxx - sx*sx;
+    if(!den) return null;
+    const m = (sw*sxy - sx*sy)/den;
+    const b = (sy - m*sx)/sw;
+    const my = sy/sw;
+    let ssr=0, sst=0;
+    for(const p of pts){ const r=p.y-(m*p.x+b); ssr+=r*r; sst+=(p.y-my)**2; }
+    const r2 = sst ? 1-ssr/sst : 1;
+    if(Math.abs(m) < 0.15 || r2 < 0.90) return null;
+    const K = this.snapK(m);
+    return {K, raw:m, r2, offset: Math.round(K * this.cfg.slevel), pts:pts.length};
+  },
+
+  keys(){
+    const seen = new Map();
+    for(const s of this.samples) if(!seen.has(s.key)) seen.set(s.key, s);
+    return [...seen.values()];
+  }
+};
+
+/*===================================================================
+  STORAGE  (localStorage when available, memory otherwise)
+===================================================================*/
+const store = {
+  KEY:'dmglab.v1', ok:true, mem:null,
+  save(){
+    const blob = JSON.stringify({cfg:LAB.cfg, samples:LAB.samples});
+    try{ localStorage.setItem(this.KEY, blob); }
+    catch(e){ this.ok=false; this.mem=blob; }
+  },
+  load(){
+    let blob=null;
+    try{ blob = localStorage.getItem(this.KEY); }catch(e){ this.ok=false; }
+    if(!blob) return;
+    try{
+      const o = JSON.parse(blob);
+      if(o.samples) LAB.samples = this.migrate(o.samples);
+      if(o.cfg){
+        // an older save may carry the pre-rename 'level' field
+        if(o.cfg.slevel === undefined && o.cfg.level !== undefined) o.cfg.slevel = o.cfg.level;
+        delete o.cfg.level;
+        Object.assign(LAB.cfg, o.cfg);
+      }
+    }catch(e){}
+  },
+
+  /* Rows captured before spell level replaced character level carry
+     'level' and a '|L' key. Rewrite them so old and new runs pool. */
+  migrate(rows){
+    let n = 0;
+    for(const s of rows){
+      if(s.slevel === undefined && s.level !== undefined){ s.slevel = s.level; delete s.level; n++; }
+      if(typeof s.key === 'string' && s.key.indexOf('|L') !== -1 && s.key.indexOf('|SL') === -1)
+        s.key = s.key.replace('|L', '|SL');
+      if(s.per === undefined) s.per = s.trailing > 0 ? s.deficit/s.trailing : 0;
+    }
+    if(n) this.migrated = n;
+    return rows;
+  },
+  wipe(){ try{ localStorage.removeItem(this.KEY); }catch(e){} }
+};
+
+function download(name, text, mime){
+  const b = new Blob([text], {type:mime||'text/plain'});
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href=u; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(u), 1500);
+}
+
+/*===================================================================
+  UI
+===================================================================*/
+const UI = {
+  onSample(s){
+    const feed = $('feed');
+    if(feed.querySelector('.empty')) feed.innerHTML='';
+    const discarded = s.tick || s.trailing===0;
+    const cls = discarded ? 'tick' : (s.trailing>1 ? 'flag' : 'clean');
+    const note = s.trailing===0 ? 'ended in heal &mdash; discarded'
+               : s.tick ? 'regen tick &mdash; discarded'
+               : s.trailing>1 ? (s.trailing + ' casts, ' + s.per.toFixed(1) + ' each')
+               : 'clean';
+    const row = document.createElement('div');
+    row.className = 'ev ' + cls + ' fresh';
+    row.innerHTML = '<span class="dmg">' + s.deficit + '</span>' +
+                    '<span class="seq">' + s.seq + '</span>' +
+                    '<span class="note">' + note + '</span>';
+    feed.prepend(row);
+    while(feed.children.length > 220) feed.lastChild.remove();
+    setTimeout(()=>row.classList.remove('fresh'), 1200);
+    this.hud();
+    this.queue();
+  },
+
+  /* Feed rows land immediately; the stats redraw is debounced so a fast
+     fight doesn't rebuild the support map on every single round. */
+  _t:null,
+  queue(){
+    clearTimeout(this._t);
+    this._t = setTimeout(()=>{ this.analyze(); this.runs(); }, 700);
+  },
+
+  render(){ this.hud(); this.analyze(); this.runs(); },
+
+  hud(){
+    const c = LAB.counts();
+    $('l-clean').textContent = c.clean;
+    $('l-flag').textContent  = c.flag;
+    $('l-tick').textContent  = c.tick;
+    $('hud-n').textContent   = c.clean;
+    $('hud-run').textContent = LAB.cfg.spell + ' sl' + LAB.cfg.slevel +
+                               (LAB.cfg.save ? ' sv' + LAB.cfg.save : '');
+    const d = LAB.describe(LAB.clean());
+    $('hud-mean').textContent = d ? d.mean.toFixed(1) : '\u2014';
+  },
+
+  rec(){
+    $('led-rec').className = 'led' + (LAB.active ? ' on' : '');
+    $('rec').textContent = LAB.active ? 'recording' : 'idle';
+  },
+
+  /* one display string for a candidate, in actual (un-divided) units */
+  formStr(f, g){
+    if(f.kind === 'unif') return 'num ' + f.A + '\u2013' + f.Bhi;
+    if(f.kind === 'prod'){
+      const L = LAB.cfg.slevel;
+      const m = (L && f.p===L) ? 'L' : f.p;
+      let s = f.Nb + 'd' + f.Sb + '\u00d7' + m;
+      if(!f.sm.const) s += '+' + f.sm.N + 'd' + ((L && f.sm.S===L) ? 'L' : f.sm.S);
+      if(f.C) s += (f.C>0?'+':'\u2212') + Math.abs(f.C);
+      return s;
+    }
+    if(g > 1){
+      return g + '\u00d7(' + f.N + 'd' + f.S + ')' +
+             (f.C ? (f.C>0?'+':'\u2212') + Math.abs(f.C) : '');
+    }
+    return f.N + 'd' + f.S + (f.B>=0?'+':'') + f.B;
+  },
+
+  /* ---------- analyze ---------- */
+  adj: false,          // subtract the level term before fitting
+  analyze(){
+    const box = $('an');
+    const lt = LAB.levelTerm();
+    if(!lt) this.adj = false;
+    const r = LAB.fit(null, this.adj && lt ? lt.offset : 0);
+    if(!r || r.d.n < 3){
+      box.innerHTML = '<div class="empty"><b>Not enough clean rounds yet.</b>' +
+        'Statistics need roughly 150 samples before the distribution is tight ' +
+        'enough to rule out impostor formulas. Keep collecting.</div>';
+      return;
+    }
+    const d = r.rawd || r.d;      // stats of the (level-adjusted) raw values
+    const c = LAB.counts();
+    const g = r.step;
+    let h = '';
+
+    /* --- regen visibility --- */
+    if(LAB.active && LAB.regenPrompts >= 40 && LAB.regenMoved === 0){
+      h += '<div class="note-box bad"><b>Mana and moves have not moved once this session.</b> ' +
+        'At full ma/mv, regen ticks are invisible to the tick detector, and every hp regen ' +
+        'quietly contaminates a sample. Burn a little mana or take a walk, then collect.</div>';
+    }
+
+    /* --- verdict --- */
+    const sol = LAB.solve();
+    if(sol){
+      const label = sol.state==='solved' ? 'Solved'
+                  : sol.state==='likely' ? 'Almost there' : 'Not yet determined';
+      h += '<div class="verdict ' + sol.state + '">' +
+           '<div class="v-state"><span class="led ' +
+             (sol.state==='solved'?'on':sol.state==='likely'?'warn':'') + '"></span>' + label + '</div>' +
+           '<div class="v-formula">' + sol.formula + '</div>' +
+           '<div class="v-sub">' + LAB.cfg.spell + ' &mdash; fitted from ' + sol.d.n +
+             ' clean rounds' +
+             (sol.multiUsed ? ' + ' + sol.multiUsed + ' multi-cast rounds' : '') +
+             (sol.pooled ? ' pooled across all ' + sol.levels + ' spell levels'
+                         : sol.levels>1 ? ' at this spell level only' : ' at one spell level') +
+             ' \u2014 exact-likelihood fit, posterior ' + (sol.f.post*100).toFixed(0) + '%</div>';
+      sol.checks.forEach(cc=>{
+        h += '<div class="v-ck ' + (cc.ok?'y':'n') + '"><span class="v-mark">' +
+             (cc.ok?'\u2713':'\u2022') + '</span><b>' + cc.k + '</b><span>' + cc.d + '</span></div>';
+      });
+      if(sol.blocked === 'count' || sol.blocked === 'size')
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Levels not pooled</b>' +
+             '<span>the dice themselves change with level, so the levels are drawing from ' +
+             'different distributions and cannot be combined \u2014 see Runs</span></div>';
+      else if(sol.blocked === 'noisy')
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Levels not pooled</b>' +
+             '<span>the level term is not clean enough to subtract reliably; more rounds at your ' +
+             'thinnest level would fix it</span></div>';
+      else if(sol.blocked === 'unstable')
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Levels not pooled</b>' +
+             '<span>per-level means disagree but no reliable level term could be fitted \u2014 pooling raw ' +
+             'damage would manufacture variance. Collect more at each level so the slope resolves</span></div>';
+      if(sol.multiDropped)
+        h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Multi-cast rounds excluded</b>' +
+             '<span>' + sol.multiDropped + ' stacked-cast rounds do not average to the clean per-cast ' +
+             'mean \u2014 a save or crit tier is firing on them, so they stay out of the fit</span></div>';
+      if(sol.state==='solved')
+        h += '<div class="v-copy"><button class="btn sm go" id="cpf">Copy formula</button></div>';
+      h += '</div>';
+    }
+
+    /* var/mean = (S-1)/6 pins the die exactly — but ONLY on damage with the
+       level term already taken out, and only when no ×g multiplier is
+       distorting the ratio. */
+    const base = (sol && sol.kind==='prod') || r.comb ? null
+               : sol && sol.step===1 ? sol.d : (lt && !this.adj ? null : (g===1 ? r.d : null));
+    if(base && base.mean > 0){
+      const impS = 6*base.var/base.mean + 1;
+      const rS   = Math.round(impS);
+      const impN = rS > 0 ? 2*base.mean/(rS+1) : 0;
+      if(impS >= 2 && impS <= 130 && impN >= 1 && impN <= 80){
+        const off = Math.abs(impS - rS);
+        const src = sol && sol.pooled ? 'pooled across ' + sol.levels + ' levels'
+                  : 'level term removed';
+        h += '<div class="note-box ' + (off < 0.15 ? 'good' : off < 0.4 ? 'warn' : '') + '">' +
+          '<b>If the constant is zero the die would be d' + impS.toFixed(1) + '</b>, with about ' +
+          impN.toFixed(1) + ' of them (' + src + '). This falls straight out of var/mean and owes ' +
+          'nothing to the ranking below. ' +
+          (off < 0.15
+            ? 'Sitting this close to d' + rS + ' is good evidence the constant really is zero.'
+            : off < 0.4
+              ? 'It is near d' + rS + ' but not on it, so there is probably a small constant as well.'
+              : 'It is nowhere near a whole number, so there is a real constant in the formula.') +
+          '</div>';
+      }
+    }
+
+    /* --- signature: support map --- */
+    h += '<div class="map-wrap"><div class="map-head"><span>Support map</span>' +
+         '<span>every value from ' + d.min + ' to ' + d.max + '</span></div>' +
+         '<div id="map"></div><div class="map-axis"><span>' + d.min +
+         '</span><span>' + d.max + '</span></div></div>';
+
+    if(r.outliers > 0){
+      h += '<div class="note-box warn"><b>' + r.outliers + ' stray value' + (r.outliers>1?'s':'') +
+        ' excluded</b> as far outside the distribution &mdash; almost certainly the damage regex ' +
+        'matching something else (another mob, a channel line). They are kept in storage but ' +
+        'ignored by the fit. If the count keeps growing, tighten the regex.</div>';
+    }
+
+    if(g > 1){
+      h += '<div class="note-box good"><b>Values step by ' + g + ' &mdash; a \u00d7' + g +
+        ' multiplier was detected and folded into the fit.</b> The candidates below are ' +
+        'fitted on the divided-out values and shown as ' + g + '\u00d7(NdS)+C, which is what ' +
+        'the spell file must contain (a multiplication or the inverse of an integer division).</div>';
+    }
+
+    /* --- shape read --- */
+    const shape = this.shape(LAB.clean(), d);
+    if(shape) h += '<div class="note-box ' + shape.tone + '">' + shape.txt + '</div>';
+
+    /* --- flagged verdict --- */
+    if(c.flag > 0){
+      const per = LAB.samples.filter(s=>s.key===LAB.key() && s.trailing>1 && !s.tick).map(s=>s.per);
+      const pd = LAB.describe(per);
+      const dc = LAB.describe(LAB.clean());
+      if(pd && dc){
+        const match = Math.abs(pd.mean - dc.mean) < 3*Math.max(dc.se,1);
+        h += '<div class="note-box ' + (match?'good':'warn') + '">' +
+          '<b>' + c.flag + ' multi-cast rounds</b> average ' + pd.mean.toFixed(1) +
+          ' per cast against a clean mean of ' + dc.mean.toFixed(1) + '. ' +
+          (match ? 'Consistent with casts simply stacking &mdash; they are folded into the ' +
+                   'likelihood as k-fold convolutions, so they now count as evidence.'
+                 : 'That does not match, so they are excluded from the fit. Something is halving ' +
+                   'or doubling on stacked casts: suspect a saving throw or a crit tier.') +
+          '</div>';
+      }
+    }
+
+    /* --- fits --- */
+    h += '<div class="sec">Candidate formulas</div>';
+
+    if(r.comb){
+      h += '<div class="note-box good"><b>Comb pattern: values cluster every ' + r.comb.p +
+        ' damage</b> (phase concentration ' + (r.comb.conc*100).toFixed(0) + '%). ' +
+        'That can only come from a big die times ' + r.comb.p +
+        (LAB.cfg.slevel && r.comb.p===LAB.cfg.slevel ? ' \u2014 which is your spell level' : '') +
+        '. The big die was fitted from which tooth each value lands on, the small dice from the ' +
+        'spread inside a tooth, and the composites below race the plain dice(N,S)+B family ' +
+        'on the same likelihood scale. Level-term subtraction and cross-level pooling are off: ' +
+        'on this form the level lives inside the multiplier.</div>';
+    }
+    if(lt && !r.comb){
+      h += '<div class="note-box ' + (this.adj?'good':'warn') + '">' +
+        '<b>Level term detected: ' + fmtK(lt.K) + ' \u00d7 level</b> across ' + lt.pts +
+        ' spell levels (R\u00b2 ' + lt.r2.toFixed(3) + '). At level ' + LAB.cfg.slevel +
+        ' that is <b>' + lt.offset + '</b> damage before any dice are rolled &mdash; which is why ' +
+        'the constants below look arbitrary. ' +
+        (this.adj
+          ? 'Currently subtracting it, so the constants shown are the real leftover.'
+          : 'Subtract it and the leftover constant should come out round.') +
+        (sol && sol.pooled
+          ? '<br><br>The verdict above already pools every level with the term removed; ' +
+            'this toggle only affects the single-run figures below.'
+          : '') +
+        '<br><br><button class="btn sm ' + (this.adj?'stop':'go') + '" id="adjbtn">' +
+        (this.adj ? 'Show raw damage' : 'Subtract ' + lt.offset) + '</button></div>';
+    }
+    if(!r.fits.length){
+      h += '<div class="note-box bad">Nothing of the form dice(N,S)+B or number(A,B) fits both the mean and ' +
+        'the variance. Check the support map above for gaps, and read the ' +
+        'flagged-round verdict &mdash; if saves are live you are measuring halved damage.</div>';
+    } else {
+      const L = LAB.cfg.slevel;
+      const top = r.fits[0];
+      r.fits.slice(0,8).forEach((f,i)=>{
+        let ntag = '';
+        if(f.kind === 'unif'){
+          if(L && 2*f.A === L*L)      ntag = 'lo = level\u00b2/2';
+          else if(L && f.A % L === 0) ntag = 'lo = ' + (f.A/L) + ' \u00d7 level';
+        }
+        else if(L && f.kind !== 'prod'){
+          if(f.N === L)                        ntag = 'N = spell level';
+          else if(f.N === Math.floor(L/2))     ntag = 'N = level/2';
+          else if(f.N === Math.floor(L/3))     ntag = 'N = level/3';
+          else if(f.N === Math.floor(L/4))     ntag = 'N = level/4';
+          else if(f.N === Math.floor(L/5))     ntag = 'N = level/5';
+          else if(f.N === Math.floor(L/10))    ntag = 'N = level/10';
+        }
+        const CC = f.C;
+        let tag = '';
+        if(f.kind === 'unif'){
+          if(L && f.Bhi === L*L)                       tag = 'hi = level\u00b2';
+          else if(L && f.Bhi % L === 0)                tag = 'hi = ' + (f.Bhi/L) + ' \u00d7 level';
+          else if(f.Bhi === 2*f.A || f.Bhi === 2*f.A-1) tag = 'hi = 2 \u00d7 lo';
+        }
+        else if(CC === 0)        tag = 'no constant';
+        else if(f.kind !== 'unif' && CC === f.N && (f.S===6||f.S===8||f.S===10)) tag = 'B = dice count';
+        else if(L && CC === L)   tag = 'B = spell level';
+        else if(L && CC === 2*L) tag = 'B = 2 \u00d7 level';
+        else if(L && CC % L === 0) tag = 'B = ' + (CC/L) + ' \u00d7 level';
+        else if(CC % 100 === 0)  tag = 'round hundred';
+        else if(CC % 50 === 0)   tag = 'round fifty';
+        else if(CC % 25 === 0)   tag = 'multiple of 25';
+        else if(CC % 10 === 0)   tag = 'multiple of 10';
+        const gap = top.score - f.score;
+        h += '<div class="fit"><span class="rank">' + (i+1) + '</span>' +
+          '<span class="form">' + this.formStr(f, g) + '</span>' +
+          '<span class="meta">' +
+          (ntag ? '<b style="color:var(--p-amber)">' + ntag + '</b> &nbsp; ' : '') +
+          (tag ? '<b style="color:var(--p-green-dim)">' + tag + '</b> &nbsp; ' : '') +
+          'post ' + (f.post*100).toFixed(f.post<0.005?1:0) + '% &nbsp; ' +
+          (i>0 ? '\u0394' + gap.toFixed(1) + ' nats &nbsp; ' : '') +
+          'mean ' + f.pmA.toFixed(2) + ' &nbsp; var ' + f.pvA.toFixed(1) +
+          ' &nbsp; range ' + f.loA + '\u2013' + f.hiA + '</span></div>';
+      });
+      const Lv = LAB.cfg.slevel;
+      const nHit = Lv && r.fits.slice(0,5).find(f =>
+        f.N === Lv || f.N === Math.floor(Lv/2) || f.N === Math.floor(Lv/3) ||
+        f.N === Math.floor(Lv/4) || f.N === Math.floor(Lv/5) || f.N === Math.floor(Lv/10));
+      if(nHit && !lt)
+        h += '<div class="note-box warn"><b>' + nHit.N + 'd' + nHit.S + ' &mdash; and your spell level is ' +
+          Lv + '.</b> The dice count might not be a fixed number at all; it could be derived from level, ' +
+          'as in dice(level, ' + nHit.S + '). From a single level those look identical. Collect a second ' +
+          'level and the Runs card will tell them apart from how the variance moves.</div>';
+      if(!r.fits.slice(0,8).some(f=>f.round))
+        h += '<div class="note-box warn">None of these constants look like something a person ' +
+          'would type. Either a level term is still baked in, or the formula is not ' +
+          'dice + constant at all &mdash; check the support map for a step pattern.</div>';
+      const top8 = r.fits.slice(0,8).reduce((a,f)=>a+f.post,0);
+      h += '<div class="note-box"><b>' + r.total + ' formulas survive the moment screen.</b> ' +
+        'Each is then scored by the exact probability of every recorded value under that formula ' +
+        '(which uses the full distribution shape, not just mean and variance) times a prior on ' +
+        'what a person would plausibly type. The top candidate holds <b>' +
+        (top.post*100).toFixed(0) + '%</b> of the posterior; the eight shown hold ' +
+        (top8*100).toFixed(0) + '%.</div>';
+      if(top.post < 0.6)
+        h += '<div class="note-box warn">Below ~60% posterior the ranking is not settled &mdash; ' +
+             'two or more formulas explain the data about equally well. The likelihood sharpens ' +
+             'quickly with more rounds; the shape of the distribution (not the mean) is what ' +
+             'separates 6d8 from 12d4, and it needs several hundred samples to emerge.</div>';
+    }
+
+    box.innerHTML = h;
+    this.drawMap(this.adj && lt ? LAB.clean().map(v=>v-lt.offset) : LAB.clean(), d);
+    const ab = $('adjbtn');
+    if(ab) ab.addEventListener('click', ()=>{ this.adj = !this.adj; this.analyze(); });
+    const cp = $('cpf');
+    if(cp) cp.addEventListener('click', ()=>{
+      navigator.clipboard.writeText(sol.formula).then(
+        ()=>{ cp.textContent='Copied'; setTimeout(()=>cp.textContent='Copy formula',1400); },
+        ()=>{ cp.textContent='Copy failed'; });
+    });
+
+    function fmtK(K){
+      const nice = {0.25:'level/4', 0.3333333333333333:'level/3', 0.5:'level/2',
+                    0.6666666666666666:'2\u00d7level/3', 0.75:'3\u00d7level/4'};
+      return nice[K] ? nice[K].replace('level','1') + ' i.e. ' + K.toFixed(2) : K.toFixed(2);
+    }
+  },
+
+  drawMap(a, d){
+    const el = $('map'); if(!el) return;
+    const span = d.max - d.min + 1;
+    const bucket = span > 160 ? Math.ceil(span/160) : 1;
+    const bins = new Array(Math.ceil(span/bucket)).fill(0);
+    for(const v of a){
+      const i = Math.floor((v-d.min)/bucket);
+      if(i >= 0 && i < bins.length) bins[i]++;   // trimmed outliers fall outside
+    }
+    const peak = Math.max(...bins);
+    el.innerHTML = bins.map(c=>{
+      if(c===0) return '<div class="mcol void" title="no hits"></div>';
+      const hgt = Math.max(6, Math.round(c/peak*100));
+      const hot = c >= peak*0.6 ? ' hot' : '';
+      return '<div class="mcol' + hot + '" style="height:' + hgt + '%" title="' + c + '"></div>';
+    }).join('');
+  },
+
+  shape(a, d){
+    if(d.n < 40) return null;
+    const span = d.max - d.min + 1;
+    if(span <= 1) return {tone:'warn', txt:'<b>Every roll identical.</b> No random component at all &mdash; this is a flat or purely level-derived number.'};
+    // bimodality: split at midpoint, look for a hollow centre
+    const mid = (d.min + d.max)/2, band = span*0.12;
+    let centre = 0;
+    for(const v of a) if(Math.abs(v-mid) < band) centre++;
+    const expect = a.length * (2*band/span);
+    if(centre < expect*0.35 && d.n >= 60)
+      return {tone:'bad', txt:'<b>Two clusters, hollow middle.</b> That is the signature of saving throws halving damage on a success. Push your saving spell high positive and collect again &mdash; if the low cluster vanishes, saves are live and the high cluster is the real spell.'};
+    const rel = d.sd / d.mean;
+    if(rel < 0.05)
+      return {tone:'good', txt:'<b>Tight spread</b> (sd is ' + (rel*100).toFixed(1) + '% of the mean). Most of this damage is fixed or level-scaled, with only light dice on top. Expect a formula shaped like level \u00d7 K plus small dice.'};
+    return null;
+  },
+
+  /* ---------- runs: sweep across spell level ---------- */
+  runs(){
+    const box = $('runs');
+    const ks = LAB.keys();
+    if(!ks.length){
+      box.innerHTML = '<div class="empty"><b>No runs recorded.</b>' +
+        'A run is one spell at one spell level with one saving-spell value. ' +
+        'Change the level in the prog, update Setup to match, and new rounds file separately.</div>';
+      return;
+    }
+    let h = '<table><thead><tr><th>Spell</th><th>Lvl</th><th>Save</th><th>N</th><th>Mean</th><th>Var</th><th>Range</th></tr></thead><tbody>';
+    const pts = [];
+    let otherSave = 0;
+    for(const r of ks){
+      const d = LAB.describe(LAB.clean(r.key));
+      if(!d) continue;
+      h += '<tr class="' + (r.key===LAB.key()?'here':'') + '"><td>' + r.spell + '</td><td>' +
+           (r.slevel ?? '?') + '</td><td>' + (r.save ?? 0) + '</td><td>' + d.n + '</td><td>' + d.mean.toFixed(1) +
+           '</td><td>' + d.var.toFixed(1) + '</td><td>' + d.min + '\u2013' + d.max + '</td></tr>';
+      if(r.spell === LAB.cfg.spell && typeof r.slevel === 'number' && d.n >= 15){
+        if(r.save === LAB.cfg.save) pts.push({x:r.slevel, y:d.mean, v:d.var, n:d.n});
+        else otherSave++;
+      }
+    }
+    h += '</tbody></table>';
+
+    if(otherSave)
+      h += '<div class="note-box">' + otherSave + ' run' + (otherSave>1?'s':'') + ' of this spell at a ' +
+           'different save value ' + (otherSave>1?'are':'is') + ' shown above but excluded from the sweep ' +
+           'below &mdash; mixing save values into one regression corrupts the level slope.</div>';
+
+    if(pts.length < 2){
+      h += '<div class="note-box">Collect at a second spell level to separate the fixed part ' +
+           'from the level-scaled part. Level is set in the prog, so sweeping 6&ndash;8 values ' +
+           'spread wide is cheap &mdash; far better than two close ones.</div>';
+      box.innerHTML = h;
+      return;
+    }
+
+    pts.sort((a,b)=>a.x-b.x);
+    const fit = this.ols(pts);
+
+    h += '<div class="sec">Spell level term</div>';
+    h += this.sweep(pts, fit);
+    h += '<div class="grid">' +
+      '<div class="cell"><span class="k">Per level</span><span class="v">' + fit.m.toFixed(2) + '</span></div>' +
+      '<div class="cell"><span class="k">Intercept</span><span class="v sm">' + fit.b.toFixed(1) + '</span></div>' +
+      '<div class="cell"><span class="k">R\u00b2</span><span class="v sm">' + fit.r2.toFixed(4) + '</span></div></div>';
+
+    /* --- is it level-scaled at all --- */
+    if(Math.abs(fit.m) < 0.15){
+      h += '<div class="note-box good"><b>No level scaling.</b> Damage held flat across ' +
+        pts.length + ' spell levels, so the formula ignores level entirely. ' +
+        'Pool every run together and fit once against the combined sample.</div>';
+    } else {
+      const near = (v,t)=>Math.abs(fit.m - t) < Math.max(0.06, Math.abs(t)*0.06);
+      let guess = '';
+      if(near(fit.m,1))        guess = ' That is almost exactly <b>+ level</b>.';
+      else if(near(fit.m,0.5)) guess = ' That is close to <b>level / 2</b>.';
+      else if(near(fit.m,2))   guess = ' That is close to <b>level * 2</b>.';
+      else if(near(fit.m,1/3)) guess = ' That is close to <b>level / 3</b>.';
+      else if(near(fit.m,0.25))guess = ' That is close to <b>level / 4</b>.';
+      h += '<div class="note-box"><b>Damage rises ' + fit.m.toFixed(2) + ' per spell level.</b>' +
+        guess + ' About <b>' + fit.b.toFixed(0) + '</b> is left over for dice and constants ' +
+        'once the level term is removed.</div>';
+    }
+
+    /* --- linearity, caps, floors --- */
+    const plat = this.plateau(pts);
+    if(plat){
+      h += '<div class="note-box warn"><b>Damage stops rising at spell level ' + plat.at + '.</b> ' +
+        'Levels ' + plat.at + ' and above all land near ' + plat.val.toFixed(0) +
+        '. That is a MIN() clamp in the formula &mdash; fit the level term using only ' +
+        'levels below ' + plat.at + ', and treat everything above as saturated.</div>';
+    }
+    if(pts.length >= 4){
+      if(fit.r2 < 0.97 && !plat){
+        const worst = fit.res.reduce((a,b)=>Math.abs(b.r)>Math.abs(a.r)?b:a);
+        h += '<div class="note-box warn"><b>Not a straight line</b> (R\u00b2 ' + fit.r2.toFixed(3) +
+          '). Level ' + worst.x + ' sits ' + (worst.r>0?'+':'') + worst.r.toFixed(1) +
+          ' off the fit. Look for a floor, a second breakpoint, or integer division making steps.</div>';
+      } else if(!plat){
+        h += '<div class="note-box good"><b>Clean linear scaling</b> across ' + pts.length +
+          ' levels (R\u00b2 ' + fit.r2.toFixed(4) + '). The level term is a simple multiple.</div>';
+      }
+    }
+
+    /* --- where does level enter the dice --- */
+    h += '<div class="sec">Where level enters</div>';
+    const rg = LAB.diceRegime(pts);
+    if(rg){
+      const vspan = '(' + rg.lo.v.toFixed(0) + ' at level ' + rg.lo.x +
+                    ', ' + rg.hi.v.toFixed(0) + ' at ' + rg.hi.x + ')';
+      if(rg.kind === 'fixed'){
+        h += '<div class="note-box good"><b>The dice are fixed.</b> Variance held steady ' + vspan +
+          ', so level only shifts the total &mdash; it does not change how many dice are rolled ' +
+          'or how big they are. Fit the dice once at any level.</div>';
+      } else if(rg.kind === 'count'){
+        const b = rg.best;
+        h += '<div class="note-box warn"><b>The dice count scales with level.</b> Variance grew ' +
+          rg.ratio.toFixed(1) + '\u00d7 ' + vspan + ', and it grew in step with level rather than ' +
+          'level squared &mdash; that is dice(f(level), S), not a bigger die.</div>';
+        if(b){
+          const fmtF = v => v >= 1 ? String(Math.round(v*100)/100) : '1/' + Math.round(1/v);
+          const per = b.nearF === 1 ? 'one die per level'
+                    : b.nearF > 1   ? fmtF(b.nearF) + ' dice per level'
+                    : 'one die per ' + Math.round(1/b.nearF) + ' levels';
+          h += '<div class="note-box good"><b>Best read: d' + b.S + ', ' + per + '.</b> ' +
+            'That works out to <b>dice(level' + (b.nearF===1 ? '' : b.nearF>1 ? '*'+fmtF(b.nearF) : '/' + Math.round(1/b.nearF)) +
+            ', ' + b.S + ')</b>' + (Math.abs(b.g) > 0.2
+              ? ' plus about ' + b.g.toFixed(2) + ' more damage per level on top.'
+              : ', with no separate level adder.') + '</div>';
+          const minN = Math.min(...pts.map(q=>q.n));
+          if(minN < 250)
+            h += '<div class="note-box warn"><b>Treat the die size above as tentative.</b> ' +
+              'Your thinnest level has ' + minN + ' rounds, and pinning the die depends on the ' +
+              'variance estimate, which needs roughly 300 per level to settle. That the dice ' +
+              '<i>count</i> scales is solid; which die it is, is not yet.</div>';
+          if(rg.opts.length > 1){
+            h += '<table><thead><tr><th>If die is</th><th>Dice per level</th><th>Leftover /level</th></tr></thead><tbody>';
+            rg.opts.slice(0,4).forEach((o,i)=>{
+              h += '<tr class="' + (i===0?'here':'') + '"><td>d' + o.S + '</td><td>' +
+                o.fp.toFixed(3) + (o.errF<0.08 ? ' \u2248 ' + fmtF(o.nearF) : '') +
+                '</td><td>' + o.g.toFixed(2) + '</td></tr>';
+            });
+            h += '</tbody></table><div class="note-box">The winning row is the one whose dice-per-level ' +
+                 'lands on a simple fraction and leaves a clean remainder. Collect a wider level ' +
+                 'spread if two rows look equally good.</div>';
+          }
+        }
+      } else if(rg.kind === 'size'){
+        h += '<div class="note-box warn"><b>The die size tracks level.</b> Variance grew ' +
+          rg.ratio.toFixed(1) + '\u00d7 ' + vspan + ' and followed level <i>squared</i> ' +
+          '(R\u00b2 ' + rg.r2.toFixed(3) + '), which only happens when the die itself gets bigger. ' +
+          'This is dice(N, level).</div>';
+        h += '<div class="note-box ' + (rg.agree?'good':'warn') + '"><b>Dice count \u2248 ' + rg.N + '.</b> ' +
+          'From the mean slope: ' + rg.n1.toFixed(2) + '. From the variance slope: ' + rg.n2.toFixed(2) + '. ' +
+          (rg.agree ? 'Those agree, so read it as dice(' + rg.N + ', level).'
+                    : 'Those disagree &mdash; there may be a second level term as well. Collect more levels.') +
+          '</div>';
+        h += '<div class="note-box">A product form <b>dice(N,S) * level</b> or a level-scaled uniform ' +
+          '<b>number(a*level, b*level)</b> grows variance with ' +
+          'level\u00b2 in exactly the same way. The two are told apart by the support map on the ' +
+          'Analysis card: a product form is a comb (clusters with hollow space between), ' +
+          'dice(N, level) fills its whole range. The Analysis card checks this automatically.</div>';
+      }
+    }
+
+    if(pts.length < 5)
+      h += '<div class="note-box">Only ' + pts.length + ' levels. A cap or a step pattern needs ' +
+           'at least five points spread wide to show up &mdash; try 10, 25, 50, 75 and 98.</div>';
+
+    box.innerHTML = h;
+  },
+
+  /* A cap shows up as the top points going flat while lower ones still climb.
+     Returns the level where the climb stops, or null. */
+  plateau(pts){
+    if(pts.length < 3) return null;
+    const span = pts[pts.length-1].y - pts[0].y;
+    if(Math.abs(span) < 1) return null;
+    const noise = Math.max(1.5, Math.abs(span) * 0.02);
+    // walk back while consecutive means stay within noise of each other
+    let i = pts.length - 1;
+    while(i > 0 && Math.abs(pts[i].y - pts[i-1].y) < noise) i--;
+    if(i === pts.length - 1) return null;          // nothing flat at the top
+    if(i === 0) return null;                        // entirely flat, handled elsewhere
+    const flat = pts.slice(i);
+    if(flat.length < 2) return null;
+    const val = flat.reduce((a,p)=>a+p.y,0)/flat.length;
+    // the climb below must be real, otherwise this is just a noisy tail
+    if(Math.abs(pts[i].y - pts[i-1].y) < noise * 2) return null;
+    return {at: pts[i].x, val};
+  },
+
+  /* least squares, weighted by inverse variance of each level mean (n/var) */
+  ols(pts){
+    let sw=0, sx=0, sy=0, sxx=0, sxy=0;
+    for(const p of pts){ const w = (p.n || 1)/Math.max(p.v || 1, 1);
+      sw+=w; sx+=w*p.x; sy+=w*p.y; sxx+=w*p.x*p.x; sxy+=w*p.x*p.y; }
+    const den = sw*sxx - sx*sx;
+    const m = den ? (sw*sxy - sx*sy)/den : 0;
+    const b = (sy - m*sx)/sw;
+    const my = sy/sw;
+    let ssr=0, sst=0;
+    const res = pts.map(p=>{ const r = p.y - (m*p.x + b); ssr += r*r; sst += (p.y-my)**2; return {x:p.x, r}; });
+    const sd = Math.sqrt(ssr/Math.max(1,pts.length-2));
+    return {m, b, r2: sst ? 1 - ssr/sst : 1, res, sd};
+  },
+
+  /* mean-vs-level sweep plot */
+  sweep(pts, fit){
+    const W=100, H=44, pad=3;
+    const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+    const x0=Math.min(...xs), x1=Math.max(...xs);
+    const y0=Math.min(...ys), y1=Math.max(...ys);
+    const sx = v => x1===x0 ? W/2 : pad + (v-x0)/(x1-x0)*(W-2*pad);
+    const sy = v => y1===y0 ? H/2 : H-pad - (v-y0)/(y1-y0)*(H-2*pad);
+    const line = 'M' + sx(x0) + ',' + sy(fit.m*x0+fit.b) + ' L' + sx(x1) + ',' + sy(fit.m*x1+fit.b);
+    const dots = pts.map(p=>'<circle cx="' + sx(p.x).toFixed(2) + '" cy="' + sy(p.y).toFixed(2) +
+      '" r="1.4" fill="#33ff88"><title>level ' + p.x + ': ' + p.y.toFixed(1) + ' (n=' + p.n + ')</title></circle>').join('');
+    return '<div class="map-wrap"><div class="map-head"><span>Mean by spell level</span>' +
+      '<span>' + x0 + ' \u2192 ' + x1 + '</span></div>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="width:100%;height:104px;display:block">' +
+      '<path d="' + line + '" stroke="#1a7a44" stroke-width=".6" fill="none" stroke-dasharray="2 1.5"/>' +
+      dots + '</svg>' +
+      '<div class="map-axis"><span>' + y0.toFixed(0) + ' dmg</span><span>' + y1.toFixed(0) + ' dmg</span></div></div>';
+  }
+};
+
+/*===================================================================
+  WIRING
+===================================================================*/
+function readCfg(){
+  LAB.cfg.maxhp  = parseInt($('c-max').value) || 0;
+  LAB.cfg.slevel = parseInt($('c-lvl').value) || 0;
+  LAB.cfg.save   = parseInt($('c-sav').value) || 0;
+  LAB.cfg.spell  = ($('c-spell').value || 'spell').trim();
+  LAB.cfg.dmg    = $('c-dmg').value;
+  LAB.cfg.heal   = $('c-heal').value;
+  LAB.cfg.prompt = $('c-prompt').value;
+  LAB.cfg.idleCmd = ($('c-idle').value || 'look').trim();
+  const ok = LAB.compile();
+  store.save();
+  UI.render();
+  return ok;
+}
+function writeCfg(){
+  $('c-max').value=LAB.cfg.maxhp; $('c-lvl').value=LAB.cfg.slevel; $('c-sav').value=LAB.cfg.save;
+  $('c-spell').value=LAB.cfg.spell; $('c-dmg').value=LAB.cfg.dmg;
+  $('c-heal').value=LAB.cfg.heal; $('c-prompt').value=LAB.cfg.prompt; $('c-idle').value=LAB.cfg.idleCmd;
+}
+
+function boot(){
+  store.load();
+  writeCfg();
+  LAB.compile();
+
+  term = new Terminal({theme:{background:'#05070a', foreground:'#c8d6dc'},
+    fontSize: window.innerWidth<=900 ? 11 : 13, fontFamily:'monospace', scrollback:2000});
+  fit = new FitAddon.FitAddon();
+  term.loadAddon(fit); term.open($('term'));
+  setTimeout(()=>{try{fit.fit()}catch(e){}}, 120);
+  window.addEventListener('resize', ()=>{try{fit.fit()}catch(e){}});
+  if(window.ResizeObserver) new ResizeObserver(()=>{try{fit.fit()}catch(e){}}).observe($('termwrap'));
+
+  connect();
+  setInterval(()=>{ if(ws && ws.readyState===WebSocket.OPEN) ws.send(PING); }, PING_EVERY);
+
+  UI.render(); UI.rec();
+  $('store-note').innerHTML = (store.ok
+    ? 'Samples persist in this browser. <b>' + LAB.samples.length + '</b> rows stored.'
+    : '<b>This browser is blocking local storage.</b> Samples live only in memory &mdash; export before you close the tab.')
+    + (store.migrated ? '<br><br><b>' + store.migrated + ' rows carried over</b> from before spell level ' +
+       'replaced character level. They kept their numbers and now file under the spell level you had set.' : '');
+
+  // tabs (mobile only; on desktop every card is already on screen)
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.card').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      document.querySelector('.card[data-p="'+b.dataset.p+'"]').classList.add('on');
+      UI.render();
+    });
+  });
+
+  // config inputs
+  ['c-max','c-lvl','c-sav','c-spell','c-dmg','c-heal','c-prompt','c-idle']
+    .forEach(id => $(id).addEventListener('change', readCfg));
+
+  $('grab').addEventListener('click', ()=>{
+    if(LAB.lastHp){ $('c-max').value = LAB.lastHp; readCfg(); }
+  });
+
+  $('go').addEventListener('click', ()=>{
+    if(!readCfg()){ alert('One of the patterns is not valid regex. Check Setup.'); return; }
+    if(!LAB.cfg.maxhp){ alert('Set your max HP first.'); return; }
+    LAB.active = true; LAB.seq=[]; LAB.tick=false;
+    LAB.regenPrompts = 0; LAB.regenMoved = 0;
+    UI.rec(); idleOn();
+    if(window.innerWidth < 900) document.querySelector('.tab[data-p="live"]').click();
+  });
+  $('halt').addEventListener('click', ()=>{ LAB.active=false; idleOff(); UI.rec(); });
+
+  // data
+  $('ex-csv').addEventListener('click', ()=>{
+    const rows = ['spell,spell_level,save,hp,deficit,trailing,per,tick,seq'];
+    for(const s of LAB.samples)
+      rows.push([s.spell,s.slevel,s.save,s.hp,s.deficit,s.trailing,(s.per||0).toFixed(2),s.tick,s.seq].join(','));
+    download('damage_samples.csv', rows.join('\n'), 'text/csv');
+  });
+  $('ex-json').addEventListener('click', ()=>{
+    download('damage_samples.json', JSON.stringify({cfg:LAB.cfg, samples:LAB.samples}, null, 1), 'application/json');
+  });
+  $('im').addEventListener('click', ()=> $('imf').click());
+  $('imf').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const o = JSON.parse(r.result);
+        if(Array.isArray(o.samples)){
+          LAB.samples = LAB.samples.concat(store.migrate(o.samples));
+          store.save(); UI.render();
+          alert('Added ' + o.samples.length + ' rows.');
+        }
+      }catch(err){ alert('That file is not readable JSON.'); }
+    };
+    r.readAsText(f);
+  });
+  $('del-run').addEventListener('click', ()=>{
+    const k = LAB.key();
+    if(!confirm('Delete every round recorded under ' + k + '?')) return;
+    LAB.samples = LAB.samples.filter(s=>s.key!==k);
+    store.save(); UI.render(); $('feed').innerHTML='';
+  });
+  $('del-all').addEventListener('click', ()=>{
+    if(!confirm('Delete all ' + LAB.samples.length + ' recorded rounds? This cannot be undone.')) return;
+    LAB.samples = []; store.wipe(); store.save(); UI.render(); $('feed').innerHTML='';
+  });
+
+  // command bar
+  const cmd = $('cmd');
+  const autosize = ()=>{ cmd.style.height='auto'; cmd.style.height=(cmd.scrollHeight+2)+'px'; };
+  const selAll = ()=>{ if(cmd.value){ cmd.focus(); setTimeout(()=>cmd.setSelectionRange(0,cmd.value.length),0);} };
+  const atTop = ()=>{ const n=cmd.value.indexOf('\n'); return n===-1 || cmd.selectionStart<=n; };
+  const atEnd = ()=>{ const n=cmd.value.lastIndexOf('\n'); return n===-1 || cmd.selectionEnd>n; };
+  cmd.addEventListener('input', autosize);
+  cmd.addEventListener('keydown', e=>{
+    if(e.key==='ArrowUp' && atTop()){
+      if(!hist.length || hi>=hist.length-1) return;
+      e.preventDefault(); if(hi===-1) draft=cmd.value;
+      hi++; cmd.value=hist[hist.length-1-hi]; autosize(); selAll(); return;
+    }
+    if(e.key==='ArrowDown' && atEnd()){
+      if(hi<0) return; e.preventDefault(); hi--;
+      cmd.value = hi===-1 ? draft : hist[hist.length-1-hi]; autosize(); selAll(); return;
+    }
+    if(e.key==='Enter' && !e.shiftKey){
+      e.preventDefault();
+      const t = cmd.value;
+      sendBlock(t);
+      if(t && hist[hist.length-1]!==t) hist.push(t);
+      if(hist.length>100) hist.shift();
+      hi=-1; draft=''; selAll();
+    }
+  });
+  autosize();
+
+  $('rc').addEventListener('click', ()=>{ tries=0; connect(); });
+  let armed=false, armT=null;
+  $('kl').addEventListener('click', ()=>{
+    const kl=$('kl');
+    if(armed){
+      clearTimeout(armT); armed=false; kl.classList.remove('armed');
+      term.writeln('\x1b[33m--- ending ' + TOKEN + ' ---\x1b[0m');
+      const k = new WebSocket(TUNNEL + '/?token=k' + TOKEN);
+      k.onopen = ()=> setTimeout(()=>{try{k.close()}catch(e){}}, 300);
+      k.onerror = ()=>{};
+      return;
+    }
+    armed=true; kl.classList.add('armed');
+    term.writeln('\x1b[33m--- press again to end ' + TOKEN + ' ---\x1b[0m');
+    armT = setTimeout(()=>{armed=false; kl.classList.remove('armed');}, 5000);
+  });
+
+  $('swap').addEventListener('click', ()=> $('lab').classList.toggle('show'));
+
+  if('wakeLock' in navigator){
+    const wake = async ()=>{ try{ await navigator.wakeLock.request('screen'); }catch(e){} };
+    wake();
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') wake(); });
+  }
+}
+</script>
+</body>
+</html>
