@@ -2717,8 +2717,11 @@ const TEST = {
     lo = Math.max(lo, o.min - dataSpan*1.5);
     hi = Math.min(hi, o.max + dataSpan*1.5);
     const span = hi - lo + 1;
-    const nb = Math.min(240, span);
-    const bw = span/nb;
+    /* bins must span a WHOLE number of integer values — a fractional width
+       makes some bins straddle two support points and collect double mass,
+       drawing periodic spikes that are pure aliasing, not distribution */
+    const bw = Math.max(1, Math.ceil(span/240));
+    const nb = Math.ceil(span/bw);
 
     const obs = new Float64Array(nb);
     for(const [v,c] of hist){
@@ -2771,7 +2774,7 @@ const TEST = {
     leg += '</div>';
 
     return '<div class="chartbox"><div class="chart-head"><span>Distribution</span>' +
-      '<span>' + lo + ' to ' + hi + (span>nb ? '  \u00b7  ' + bw.toFixed(1) + ' per bin' : '') + '</span></div>' +
+      '<span>' + lo + ' to ' + hi + (bw>1 ? '  \u00b7  ' + bw + ' values per bin' : '') + '</span></div>' +
       s + '<div class="axis"><span>' + lo + '</span><span>' + hi + '</span></div>' + leg + '</div>';
   }
 };
