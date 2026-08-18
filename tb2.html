@@ -320,9 +320,9 @@ summary:hover{color:var(--chalk)}
         <div class="card on" data-p="setup">
           <div class="card-head">Setup</div>
           <div class="row">
-            <div class="fld"><label>Max HP</label><input id="c-max" value="2840" /></div>
+            <div class="fld"><label>Max HP</label><input id="c-max" value="24812" /></div>
             <div class="fld"><label>Spell lvl</label><input id="c-lvl" value="98" /></div>
-            <div class="fld"><label>Save</label><input id="c-sav" value="0" /></div>
+            <div class="fld"><label>Save</label><input id="c-sav" value="100" /></div>
           </div>
           <div class="row">
             <div class="fld" style="flex:1.1"><label>Spell</label><input id="c-spell" value="detonate" />
@@ -533,7 +533,7 @@ function fmtNum(v){
 }
 
 const LAB = {
-  cfg: { maxhp:2840, slevel:98, save:0, spell:'detonate', idleCmd:'look',
+  cfg: { maxhp:24812, slevel:98, save:100, spell:'detonate', idleCmd:'look',
          dmg:'detonates your liver',
          heal:'You feel totally healed from all ailments',
          prompt:'(\\d+)Hp\\s+(\\d+)Ma\\s+(\\d+)Mv' },
@@ -1508,6 +1508,19 @@ const LAB = {
     if(Math.abs(m) < 0.15 || r2 < 0.90) return null;
     const K = this.snapK(m);
     return {K, raw:m, r2, offset: Math.round(K * this.cfg.slevel), pts:pts.length};
+  },
+
+  /* full verdict for an arbitrary stored run: swap the config context in,
+     solve, swap back — lets the tester default to any run's best formula */
+  solveFor(k){
+    const ks = this.keys().find(x => x.key === k);
+    if(!ks) return null;
+    const old = {spell:this.cfg.spell, slevel:this.cfg.slevel, save:this.cfg.save};
+    this.cfg.spell = ks.spell; this.cfg.slevel = ks.slevel; this.cfg.save = ks.save;
+    let sol = null;
+    try{ sol = this.solve(); }catch(e){}
+    Object.assign(this.cfg, old);
+    return sol;
   },
 
   keys(){
@@ -2556,10 +2569,32 @@ const TEST = {
     });
   },
 
+  /* When every slot is blank, seed slot 1 with the engine's verdict for the
+     selected run. Never touches anything the user typed; retried only when
+     the run changes or ~100 new rounds land (a verdict may appear late). */
+  _autoTry: null,
+  autofill(){
+    if(this.FS.some(f=>f.txt.trim())) return;
+    const k = this.key();
+    if(!k) return;
+    let n = 0;
+    for(const s of LAB.samples) if(s.key===k) n++;
+    const t = this._autoTry;
+    if(t && t.key === k && n - t.n < 100) return;
+    this._autoTry = {key:k, n};
+    const sol = LAB.solveFor(k);
+    if(sol && sol.f){
+      this.FS[0].txt = UI.dslFor(sol.f, sol.step, sol.lt ? sol.lt.K : 0);
+      this.drawRows();
+      store.save();
+    }
+  },
+
   render(){
     const out = $('t-out');
     if(!out) return;
     this.refresh();
+    this.autofill();
     const vals = this.values().map(v=>Math.round(v));
     const o = LAB.describe(vals);
     if(!o){
@@ -2926,7 +2961,9 @@ function boot(){
     if(TEST.FS.length < 5){ TEST.FS.push({txt:''}); TEST.drawRows(); }
   });
   $('t-clearf').addEventListener('click', ()=>{
-    TEST.FS = [{txt:''}]; TEST.drawRows(); store.save(); TEST.render();
+    TEST.FS = [{txt:''}];
+    TEST._autoTry = {key:TEST.key(), n:Infinity};   // don't refill what was just cleared
+    TEST.drawRows(); store.save(); TEST.render();
   });
   $('t-ex').addEventListener('click', e=>{
     if(e.target.tagName === 'CODE') TEST.add(e.target.textContent);
