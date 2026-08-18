@@ -203,6 +203,45 @@ tr.here td{color:var(--p-green)}
 .ic:hover{color:var(--chalk);border-color:var(--ash)}
 .ic.armed{color:var(--p-rust);border-color:var(--p-rust)}
 
+/* ---------- formula tester ---------- */
+select.tsel{width:100%;padding:7px 9px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:12px;outline:none}
+select.tsel:focus{border-color:var(--p-green-dim)}
+.frow{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.swatch{flex:0 0 4px;align-self:stretch;min-height:36px;background:var(--ash)}
+.fwrap{flex:1;min-width:0}
+.finput{width:100%;padding:8px 9px;background:var(--void);border:1px solid var(--edge-hi);
+  color:var(--p-green);font-family:var(--mono);font-size:13px;outline:none}
+.finput:focus{border-color:var(--p-green-dim)}
+.finput.bad{border-color:var(--p-rust);color:var(--p-rust)}
+.ferr{font-size:10px;color:var(--p-rust);margin-top:4px;line-height:1.5}
+.fnote{font-size:10px;color:var(--ash);margin-top:4px;font-variant-numeric:tabular-nums}
+.fx{flex:0 0 auto;background:none;border:none;color:var(--ash);cursor:pointer;
+  font-family:var(--mono);font-size:15px;padding:6px 4px;outline:none}
+.fx:hover{color:var(--p-rust)}
+.chartbox{border:1px solid var(--edge);background:var(--void);padding:12px;margin-bottom:14px}
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin-bottom:10px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--ash);margin-top:9px}
+.legend span{display:flex;align-items:center;gap:6px}
+.axis{display:flex;justify-content:space-between;font-size:10px;color:var(--ash);
+  margin-top:6px;font-variant-numeric:tabular-nums}
+td.num{text-align:right}
+tr.best td{color:var(--p-green)}
+.dot{display:inline-block;width:8px;height:8px;margin-right:7px;vertical-align:middle}
+.grid.g4{grid-template-columns:repeat(4,1fr)}
+details{margin-top:10px}
+summary{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);
+  cursor:pointer;outline:none;padding:4px 0}
+summary:hover{color:var(--chalk)}
+.ex{font-size:11px;line-height:1.9;color:var(--ash);padding:8px 0 0}
+.ex code{color:var(--p-green);cursor:pointer;background:var(--void);padding:2px 6px;
+  border:1px solid var(--edge);display:inline-block;margin:2px 0}
+.ex code:hover{border-color:var(--p-green-dim)}
+.ex i{color:var(--ash);font-style:normal;opacity:.8}
+.fit[data-dsl]{cursor:pointer}
+.fit[data-dsl]:hover{border-color:var(--ash)}
+
 /*==================================================================
   MOBILE (default): lab is an overlay driven by tabs
 ==================================================================*/
@@ -271,6 +310,7 @@ tr.here td{color:var(--p-green)}
       <button class="tab" data-p="live">Live</button>
       <button class="tab" data-p="analyze">Analyze</button>
       <button class="tab" data-p="runs">Runs</button>
+      <button class="tab" data-p="test">Test</button>
       <button class="tab" data-p="data">Data</button>
     </div>
 
@@ -285,7 +325,10 @@ tr.here td{color:var(--p-green)}
             <div class="fld"><label>Save</label><input id="c-sav" value="0" /></div>
           </div>
           <div class="row">
-            <div class="fld"><label>Spell</label><input id="c-spell" value="detonate" /></div>
+            <div class="fld" style="flex:1.1"><label>Spell</label><input id="c-spell" value="detonate" />
+              <div class="hint" id="sp-hint"></div></div>
+            <div class="fld"><label>Pick from list</label><select id="c-spick" class="tsel"></select>
+              <div class="hint">Fills the box; typing still works.</div></div>
           </div>
           <div class="fld"><label>Damage line</label><input id="c-dmg" value="detonates your liver" />
             <div class="hint">Regex. A distinctive fragment beats the whole line &mdash; avoid the mob's name.</div></div>
@@ -331,6 +374,43 @@ tr.here td{color:var(--p-green)}
         <div class="card" data-p="runs">
           <div class="card-head">Runs</div>
           <div id="runs"></div>
+        </div>
+
+        <div class="card" data-p="test">
+          <div class="card-head">Formula test</div>
+          <div class="row">
+            <div class="fld" style="flex:2.2"><label>Run</label><select id="t-run" class="tsel"></select></div>
+            <div class="fld" style="flex:0.9"><label>Level</label><input id="t-lvl" value="98" /></div>
+            <div class="fld" style="flex:1.5"><label>Rounds</label><select id="t-filt" class="tsel">
+              <option value="clean">Clean only</option>
+              <option value="all">Every round</option>
+              <option value="per">Per-cast value</option>
+            </select></div>
+          </div>
+          <div id="t-frows"></div>
+          <div class="btnrow" style="margin-top:6px">
+            <button class="btn sm go" id="t-addf">Add formula</button>
+            <button class="btn sm" id="t-clearf">Clear</button>
+          </div>
+          <details>
+            <summary>Syntax and examples &mdash; click any to load</summary>
+            <div class="ex" id="t-ex">
+              <code>19d20 + 22*level</code> <i>a flamestrike candidate</i><br />
+              <code>18d20 + 10 + 22*level</code> <i>its rival &mdash; race them</i><br />
+              <code>dice(2,12)*level + 4d12 + 10</code> <i>a product form</i><br />
+              <code>number(4802, 9604)</code> <i>flat roll, breath-weapon style</i><br />
+              <code>dice(level,30) + level</code> <i>dice count is the level</i><br />
+              <code>dice(level/10, 8) + 300</code> <i>count scales slowly</i><br />
+              <code>7*dice(10,6) + 48</code> <i>a multiplier &mdash; makes a comb</i><br />
+              <code>min(level,50)*5 + 3d8</code> <i>capped level term</i><br />
+              <br />
+              <i>Understands</i> <code>dice(N,S)</code> <i>and</i> <code>NdS</code>,
+              <code>number(a,b)</code> <i>for a flat roll,</i> <code>min</code> <i>and</i> <code>max</code>,
+              <code>level</code> <i>(or</i> <code>L</code><i>), and</i> + &minus; * / <i>with parentheses.
+              Division truncates like C does, so</i> <code>level/10</code> <i>is 9 at level 98.</i>
+            </div>
+          </details>
+          <div id="t-out" style="margin-top:12px"></div>
         </div>
 
         <div class="card" data-p="data">
@@ -1443,7 +1523,9 @@ const LAB = {
 const store = {
   KEY:'dmglab.v1', ok:true, mem:null,
   save(){
-    const blob = JSON.stringify({cfg:LAB.cfg, samples:LAB.samples});
+    const blob = JSON.stringify({cfg:LAB.cfg, samples:LAB.samples,
+      test: (typeof TEST !== 'undefined' && TEST.FS)
+        ? TEST.FS.map(f=>f.txt).filter(t=>t.trim()) : undefined});
     try{ localStorage.setItem(this.KEY, blob); }
     catch(e){ this.ok=false; this.mem=blob; }
   },
@@ -1454,6 +1536,7 @@ const store = {
     try{
       const o = JSON.parse(blob);
       if(o.samples) LAB.samples = this.migrate(o.samples);
+      if(Array.isArray(o.test)) this.testF = o.test;
       if(o.cfg){
         // an older save may carry the pre-rename 'level' field
         if(o.cfg.slevel === undefined && o.cfg.level !== undefined) o.cfg.slevel = o.cfg.level;
@@ -1517,10 +1600,10 @@ const UI = {
   _t:null,
   queue(){
     clearTimeout(this._t);
-    this._t = setTimeout(()=>{ this.analyze(); this.runs(); }, 700);
+    this._t = setTimeout(()=>{ this.analyze(); this.runs(); TEST.render(); }, 700);
   },
 
-  render(){ this.hud(); this.analyze(); this.runs(); },
+  render(){ this.hud(); this.analyze(); this.runs(); if(TEST._keySig !== undefined) TEST.render(); },
 
   hud(){
     const c = LAB.counts();
@@ -1555,6 +1638,42 @@ const UI = {
              (f.C ? (f.C>0?'+':'\u2212') + Math.abs(f.C) : '');
     }
     return f.N + 'd' + f.S + (f.B>=0?'+':'') + f.B;
+  },
+
+  /* level term as valid tester syntax; the parser has no floats, so
+     fractions become C-style truncating division just like the source would */
+  ltDSL(K){
+    if(!K) return '';
+    if(Number.isInteger(K)) return ' + ' + K + '*level';
+    for(let dnm=2; dnm<=12; dnm++){
+      const m = K*dnm;
+      if(Math.abs(m - Math.round(m)) < 1e-6){
+        const mm = Math.round(m);
+        return ' + ' + (mm===1 ? 'level/'+dnm : mm + '*level/' + dnm);
+      }
+    }
+    return ' + ' + Math.round(K*100) + '*level/100';
+  },
+  /* any candidate fit, as a formula the tester can parse */
+  dslFor(f, g, ltK){
+    let s;
+    if(f.kind === 'unif'){
+      s = 'number(' + f.A + ', ' + f.Bhi + ')';
+    } else if(f.kind === 'prod'){
+      const L = LAB.cfg.slevel;
+      const m = (L && f.p===L) ? 'level' : f.p;
+      s = 'dice(' + f.Nb + ', ' + f.Sb + ')*' + m;
+      if(!f.sm.const) s += ' + dice(' + f.sm.N + ', ' + ((L && f.sm.S===L)?'level':f.sm.S) + ')';
+      if(f.C) s += (f.C>0?' + ':' - ') + Math.abs(f.C);
+    } else if(g > 1){
+      s = g + '*dice(' + f.N + ', ' + f.S + ')';
+      if(f.C) s += (f.C>0?' + ':' - ') + Math.abs(f.C);
+    } else {
+      s = f.N + 'd' + f.S;
+      if(f.B) s += (f.B>0?' + ':' - ') + Math.abs(f.B);
+    }
+    if(ltK) s += this.ltDSL(ltK);
+    return s;
   },
 
   /* ---------- analyze ---------- */
@@ -1617,8 +1736,9 @@ const UI = {
         h += '<div class="v-ck n"><span class="v-mark">\u2022</span><b>Multi-cast rounds excluded</b>' +
              '<span>' + sol.multiDropped + ' stacked-cast rounds do not average to the clean per-cast ' +
              'mean \u2014 a save or crit tier is firing on them, so they stay out of the fit</span></div>';
-      if(sol.state==='solved')
-        h += '<div class="v-copy"><button class="btn sm go" id="cpf">Copy formula</button></div>';
+      h += '<div class="v-copy">' +
+           (sol.state==='solved' ? '<button class="btn sm go" id="cpf">Copy formula</button> ' : '') +
+           '<button class="btn sm" id="tstf">Send to tester</button></div>';
       h += '</div>';
     }
 
@@ -1757,7 +1877,9 @@ const UI = {
         else if(CC % 25 === 0)   tag = 'multiple of 25';
         else if(CC % 10 === 0)   tag = 'multiple of 10';
         const gap = top.score - f.score;
-        h += '<div class="fit"><span class="rank">' + (i+1) + '</span>' +
+        const dsl = this.dslFor(f, g, (this.adj && lt) ? lt.K : 0);
+        h += '<div class="fit" data-dsl="' + dsl + '" title="click to send to the formula tester">' +
+          '<span class="rank">' + (i+1) + '</span>' +
           '<span class="form">' + this.formStr(f, g) + '</span>' +
           '<span class="meta">' +
           (ntag ? '<b style="color:var(--p-amber)">' + ntag + '</b> &nbsp; ' : '') +
@@ -1798,6 +1920,11 @@ const UI = {
     this.drawMap(this.adj && lt ? LAB.clean().map(v=>v-lt.offset) : LAB.clean(), d);
     const ab = $('adjbtn');
     if(ab) ab.addEventListener('click', ()=>{ this.adj = !this.adj; this.analyze(); });
+    box.querySelectorAll('.fit[data-dsl]').forEach(el=>
+      el.addEventListener('click', ()=> TEST.add(el.dataset.dsl)));
+    const tf = $('tstf');
+    if(tf && sol) tf.addEventListener('click', ()=>
+      TEST.add(this.dslFor(sol.f, sol.step, sol.lt ? sol.lt.K : 0)));
     const cp = $('cpf');
     if(cp) cp.addEventListener('click', ()=>{
       navigator.clipboard.writeText(sol.formula).then(
@@ -2058,8 +2185,615 @@ const UI = {
 };
 
 /*===================================================================
+  FORMULA TESTER
+  Type candidate formulas; each is turned into its EXACT probability
+  distribution and raced against the measured data by likelihood.
+  Reads the live sample store directly — re-scores as rounds come in.
+===================================================================*/
+const FX = (() => {
+  const MAXSPAN = 400000;
+  const isD = x => x && x.p !== undefined;
+  const num = v => ({num:true, v});
+
+  function dDice(N, S){
+    if(!Number.isInteger(N) || !Number.isInteger(S)) throw new Error('dice() needs whole numbers');
+    if(N < 0) throw new Error('dice count cannot be negative');
+    if(N === 0) return num(0);
+    if(S < 1) throw new Error('die size must be at least 1');
+    if(N*S > MAXSPAN) throw new Error(N + 'd' + S + ' is too large to compute');
+    if(N > 1 && S*S*N*N/2 > 2e8)
+      throw new Error(N + 'd' + S + ' would take too long to compute exactly');
+    /* Direct windowed convolution, NOT prefix sums. Prefix sums are faster
+       but the running total climbs to 1.0, and subtracting two doubles near
+       1.0 resolves nothing below ~1e-16 — the far tails would round to zero
+       and legitimate extreme rolls would look impossible. */
+    let p = new Float64Array(S).fill(1/S);
+    for(let k=2;k<=N;k++){
+      const oldLen = p.length, newLen = oldLen + S - 1;
+      const q = new Float64Array(newLen);
+      for(let j=0;j<newLen;j++){
+        const hi = Math.min(j, oldLen-1), lo = Math.max(0, j-S+1);
+        let acc = 0;
+        for(let t=lo;t<=hi;t++) acc += p[t];
+        q[j] = acc/S;
+      }
+      p = q;
+    }
+    return {lo:N, p};
+  }
+  function dUniform(a, b){
+    if(b < a) [a,b] = [b,a];
+    const n = b - a + 1;
+    if(n > MAXSPAN) throw new Error('number(' + a + ',' + b + ') spans too much to compute');
+    return {lo:a, p:new Float64Array(n).fill(1/n)};
+  }
+  function conv(A, B){
+    const la = A.p.length, lb = B.p.length;
+    if(la*lb > 40e6) throw new Error('that combination is too large to convolve');
+    const out = new Float64Array(la + lb - 1);
+    for(let i=0;i<la;i++){
+      const a = A.p[i]; if(a === 0) continue;
+      for(let j=0;j<lb;j++) out[i+j] += a*B.p[j];
+    }
+    return {lo:A.lo + B.lo, p:out};
+  }
+  function negate(A){
+    const n = A.p.length, q = new Float64Array(n);
+    for(let i=0;i<n;i++) q[i] = A.p[n-1-i];
+    return {lo: -(A.lo + n - 1), p:q};
+  }
+  function shift(A, k){ return {lo:A.lo + k, p:A.p}; }
+  function scale(A, k){
+    if(k === 0) return num(0);
+    if(k < 0) return scale(negate(A), -k);
+    const n = A.p.length, span = (n-1)*k + 1;
+    if(span > MAXSPAN) throw new Error('multiplying by ' + k + ' spans too much to compute');
+    const q = new Float64Array(span);
+    for(let i=0;i<n;i++) q[i*k] = A.p[i];
+    return {lo:A.lo*k, p:q};
+  }
+  function idiv(A, k){
+    if(k === 0) throw new Error('division by zero');
+    const map = new Map();
+    for(let i=0;i<A.p.length;i++){
+      if(A.p[i] === 0) continue;
+      const v = Math.trunc((A.lo + i)/k);
+      map.set(v, (map.get(v)||0) + A.p[i]);
+    }
+    return fromMap(map);
+  }
+  function clampD(A, k, isMin){
+    const map = new Map();
+    for(let i=0;i<A.p.length;i++){
+      if(A.p[i] === 0) continue;
+      const v0 = A.lo + i, v = isMin ? Math.min(v0,k) : Math.max(v0,k);
+      map.set(v, (map.get(v)||0) + A.p[i]);
+    }
+    return fromMap(map);
+  }
+  function fromMap(map){
+    const ks = [...map.keys()].sort((a,b)=>a-b);
+    const lo = ks[0], hi = ks[ks.length-1];
+    const p = new Float64Array(hi-lo+1);
+    for(const [k,v] of map) p[k-lo] = v;
+    return {lo, p};
+  }
+  const ADD = (a,b) => (!isD(a)&&!isD(b)) ? num(a.v+b.v)
+                     : !isD(b) ? shift(a, b.v)
+                     : !isD(a) ? shift(b, a.v) : conv(a,b);
+  const SUB = (a,b) => (!isD(a)&&!isD(b)) ? num(a.v-b.v)
+                     : !isD(b) ? shift(a, -b.v)
+                     : !isD(a) ? shift(negate(b), a.v) : conv(a, negate(b));
+  function MUL(a,b){
+    if(!isD(a) && !isD(b)) return num(a.v*b.v);
+    if(isD(a) && isD(b)) throw new Error('cannot multiply two random terms together');
+    const D = isD(a)?a:b, k = isD(a)?b.v:a.v;
+    if(!Number.isInteger(k)) throw new Error('can only multiply by a whole number');
+    return scale(D, k);
+  }
+  function DIV(a,b){
+    if(isD(b)) throw new Error('cannot divide by a random term');
+    if(b.v === 0) throw new Error('division by zero');
+    if(!isD(a)) return num(Math.trunc(a.v/b.v));
+    if(!Number.isInteger(b.v)) throw new Error('can only divide by a whole number');
+    return idiv(a, b.v);
+  }
+
+  function tokenize(src){
+    const T = [];
+    let i = 0;
+    const S = src.trim();
+    while(i < S.length){
+      const c = S[i];
+      if(/\s/.test(c)){ i++; continue; }
+      const m = /^(\d+|level|lvl|L)\s*[dD]\s*(\d+|level|lvl|L)/.exec(S.slice(i));
+      if(m && !/^[a-zA-Z_]/.test(S.slice(i+m[0].length))){
+        T.push({t:'dice', a:m[1], b:m[2]}); i += m[0].length; continue;
+      }
+      const f = /^(dice|number|range|min|max)\b/i.exec(S.slice(i));
+      if(f){ T.push({t:'fn', v:f[1].toLowerCase()}); i += f[0].length; continue; }
+      const lv = /^(level|lvl|L)\b/i.exec(S.slice(i));
+      if(lv){ T.push({t:'lvl'}); i += lv[0].length; continue; }
+      const n = /^\d+/.exec(S.slice(i));
+      if(n){ T.push({t:'num', v:parseInt(n[0],10)}); i += n[0].length; continue; }
+      if('+-*/(),'.includes(c)){ T.push({t:c}); i++; continue; }
+      throw new Error('cannot read "' + c + '" at position ' + (i+1));
+    }
+    return T;
+  }
+
+  function parse(src, level){
+    const T = tokenize(src);
+    if(!T.length) throw new Error('empty formula');
+    let k = 0;
+    const peek = () => T[k];
+    const eat = t => { if(!T[k] || T[k].t !== t) throw new Error('expected "' + t + '"'); return T[k++]; };
+    const lvlVal = tok => tok === undefined ? level
+      : (/^\d+$/.test(tok) ? parseInt(tok,10) : level);
+
+    function expr(){
+      let v = term();
+      while(peek() && (peek().t === '+' || peek().t === '-')){
+        const op = T[k++].t;
+        v = op === '+' ? ADD(v, term()) : SUB(v, term());
+      }
+      return v;
+    }
+    function term(){
+      let v = unary();
+      while(peek() && (peek().t === '*' || peek().t === '/')){
+        const op = T[k++].t;
+        v = op === '*' ? MUL(v, unary()) : DIV(v, unary());
+      }
+      return v;
+    }
+    function unary(){
+      if(peek() && peek().t === '-'){ k++; return SUB(num(0), unary()); }
+      if(peek() && peek().t === '+'){ k++; return unary(); }
+      return prim();
+    }
+    function scalarOf(v, what){
+      if(isD(v)) throw new Error(what + ' must be a fixed number, not a random term');
+      return v.v;
+    }
+    function prim(){
+      const tk = peek();
+      if(!tk) throw new Error('formula ends early');
+      if(tk.t === 'num'){ k++; return num(tk.v); }
+      if(tk.t === 'lvl'){ k++; return num(level); }
+      if(tk.t === 'dice'){ k++; return dDice(lvlVal(tk.a), lvlVal(tk.b)); }
+      if(tk.t === '('){ k++; const v = expr(); eat(')'); return v; }
+      if(tk.t === 'fn'){
+        k++; eat('(');
+        const a = expr(); eat(','); const b = expr(); eat(')');
+        if(tk.v === 'dice') return dDice(scalarOf(a,'dice count'), scalarOf(b,'die size'));
+        if(tk.v === 'number' || tk.v === 'range')
+          return dUniform(scalarOf(a,'low bound'), scalarOf(b,'high bound'));
+        const isMin = tk.v === 'min';
+        if(!isD(a) && !isD(b)) return num(isMin ? Math.min(a.v,b.v) : Math.max(a.v,b.v));
+        if(isD(a) && isD(b)) throw new Error(tk.v + '() of two random terms is not supported');
+        return clampD(isD(a)?a:b, isD(a)?b.v:a.v, isMin);
+      }
+      throw new Error('unexpected "' + (tk.v !== undefined ? tk.v : tk.t) + '"');
+    }
+    const out = expr();
+    if(k < T.length) throw new Error('trailing junk after the formula');
+    return isD(out) ? out : {lo:out.v, p:new Float64Array([1])};
+  }
+
+  function dStats(D){
+    let m=0, lo=null, hi=null;
+    for(let i=0;i<D.p.length;i++){
+      if(D.p[i] <= 0) continue;
+      const v = D.lo+i; m += v*D.p[i];
+      if(lo===null) lo=v; hi=v;
+    }
+    let v2=0;
+    for(let i=0;i<D.p.length;i++) if(D.p[i]>0) v2 += (D.lo+i-m)**2 * D.p[i];
+    return {mean:m, var:v2, sd:Math.sqrt(v2), min:lo, max:hi};
+  }
+  const pAt = (D,v) => { const i = v - D.lo; return (i>=0 && i<D.p.length) ? D.p[i] : 0; };
+
+  function logL(hist, D){
+    const EPS = 1e-4, len = Math.max(D.p.length,1);
+    let ll = 0, imp = 0, n = 0;
+    for(const [v,c] of hist){
+      const base = pAt(D,v);
+      if(base === 0) imp += c;
+      n += c;
+      ll += c*Math.log((1-EPS)*base + EPS/len);
+    }
+    return {ll, imp, n, perRound: ll/n};
+  }
+
+  function chi2(hist, D, n){
+    const vals = [...hist.keys()].sort((a,b)=>a-b);
+    const lo = Math.min(vals[0], D.lo), hi = Math.max(vals[vals.length-1], D.lo+D.p.length-1);
+    const bins = [];
+    let eAcc=0, oAcc=0, start=lo;
+    for(let v=lo; v<=hi; v++){
+      eAcc += pAt(D,v)*n;
+      oAcc += hist.get(v)||0;
+      if(eAcc >= 5){ bins.push({e:eAcc,o:oAcc,a:start,b:v}); eAcc=0; oAcc=0; start=v+1; }
+    }
+    if(bins.length && (eAcc>0 || oAcc>0)){
+      const last = bins[bins.length-1];
+      last.e += eAcc; last.o += oAcc; last.b = hi;
+    } else if(!bins.length) return null;
+    let x2 = 0;
+    for(const b of bins) if(b.e > 0) x2 += (b.o-b.e)**2 / b.e;
+    const df = bins.length - 1;
+    return df > 0 ? {x2, df, ratio:x2/df, p:chiP(x2,df)} : null;
+  }
+  function chiP(x, k){ return x <= 0 ? 1 : gammaQ(k/2, x/2); }
+  function gammaQ(a, x){
+    if(x < a+1){
+      let ap=a, sum=1/a, del=sum;
+      for(let i=0;i<500;i++){ ap++; del *= x/ap; sum += del; if(Math.abs(del) < Math.abs(sum)*1e-12) break; }
+      return 1 - sum*Math.exp(-x + a*Math.log(x) - lgamma(a));
+    }
+    let b = x+1-a, c = 1e300, d = 1/b, hh = d;
+    for(let i=1;i<=500;i++){
+      const an = -i*(i-a);
+      b += 2; d = an*d + b; if(Math.abs(d) < 1e-300) d = 1e-300;
+      c = b + an/c; if(Math.abs(c) < 1e-300) c = 1e-300;
+      d = 1/d; const del = d*c; hh *= del;
+      if(Math.abs(del-1) < 1e-12) break;
+    }
+    return Math.exp(-x + a*Math.log(x) - lgamma(a))*hh;
+  }
+  function lgamma(z){
+    const g=[76.18009172947146,-86.50532032941677,24.01409824083091,
+             -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+    let x=z, y=z, tmp=x+5.5;
+    tmp -= (x+0.5)*Math.log(tmp);
+    let ser=1.000000000190015;
+    for(let j=0;j<6;j++) ser += g[j]/++y;
+    return -tmp + Math.log(2.5066282746310005*ser/x);
+  }
+
+  return {parse, dStats, logL, chi2};
+})();
+
+const TEST = {
+  FS: [{txt:''}],
+  COLORS: ['#33ff88','#ffb642','#4fd6ff','#c08cff','#ff5f56'],
+  _dc: new Map(),      // parsed-distribution memo: formula|level -> D
+  _keySig: '',
+
+  init(){
+    if(store.testF && store.testF.length) this.FS = store.testF.map(t=>({txt:String(t)}));
+    if(!this.FS.length) this.FS = [{txt:''}];
+    this.drawRows();
+    this.refresh(true);
+    this.render();
+  },
+
+  esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); },
+
+  key(){ const sel = $('t-run'); return sel ? sel.value : ''; },
+
+  refresh(force){
+    const sel = $('t-run');
+    if(!sel) return;
+    const ks = LAB.keys();
+    const sig = ks.map(k=>k.key).join(';');
+    if(sig === this._keySig && !force) return;
+    this._keySig = sig;
+    const cur = sel.value;
+    sel.innerHTML = ks.map(k =>
+      '<option value="' + this.esc(k.key) + '">' + this.esc(k.spell) + ' \u00b7 sl' + k.slevel +
+      (k.save ? ' \u00b7 sv' + k.save : '') + '</option>').join('');
+    if(ks.some(k=>k.key===cur)) sel.value = cur;
+    else if(ks.some(k=>k.key===LAB.key())) sel.value = LAB.key();
+    const kk = ks.find(k=>k.key===sel.value);
+    if(kk) $('t-lvl').value = kk.slevel;
+  },
+
+  values(){
+    const k = this.key();
+    if(!k) return [];
+    const mode = $('t-filt').value;
+    const rows = LAB.samples.filter(s => s.key===k && s.trailing > 0);
+    if(mode === 'all') return rows.map(s=>s.deficit);
+    if(mode === 'per') return rows.filter(s=>!s.tick).map(s=>s.per);
+    return rows.filter(s=>s.trailing===1 && !s.tick).map(s=>s.deficit);
+  },
+
+  getD(txt, lvl){
+    const key = txt + '|' + lvl;
+    const c = this._dc.get(key);
+    if(c) return c;
+    const D = FX.parse(txt, lvl);
+    if(this._dc.size > 40) this._dc.clear();
+    this._dc.set(key, D);
+    return D;
+  },
+
+  add(txt){
+    txt = String(txt).trim();
+    if(!txt) return;
+    if(!this.FS.some(f=>f.txt.trim()===txt)){
+      let slot = this.FS.findIndex(f=>!f.txt.trim());
+      if(slot < 0){
+        if(this.FS.length >= 5) slot = this.FS.length-1;
+        else { this.FS.push({txt:''}); slot = this.FS.length-1; }
+      }
+      this.FS[slot].txt = txt;
+      this.drawRows();
+    }
+    store.save();
+    if(window.innerWidth < 900){
+      const tb = document.querySelector('.tab[data-p="test"]');
+      if(tb) tb.click();
+    } else {
+      const c = document.querySelector('.card[data-p="test"]');
+      if(c) c.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+    this.render();
+  },
+
+  drawRows(){
+    const box = $('t-frows');
+    if(!box) return;
+    box.innerHTML = '';
+    this.FS.forEach((f,i)=>{
+      const d = document.createElement('div');
+      d.className = 'frow';
+      d.innerHTML =
+        '<div class="swatch" style="background:' + this.COLORS[i%this.COLORS.length] + '"></div>' +
+        '<div class="fwrap"><input class="finput" spellcheck="false" ' +
+        'placeholder="e.g.  19d20 + 22*level" /><div class="ferr"></div><div class="fnote"></div></div>' +
+        (this.FS.length>1 ? '<button class="fx" title="remove">\u00d7</button>' : '');
+      const inp = d.querySelector('.finput');
+      inp.value = f.txt;
+      inp.addEventListener('input', e=>{ this.FS[i].txt = e.target.value; });
+      inp.addEventListener('change', ()=>{ store.save(); this.render(); });
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ store.save(); this.render(); } });
+      const x = d.querySelector('.fx');
+      if(x) x.addEventListener('click', ()=>{ this.FS.splice(i,1); this.drawRows(); store.save(); this.render(); });
+      box.appendChild(d);
+    });
+  },
+
+  render(){
+    const out = $('t-out');
+    if(!out) return;
+    this.refresh();
+    const vals = this.values().map(v=>Math.round(v));
+    const o = LAB.describe(vals);
+    if(!o){
+      out.innerHTML = '<div class="empty"><b>No usable rounds in that run.</b>' +
+        'The tester reads the live data directly \u2014 collect some rounds, or pick another run.</div>';
+      return;
+    }
+    const level = parseInt($('t-lvl').value,10) || 0;
+    const hist = new Map();
+    for(const v of vals) hist.set(v, (hist.get(v)||0)+1);
+
+    const fits = [];
+    this.FS.forEach((f,i)=>{
+      const row = $('t-frows').children[i];
+      const errEl = row && row.querySelector('.ferr');
+      const noteEl = row && row.querySelector('.fnote');
+      const inp = row && row.querySelector('.finput');
+      if(errEl) errEl.textContent = '';
+      if(noteEl) noteEl.textContent = '';
+      if(inp) inp.classList.remove('bad');
+      if(!f.txt.trim()) return;
+      try{
+        const D = this.getD(f.txt.trim(), level);
+        const st = FX.dStats(D);
+        const L = FX.logL(hist, D);
+        const X = FX.chi2(hist, D, o.n);
+        fits.push({i, txt:f.txt.trim(), D, st, L, X, color:this.COLORS[i%this.COLORS.length]});
+        if(noteEl) noteEl.textContent =
+          'mean ' + st.mean.toFixed(2) + '  \u00b7  var ' + st.var.toFixed(1) +
+          '  \u00b7  range ' + st.min + '\u2013' + st.max;
+      }catch(err){
+        if(errEl) errEl.textContent = err.message;
+        if(inp) inp.classList.add('bad');
+      }
+    });
+
+    const cell = (k,v)=>'<div class="cell"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+    let h = '<div class="grid g4">' +
+      cell('Rounds', o.n) + cell('Mean', o.mean.toFixed(2)) +
+      cell('Variance', o.var.toFixed(1)) + cell('Range', o.min + '\u2013' + o.max) + '</div>';
+
+    h += this.chart(hist, o, fits);
+
+    if(!fits.length){
+      h += '<div class="note-box">Type a formula above to draw it against this data, or click any ' +
+           'candidate on the Analysis card to send it here. This card re-scores live as rounds come in.</div>';
+      out.innerHTML = h;
+      return;
+    }
+
+    const ranked = [...fits].sort((a,b)=>b.L.ll - a.L.ll);
+    const top = ranked[0];
+
+    h += '<div style="margin-bottom:14px"><table><thead><tr><th>Formula</th><th class="num">Mean</th>' +
+         '<th class="num">Var</th><th class="num">Fit/round</th><th class="num">\u0394 nats</th>' +
+         '<th class="num">\u03c7\u00b2/df</th><th class="num">Verdict</th></tr></thead><tbody>';
+    ranked.forEach(f=>{
+      const dNat = f.L.ll - top.L.ll;
+      const zM = Math.abs(f.st.mean - o.mean)/Math.max(o.se,1e-9);
+      const seV = o.var*Math.sqrt(2/Math.max(2,o.n-1));
+      const zV = Math.abs(f.st.var - o.var)/Math.max(seV,1e-9);
+      let verdict, cls='';
+      if(f.L.imp > 0){ verdict = f.L.imp + ' impossible'; cls='bad'; }
+      else if(f.X && f.X.p < 0.001){ verdict = 'rejected'; cls='bad'; }
+      else if(zM > 3 || zV > 3){ verdict = 'moments off'; cls='warn'; }
+      else if(f.X && f.X.p < 0.05){ verdict = 'doubtful'; cls='warn'; }
+      else verdict = 'consistent';
+      h += '<tr class="' + (f===top?'best':'') + '">' +
+        '<td><span class="dot" style="background:' + f.color + '"></span>' + this.esc(f.txt) + '</td>' +
+        '<td class="num">' + f.st.mean.toFixed(1) + '</td>' +
+        '<td class="num">' + f.st.var.toFixed(0) + '</td>' +
+        '<td class="num">' + f.L.perRound.toFixed(3) + '</td>' +
+        '<td class="num">' + (f===top ? '\u2014' : dNat.toFixed(1)) + '</td>' +
+        '<td class="num">' + (f.X ? f.X.ratio.toFixed(2) : '\u2014') + '</td>' +
+        '<td class="num" style="color:' + (cls==='bad'?'var(--p-rust)':cls==='warn'?'var(--p-amber)':'var(--p-green)') + '">' +
+          verdict + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+
+    const zM = Math.abs(top.st.mean - o.mean)/Math.max(o.se,1e-9);
+    const seV = o.var*Math.sqrt(2/Math.max(2,o.n-1));
+    const zV = Math.abs(top.st.var - o.var)/Math.max(seV,1e-9);
+    h += '<div class="note-box ' + (top.L.imp ? 'bad' : (top.X && top.X.p>0.05 && zM<3 && zV<3) ? 'good' : 'warn') + '">' +
+      '<b>' + this.esc(top.txt) + '</b> &mdash; mean off by ' + zM.toFixed(2) + '\u03c3, variance off by ' +
+      zV.toFixed(2) + '\u03c3' +
+      (top.X ? ', \u03c7\u00b2 = ' + top.X.x2.toFixed(1) + ' on ' + top.X.df + ' df (p = ' +
+        (top.X.p < 0.0001 ? '<0.0001' : top.X.p.toFixed(4)) + ')' : '') + '. ' +
+      (top.L.imp
+        ? '<b>' + top.L.imp + ' recorded values are impossible under this formula</b> \u2014 they fall outside ' +
+          'the range it can produce, so it cannot be right as written.'
+        : top.X && top.X.p > 0.05
+          ? 'The whole distribution shape agrees, not just the first two moments. Nothing here argues against it.'
+          : 'The moments may line up but the shape does not \u2014 look at where the curve parts company ' +
+            'with the bars above.') +
+      '</div>';
+
+    if(ranked.length > 1){
+      const second = ranked[1], gap = top.L.ll - second.L.ll;
+      h += '<div class="note-box ' + (gap>=3?'good':'warn') + '"><b>' +
+        (gap>=3 ? 'Separated.' : 'Not separated.') + '</b> ' + this.esc(top.txt) + ' beats ' +
+        this.esc(second.txt) + ' by ' + gap.toFixed(1) + ' nats' +
+        (gap>=3 ? ' (Bayes factor \u2248 ' + (gap>12 ? '>10\u2074' : Math.exp(gap).toFixed(0)) +
+                  '), which is a real preference.'
+                : '. Below about 3 nats the data cannot choose between them \u2014 more rounds, ' +
+                  'or a second spell level, will.') + '</div>';
+    }
+
+    h += '<div class="note-box">Fit per round is the average log-probability the formula assigns to ' +
+      'each value you actually saw \u2014 higher is better, and it uses the entire distribution shape. ' +
+      '\u03c7\u00b2/df near 1 means observed and predicted counts agree bin by bin.</div>';
+
+    out.innerHTML = h;
+  },
+
+  chart(hist, o, fits){
+    const W = 1000, H = 260, PAD = 4;
+    let lo = o.min, hi = o.max;
+    for(const f of fits){ lo = Math.min(lo, f.st.min); hi = Math.max(hi, f.st.max); }
+    const dataSpan = o.max - o.min + 1;
+    lo = Math.max(lo, o.min - dataSpan*1.5);
+    hi = Math.min(hi, o.max + dataSpan*1.5);
+    const span = hi - lo + 1;
+    const nb = Math.min(240, span);
+    const bw = span/nb;
+
+    const obs = new Float64Array(nb);
+    for(const [v,c] of hist){
+      const i = Math.floor((v-lo)/bw);
+      if(i>=0 && i<nb) obs[i] += c/o.n;
+    }
+    const curves = fits.map(f=>{
+      const a = new Float64Array(nb);
+      for(let j=0;j<f.D.p.length;j++){
+        const p = f.D.p[j]; if(p<=0) continue;
+        const i = Math.floor((f.D.lo+j-lo)/bw);
+        if(i>=0 && i<nb) a[i] += p;
+      }
+      return {a, color:f.color, txt:f.txt};
+    });
+
+    let peak = 0;
+    for(let i=0;i<nb;i++){ if(obs[i]>peak) peak = obs[i];
+      for(const c of curves) if(c.a[i]>peak) peak = c.a[i]; }
+    if(peak <= 0) peak = 1;
+
+    const X = i => PAD + i*(W-2*PAD)/nb;
+    const Y = v => H-PAD - (v/peak)*(H-2*PAD);
+
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" ' +
+            'style="width:100%;height:230px;display:block">';
+    const bwpx = Math.max(1, (W-2*PAD)/nb - 0.6);
+    for(let i=0;i<nb;i++){
+      if(obs[i] <= 0) continue;
+      const y = Y(obs[i]);
+      s += '<rect x="' + X(i).toFixed(2) + '" y="' + y.toFixed(2) + '" width="' + bwpx.toFixed(2) +
+           '" height="' + (H-PAD-y).toFixed(2) + '" fill="#1b3d2b"/>';
+    }
+    for(const c of curves){
+      let dstr = '';
+      for(let i=0;i<nb;i++){
+        const x = (X(i) + bwpx/2).toFixed(2), y = Y(c.a[i]).toFixed(2);
+        dstr += (i===0 ? 'M' : 'L') + x + ',' + y + ' ';
+      }
+      s += '<path d="' + dstr + '" fill="none" stroke="' + c.color + '" stroke-width="1.6" ' +
+           'stroke-linejoin="round" opacity="0.95"/>';
+    }
+    s += '</svg>';
+
+    let leg = '<div class="legend"><span><i style="width:11px;height:9px;background:#1b3d2b;display:inline-block"></i>' +
+              ' measured (' + o.n + ' rounds)</span>';
+    for(const c of curves)
+      leg += '<span><i style="width:11px;height:2px;background:' + c.color + ';display:inline-block"></i> ' +
+             this.esc(c.txt) + '</span>';
+    leg += '</div>';
+
+    return '<div class="chartbox"><div class="chart-head"><span>Distribution</span>' +
+      '<span>' + lo + ' to ' + hi + (span>nb ? '  \u00b7  ' + bw.toFixed(1) + ' per bin' : '') + '</span></div>' +
+      s + '<div class="axis"><span>' + lo + '</span><span>' + hi + '</span></div>' + leg + '</div>';
+  }
+};
+
+/*===================================================================
   WIRING
 ===================================================================*/
+/* the MUD's spell table — the picker fills the box, typing still works,
+   and the number is surfaced because mpcast wants it, not the name */
+const SPELLS = [
+  [1,"armor"], [2,"teleport"], [3,"bless"], [4,"blindness"],
+  [5,"burning hands"], [6,"call lightning"], [7,"charm person"], [8,"chill touch"],
+  [9,"clone"], [10,"color spray"], [11,"control weather"], [12,"create food"],
+  [13,"create water"], [14,"cure blind"], [15,"cure critic"], [16,"cure light"],
+  [17,"curse"], [18,"detect alignment"], [19,"detect invisibility"], [20,"detect magic"],
+  [21,"detect poison"], [22,"dispel evil"], [23,"earthquake"], [24,"enchant weapon"],
+  [25,"energy drain"], [26,"fireball"], [27,"harm"], [28,"heal"],
+  [29,"invisibility"], [30,"lightning bolt"], [31,"locate object"], [32,"magic missile"],
+  [33,"poison"], [34,"protection from evil"], [35,"remove curse"], [36,"sanctuary"],
+  [37,"shocking grasp"], [38,"sleep"], [39,"strength"], [40,"summon"],
+  [41,"ventriloquate"], [42,"word of recall"], [43,"remove poison"], [44,"sense life"],
+  [45,"animate dead"], [46,"dispel good"], [47,"group armor"], [48,"group heal"],
+  [49,"group recall"], [50,"infravision"], [51,"waterwalk"], [52,"haste"],
+  [53,"resist cold"], [54,"enchant armor"], [55,"resist heat"], [56,"fear"],
+  [57,"air shield"], [58,"water of life"], [59,"meteor swarm"], [60,"group sanctuary"],
+  [61,"full heal"], [62,"fleet feet"], [63,"barkskin"], [64,"ice blast"],
+  [65,"ice storm"], [66,"stone"], [67,"paralyze"], [68,"peace"],
+  [69,"regenerate"], [70,"meteor blast"], [71,"slap"], [72,"faerie fire"],
+  [73,"web"], [74,"teleport behind"], [75,"conjure elemental"], [76,"aura blast"],
+  [77,"dispel magic"], [78,"relocate"], [79,"fly"], [80,"recharge"],
+  [81,"sunray"], [82,"abel protection"], [83,"identify"], [84,"acid blast"],
+  [85,"create spring"], [86,"flamestrike"], [87,"faerie fog"], [88,"detonate"],
+  [89,"passdoor"], [90,"water breathing"], [91,"protection from good"], [92,"cure serious"],
+  [93,"graft weapon"], [94,"change sex"], [95,"deathtouch"], [96,"portal"],
+  [97,"deathdance"], [98,"silence"], [201,"identify"], [202,"fire breath"],
+  [203,"gas breath"], [204,"frost breath"], [205,"acid breath"], [206,"lightning breath"],
+  [207,"weaken"], [208,"vampire"], [209,"cure vampire"], [210,"spirit mastery"],
+  [211,"analyze magic"], [212,"scry"], [213,"empathic heal"], [214,"gambit of fire"],
+  [215,"bloodrush"], [216,"swift"], [217,"aura of evil"], [218,"divine aura"],
+  [219,"slowness"], [220,"summon demon"], [221,"black wind"], [222,"hand of death"],
+  [223,"summon corpse"], [224,"relocate corpse"], [225,"hellfire"], [226,"holy fire"],
+  [227,"suffering damned"], [228,"holy shield"], [229,"plague"], [230,"cure plague"],
+  [231,"chicken"], [232,"dechickenize"], [233,"fishy"], [234,"fish fry"]
+];
+function syncSpell(){
+  const name = ($('c-spell').value || '').trim().toLowerCase();
+  const hits = SPELLS.filter(sp => sp[1] === name);
+  const pick = $('c-spick');
+  if(pick) pick.value = hits.length ? hits[0][1] : '';
+  const hint = $('sp-hint');
+  if(hint) hint.innerHTML = hits.length
+    ? (hits.length > 1
+        ? 'spell <b>#' + hits.map(h=>h[0]).join('</b> or <b>#') + '</b> \u2014 same name, two table slots; use whichever the prog casts'
+        : 'spell <b>#' + hits[0][0] + '</b> &mdash; prog line: <b>mpcast ' + hits[0][0] + ' $n</b>')
+    : '';
+}
+
 function readCfg(){
   LAB.cfg.maxhp  = parseInt($('c-max').value) || 0;
   LAB.cfg.slevel = parseInt($('c-lvl').value) || 0;
@@ -2072,6 +2806,7 @@ function readCfg(){
   const ok = LAB.compile();
   store.save();
   UI.render();
+  syncSpell();
   return ok;
 }
 function writeCfg(){
@@ -2113,6 +2848,15 @@ function boot(){
       UI.render();
     });
   });
+
+  // spell picker
+  const spick = $('c-spick');
+  spick.innerHTML = '<option value="">type or pick\u2026</option>' +
+    SPELLS.map(sp => '<option value="' + sp[1] + '">' + sp[0] + ') ' + sp[1] + '</option>').join('');
+  spick.addEventListener('change', ()=>{
+    if(spick.value){ $('c-spell').value = spick.value; readCfg(); }
+  });
+  syncSpell();
 
   // config inputs
   ['c-max','c-lvl','c-sav','c-spell','c-dmg','c-heal','c-prompt','c-idle']
@@ -2167,6 +2911,25 @@ function boot(){
   $('del-all').addEventListener('click', ()=>{
     if(!confirm('Delete all ' + LAB.samples.length + ' recorded rounds? This cannot be undone.')) return;
     LAB.samples = []; store.wipe(); store.save(); UI.render(); $('feed').innerHTML='';
+  });
+
+  // formula tester
+  TEST.init();
+  $('t-run').addEventListener('change', ()=>{
+    const kk = LAB.keys().find(k=>k.key===$('t-run').value);
+    if(kk) $('t-lvl').value = kk.slevel;
+    TEST.render();
+  });
+  $('t-filt').addEventListener('change', ()=>TEST.render());
+  $('t-lvl').addEventListener('change', ()=>TEST.render());
+  $('t-addf').addEventListener('click', ()=>{
+    if(TEST.FS.length < 5){ TEST.FS.push({txt:''}); TEST.drawRows(); }
+  });
+  $('t-clearf').addEventListener('click', ()=>{
+    TEST.FS = [{txt:''}]; TEST.drawRows(); store.save(); TEST.render();
+  });
+  $('t-ex').addEventListener('click', e=>{
+    if(e.target.tagName === 'CODE') TEST.add(e.target.textContent);
   });
 
   // command bar
