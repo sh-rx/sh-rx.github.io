@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Link Audit — Pharmacy Documents</title>
+<style>
+  :root {
+    --ink:#172029; --ink-soft:#5a6875; --rule:#d4dae0; --field:#e7ecf0;
+    --paper:#fff; --canvas:#eff2f5;
+    --found:#1a6b4a; --missing:#a32a35; --moved:#8a5a09; --manual:#5a6875;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:32px 24px 96px; background:var(--canvas); color:var(--ink);
+         font:15px/1.55 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  header { margin-bottom:26px; }
+  h1 { font-size:27px; font-weight:600; letter-spacing:-.015em; margin:0 0 6px; }
+  header p { margin:0; color:var(--ink-soft); max-width:64ch; }
+
+  .intake { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:760px){ .intake{ grid-template-columns:1fr; } }
+  .slot, .panel { background:var(--paper); border:1px solid var(--rule); border-radius:3px; padding:18px 20px 20px; }
+  .panel { margin-top:16px; }
+  .slot h2, .panel h2 { font-size:15px; font-weight:600; margin:0 0 4px; }
+  .slot .hint, .panel p { font-size:13px; color:var(--ink-soft); margin:0 0 14px; max-width:74ch; }
+  .slot .hint { min-height:3.9em; }
+
+  .drop { border:1.5px dashed var(--rule); border-radius:3px; padding:22px 14px; text-align:center;
+          font-size:13.5px; color:var(--ink-soft); cursor:pointer; background:#fbfcfd; }
+  .drop:hover,.drop.over { border-color:var(--ink); color:var(--ink); background:var(--field); }
+  .drop:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  input[type=file]{ display:none; }
+  .loaded { margin-top:12px; font-size:13px; color:var(--ink-soft); }
+  .loaded strong { color:var(--ink); font-weight:600; }
+  .loaded ul { margin:6px 0 0; padding-left:18px; }
+
+  .row { display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+         padding:7px 0; border-top:1px solid var(--field);
+         font-family:ui-monospace,"Cascadia Mono",Consolas,monospace; font-size:12.5px; word-break:break-all; }
+  .row span { color:var(--ink-soft); white-space:nowrap; font-family:inherit; }
+
+  .tally { display:flex; flex-wrap:wrap; gap:26px; margin:30px 0 0; padding-bottom:14px; border-bottom:2px solid var(--ink); }
+  .tally div { line-height:1.2; }
+  .tally b { display:block; font-size:26px; font-weight:600; }
+  .tally em { font-style:normal; font-size:13px; color:var(--ink-soft); }
+
+  .tabs { display:flex; gap:2px; margin:18px 0 14px; flex-wrap:wrap; }
+  .controls { margin-bottom:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13.5px; }
+  button { font:inherit; font-size:13.5px; padding:6px 13px; border:1px solid var(--rule);
+           background:var(--paper); color:var(--ink); border-radius:3px; cursor:pointer; }
+  button:hover { background:var(--field); }
+  button[aria-pressed="true"]{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  label.chk { display:flex; align-items:center; gap:6px; color:var(--ink-soft); }
+  input[type=text]{ font:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--rule); border-radius:3px; min-width:230px; }
+
+  table { width:100%; border-collapse:collapse; background:var(--paper); }
+  th { text-align:left; font-size:12.5px; font-weight:600; color:var(--ink-soft); padding:9px 12px; border-bottom:1px solid var(--rule); }
+  td { padding:9px 12px; vertical-align:top; font-size:13.5px; border-bottom:1px solid var(--field); }
+  tr.info td { border-bottom:none; padding-bottom:2px; }
+  tr.hide { display:none; }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,monospace; font-size:12.5px; word-break:break-all; }
+  .cat { color:var(--ink-soft); font-size:12.5px; }
+  .verdict { font-weight:600; white-space:nowrap; }
+  .v-found{color:var(--found)} .v-missing{color:var(--missing)}
+  .v-moved{color:var(--moved)} .v-manual{color:var(--manual)}
+  .note { color:var(--ink-soft); font-size:12.5px; }
+  .note b { color:var(--moved); font-weight:600; font-family:ui-monospace,Consolas,monospace; }
+
+  .paste { display:flex; gap:10px; align-items:flex-start; padding:0 12px 11px; }
+  .paste .codes { flex:1; min-width:0; }
+  .paste code { display:block; background:#f6f8fa; border:1px solid var(--field);
+                border-left:3px solid var(--found); border-radius:2px; padding:7px 9px;
+                font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+                font-size:11.5px; line-height:1.45; white-space:pre-wrap; word-break:break-all; color:#243240; }
+  .paste code.url { border-left-color:#3f6ea8; margin-bottom:5px; color:#2c4a70; }
+  .paste code.none { border-left-color:var(--missing); color:var(--ink-soft); font-style:italic; }
+  .paste .btns { flex:none; display:flex; flex-direction:column; gap:5px; width:104px; }
+  .paste .btns button, .paste .btns a.tbtn {
+     padding:5px 8px; font-size:12px; text-align:center; text-decoration:none;
+     border:1px solid var(--rule); border-radius:3px; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .paste .btns a.tbtn { background:#eef3f9; border-color:#c3d3e6; color:#2c4a70; }
+  .paste .btns a.tbtn:hover { background:#dfe9f4; }
+
+  .quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .quick a { display:inline-block; padding:6px 12px; font-size:13px; text-decoration:none;
+             background:var(--paper); border:1px solid var(--rule); border-radius:3px; color:var(--ink); }
+  .quick a:hover { background:var(--field); }
+
+  .fetchbar { display:flex; gap:8px; margin-bottom:12px; }
+  .fetchbar input { flex:1; min-width:0; }
+  .fetchmsg { font-size:12.5px; margin-top:10px; }
+  .fetchmsg.bad { color:var(--missing); }
+
+  .empty { padding:36px 0; color:var(--ink-soft); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Link audit</h1>
+  <p>Compares the links on your pharmacy page against what is actually in SharePoint, in both directions, and writes the replacement HTML for anything that needs fixing. Runs entirely in this tab — nothing is uploaded.</p>
+  <div class="quick">
+    <a href="https://sh-rx.github.io/index.html" target="_blank" rel="noopener">Live page</a>
+    <a href="https://salemhealth.sharepoint.com/sites/Pharmacy2/Shared%20Documents/Forms/AllItems.aspx" target="_blank" rel="noopener">Pharmacy2 library</a>
+    <a href="https://salemhealth.sharepoint.com/teams/PharmacyStandardWork961/Shared%20Documents/Forms/AllItems.aspx?FolderCTID=0x0120000A1F07B429067B47BB8FE784C4076861&amp;id=%2Fteams%2FPharmacyStandardWork961%2FShared%20Documents%2FStandard%20Work" target="_blank" rel="noopener">Standard Work library</a>
+    <a href="https://github.com/sh-rx/sh-rx.github.io" target="_blank" rel="noopener">Repo</a>
+  </div>
+</header>
+
+<div class="intake">
+  <div class="slot">
+    <h2>1. Your page</h2>
+    <p class="hint">Fetch the live page, or drop your local <code>index.html</code>. Reads every link and works out which file each one points at.</p>
+    <div class="fetchbar">
+      <input type="text" id="pageUrl" value="https://sh-rx.github.io/index.html">
+      <button id="btnFetch">Fetch</button>
+    </div>
+    <div class="drop" id="dropPage" tabindex="0" role="button">…or choose / drop index.html</div>
+    <input type="file" id="filePage" accept=".html,.htm">
+    <div class="loaded" id="pageInfo"></div>
+    <div class="fetchmsg" id="fetchMsg"></div>
+  </div>
+
+  <div class="slot">
+    <h2>2. Library exports</h2>
+    <p class="hint">What is really in SharePoint. Takes CSV (needs the Path column), owssvr XML, or an .iqy pointer. Two exports cover everything: the Pharmacy2 library and the Standard Work library.</p>
+    <div class="drop" id="dropList" tabindex="0" role="button">Choose or drop CSV, XML or .iqy</div>
+    <input type="file" id="fileList" accept=".csv,.txt,.xml,.iqy" multiple>
+    <div class="loaded" id="listInfo"></div>
+  </div>
+</div>
+
+<div class="panel hidden" id="iqyPanel">
+  <h2>Those .iqy files are pointers, not data</h2>
+  <p>An .iqy holds a web address for Excel to fetch — no filenames inside. Open each address below while signed in and SharePoint returns the whole library as XML; save that page and drop it back into box 2. If an address errors, open the .iqy in Excel and save as CSV instead.</p>
+  <div id="iqyList"></div>
+</div>
+
+<div id="results" class="hidden">
+  <div class="tally" id="tally"></div>
+
+  <div class="tabs">
+    <button id="tabProblems" aria-pressed="true">Problems</button>
+    <button id="tabOrphans"  aria-pressed="false">Not on your page</button>
+    <button id="tabManual"   aria-pressed="false">Not checked</button>
+    <button id="tabAll"      aria-pressed="false">Everything</button>
+  </div>
+
+  <!-- problems -->
+  <div id="viewProblems">
+    <div class="controls">
+      <button id="pCopy">Copy all replacement lines</button>
+    </div>
+    <table><thead><tr>
+      <th style="width:15%">Section</th><th style="width:34%">Link text</th>
+      <th style="width:13%">Result</th><th style="width:38%">Notes</th>
+    </tr></thead><tbody id="problemRows"></tbody></table>
+    <div class="empty hidden" id="noProblems">No broken or moved links.</div>
+  </div>
+
+  <!-- orphans -->
+  <div id="viewOrphans" class="hidden">
+    <div class="controls">
+      <label class="chk"><input type="checkbox" id="hideJunk" checked> Hide historic, draft and archive folders</label>
+      <input type="text" id="alsoHide" placeholder="also hide paths containing…">
+      <button id="oCopy">Copy all lines shown</button>
+    </div>
+    <table><thead><tr>
+      <th style="width:40%">File</th><th style="width:60%">Folder</th>
+    </tr></thead><tbody id="orphanRows"></tbody></table>
+    <div class="empty hidden" id="noOrphans">Nothing to show with this filter.</div>
+  </div>
+
+  <!-- not checked -->
+  <div id="viewManual" class="hidden">
+    <div class="controls"><span class="cat">These could not be verified against the exports. Open each one yourself to confirm.</span></div>
+    <table><thead><tr>
+      <th style="width:15%">Section</th><th style="width:30%">Link text</th>
+      <th style="width:20%">Why</th><th style="width:35%">Where it points</th>
+    </tr></thead><tbody id="manualRows"></tbody></table>
+    <div class="empty hidden" id="noManual">Everything was checked.</div>
+  </div>
+
+  <!-- everything -->
+  <div id="viewAll" class="hidden">
+    <table><thead><tr>
+      <th style="width:15%">Section</th><th style="width:33%">Link text</th>
+      <th style="width:26%">File it points at</th><th style="width:12%">Result</th><th style="width:14%">Notes</th>
+    </tr></thead><tbody id="allRows"></tbody></table>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+var pageLinks=null, library=null, lastRows=[], lastOrphans=[], iqyUrls=[];
+var HOST="salemhealth.sharepoint.com";
+
+/* ---------- normalising ---------- */
+function dec(s){ try{ return decodeURIComponent(s); }catch(e){ return s; } }
+function norm(s){ return String(s||"").replace(/\u00a0/g," ").replace(/\s+/g," ")
+  .trim().replace(/^\/+|\/+$/g,"").toLowerCase(); }
+function strict(s){ return String(s||"").trim().replace(/^\/+|\/+$/g,"").toLowerCase(); }
+function tokens(n){ return String(n||"").replace(/\.[a-z0-9]{2,5}$/i,"").toLowerCase()
+  .split(/[^a-z0-9]+/).filter(function(t){ return t.length>2; }); }
+function similarity(a,b){
+  var A=tokens(a),B=tokens(b); if(!A.length||!B.length) return 0;
+  var s={},h=0,i; for(i=0;i<B.length;i++) s[B[i]]=1;
+  for(i=0;i<A.length;i++) if(s[A[i]]) h++;
+  return h/Math.max(A.length,B.length); }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+/* ---------- building replacement HTML ---------- */
+function buildHref(folder,name){
+  var segs=((folder||"")+"/"+name).replace(/^\/+/,"").split("/");
+  return "https://"+HOST+"/"+segs.map(function(s){ return encodeURIComponent(s); }).join("/")+"?web=1";
+}
+function titleFrom(name){ return String(name||"").replace(/\.[a-z0-9]{2,5}$/i,""); }
+function buildLine(title,href){
+  return '                <li class="link-item"><a href="'+href+'" target="_blank">'+
+         esc(title)+"</a></li>";
+}
+
+/* ---------- parse the page ---------- */
+function parsePage(html){
+  var doc=new DOMParser().parseFromString(html,"text/html");
+  var out=[], category="Uncategorised";
+  doc.querySelectorAll("h2, a[href]").forEach(function(el){
+    if(el.tagName==="H2"){ category=el.textContent.trim(); return; }
+    var href=el.getAttribute("href")||"", text=el.textContent.trim();
+    if(!/^https?:\/\//i.test(href)) return;
+    if(!/sharepoint\.com/i.test(href)){
+      out.push({category:category,text:text,href:href,full:"",folder:"",file:"",kind:"external"}); return; }
+    var u; try{ u=new URL(href); }catch(e){ return; }
+    HOST=u.host;
+    var p=u.pathname, sh=p.match(/^\/:\w:\/[rs]\/(.+)$/);
+    if(sh) p="/"+sh[1];
+    p=dec(p);
+    if(/\/_layouts\/15\/Doc2?\.aspx$/i.test(p)){
+      var f=u.searchParams.get("file");
+      out.push({category:category,text:text,href:href,full:"",folder:"",
+                file:f?dec(f):"",kind:"guid"}); return; }
+    var cut=p.lastIndexOf("/");
+    out.push({category:category,text:text,href:href,full:p,
+              folder:p.slice(0,cut),file:p.slice(cut+1),kind:"file"});
+  });
+  return out;
+}
+
+/* ---------- parse exports ---------- */
+function splitCsvLine(line){
+  var out=[],cur="",q=false,i,ch;
+  for(i=0;i<line.length;i++){ ch=line[i];
+    if(q){ if(ch==='"'&&line[i+1]==='"'){cur+='"';i++;}
+           else if(ch==='"') q=false; else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===","){ out.push(cur); cur=""; } else cur+=ch; } }
+  out.push(cur); return out;
+}
+function parseSharePointXml(text,src){
+  var doc=new DOMParser().parseFromString(text,"text/xml"), rows=[];
+  function strip(v){ if(!v) return ""; var m=String(v).match(/^\d+;#(.*)$/); return (m?m[1]:String(v)).trim(); }
+  var all=doc.getElementsByTagName("*");
+  for(var i=0;i<all.length;i++){
+    var el=all[i]; if(el.localName!=="row") continue;
+    if(strip(el.getAttribute("ows_FSObjType"))==="1") continue;
+    var name=strip(el.getAttribute("ows_FileLeafRef")||el.getAttribute("ows_LinkFilename"));
+    if(!name) continue;
+    var ref=strip(el.getAttribute("ows_FileRef")), folder="";
+    if(ref){ if(ref.charAt(0)!=="/") ref="/"+ref; folder=ref.slice(0,ref.lastIndexOf("/")); }
+    rows.push({name:name,folder:folder,source:src}); }
+  return rows;
+}
+function parseIqy(text){
+  var lines=text.split(/\r?\n/);
+  for(var i=0;i<lines.length;i++){ var l=lines[i].trim(); if(/^https?:\/\//i.test(l)) return l; }
+  return ""; }
+function parseListing(text,src){
+  if(/^\s*</.test(text)) return parseSharePointXml(text,src);
+  var lines=text.split(/\r?\n/).filter(function(l){ return l.trim().length; });
+  if(!lines.length) return [];
+  var header=splitCsvLine(lines[0]).map(function(h){ return h.trim().toLowerCase(); });
+  var nameIdx=-1,pathIdx=-1,typeIdx=-1,i;
+  for(i=0;i<header.length;i++){ var h=header[i];
+    if(nameIdx<0&&/^(name|file ?name|document name)$/.test(h)) nameIdx=i;
+    if(pathIdx<0&&/^(path|file path|folder path)$/.test(h)) pathIdx=i;
+    if(typeIdx<0&&/^(item type|type|content type)$/.test(h)) typeIdx=i; }
+  var rows=[];
+  if(nameIdx<0){ lines.forEach(function(l){ var n=splitCsvLine(l)[0].trim();
+    if(n) rows.push({name:n,folder:"",source:src}); }); return rows; }
+  for(i=1;i<lines.length;i++){
+    var c=splitCsvLine(lines[i]), n=(c[nameIdx]||"").trim();
+    if(!n) continue;
+    if(typeIdx>=0 && /folder/i.test(c[typeIdx]||"")) continue;
+    var fol=pathIdx>=0?(c[pathIdx]||"").trim():"";
+    if(fol && fol.charAt(0)!=="/") fol="/"+fol;
+    rows.push({name:n,folder:fol,source:src}); }
+  return rows;
+}
+function buildLibrary(all){
+  var byFull={},byName={},byFullStrict={},folders={};
+  all.forEach(function(r){
+    var full=(r.folder||"")+"/"+r.name; r.full=full;
+    byFull[norm(full)]=r; byFullStrict[strict(full)]=r;
+    var k=norm(r.name); (byName[k]=byName[k]||[]).push(r);
+    if(r.folder) folders[norm(r.folder)]=true; });
+  return {files:all,byFull:byFull,byFullStrict:byFullStrict,byName:byName,folders:folders,count:all.length};
+}
+
+/* ---------- compare ---------- */
+function folderCovered(f){
+  if(!library) return false;
+  var t=norm(f); if(library.folders[t]) return true;
+  for(var k in library.folders){ if(k.indexOf(t)===0||t.indexOf(k)===0) return true; }
+  return false;
+}
+
+function audit(){
+  if(!pageLinks) return;
+  var linkedKeys={};
+
+  var rows=pageLinks.map(function(l){
+    var r={category:l.category,text:l.text,file:l.file,folder:l.folder,href:l.href,
+           verdict:"",cls:"",note:"",suggest:"",fix:"",fixUrl:"",bucket:"manual"};
+
+    if(l.kind==="external"){
+      r.verdict="not checked"; r.cls="v-manual"; r.note="Outside SharePoint"; return r; }
+    if(l.kind==="guid"){
+      r.verdict="not checked"; r.cls="v-manual"; r.note="Links by document ID, not path"; return r; }
+    if(!library){ r.verdict="waiting"; r.cls="v-manual"; r.note="Drop the exports"; return r; }
+
+    var loose=norm(l.full), tight=strict(l.full);
+
+    if(library.byFullStrict[tight]){
+      linkedKeys[loose]=1; r.verdict="found"; r.cls="v-found"; r.bucket="ok"; return r; }
+
+    if(library.byFull[loose]){
+      var hit=library.byFull[loose];
+      linkedKeys[loose]=1; r.bucket="problem";
+      r.verdict="bad character"; r.cls="v-missing";
+      r.note="File exists; the URL encodes an odd space such as %C2%A0.";
+      r.fixUrl=buildHref(hit.folder,hit.name);
+      r.fix=buildLine(l.text,r.fixUrl); return r; }
+
+    var hits=library.byName[norm(l.file)];
+    if(hits&&hits.length){
+      linkedKeys[norm(hits[0].full)]=1; r.bucket="problem";
+      r.verdict="moved"; r.cls="v-moved"; r.note="Now in: "; r.suggest=hits[0].folder;
+      r.fixUrl=buildHref(hits[0].folder,hits[0].name);
+      r.fix=buildLine(l.text,r.fixUrl); return r; }
+
+    if(!folderCovered(l.folder)){
+      r.verdict="not checked"; r.cls="v-manual"; r.note="No export covers this folder"; return r; }
+
+    r.verdict="missing"; r.cls="v-missing"; r.bucket="problem";
+    var best=null,bs=0;
+    library.files.forEach(function(f){
+      var s=similarity(l.file,f.name);
+      if(norm(f.folder)===norm(l.folder)) s+=0.15;
+      if(s>bs){ bs=s; best=f; } });
+    if(best&&bs>=0.5){
+      r.note="Replaced by? "; r.suggest=best.name;
+      r.fixUrl=buildHref(best.folder,best.name);
+      r.fix=buildLine(titleFrom(best.name),r.fixUrl);
+      linkedKeys[norm(best.full)]=1;
+    } else { r.note="No similar filename in the exports."; }
+    return r;
+  });
+
+  var orph=[];
+  if(library){
+    library.files.forEach(function(f){
+      if(linkedKeys[norm(f.full)]) return;
+      var ou=buildHref(f.folder,f.name);
+      orph.push({name:f.name,folder:f.folder,url:ou,
+                 line:buildLine(titleFrom(f.name),ou)}); });
+  }
+
+  lastRows=rows; lastOrphans=orph;
+  renderAll();
+}
+
+/* ---------- render ---------- */
+function tile(n,l){ return "<div><b>"+n+"</b><em>"+l+"</em></div>"; }
+
+function pasteCell(cols,line,url){
+  if(!line) return '<tr><td colspan="'+cols+'"><div class="paste"><div class="codes">'+
+    '<code class="none">No replacement found — remove this line or locate the file by hand.</code>'+
+    "</div></div></td></tr>";
+  return '<tr><td colspan="'+cols+'"><div class="paste"><div class="codes">'+
+    '<code class="url">'+esc(url)+"</code><code>"+esc(line)+"</code></div>"+
+    '<div class="btns">'+
+      '<a class="tbtn" href="'+esc(url)+'" target="_blank" rel="noopener">Test</a>'+
+      '<button class="cp" data-part="url">Copy URL</button>'+
+      '<button class="cp" data-part="line">Copy line</button>'+
+    "</div></div></td></tr>";
+}
+
+function renderAll(){
+  var c={found:0,broken:0,moved:0,other:0};
+  lastRows.forEach(function(r){
+    if(r.verdict==="found") c.found++;
+    else if(r.verdict==="missing"||r.verdict==="bad character") c.broken++;
+    else if(r.verdict==="moved") c.moved++;
+    else c.other++; });
+
+  document.getElementById("tally").innerHTML=
+    tile(c.found,"working")+tile(c.broken,"broken")+tile(c.moved,"moved")+
+    tile(c.other,"not checked")+tile(lastOrphans.length,"files not linked");
+
+  // problems
+  var probs=lastRows.filter(function(r){ return r.bucket==="problem"; });
+  document.getElementById("problemRows").innerHTML=probs.map(function(r){
+    var note=esc(r.note||""); if(r.suggest) note+="<b>"+esc(r.suggest)+"</b>";
+    return '<tr class="info"><td class="cat">'+esc(r.category)+"</td><td>"+esc(r.text)+
+      '</td><td class="verdict '+r.cls+'">'+esc(r.verdict)+'</td><td class="note">'+note+
+      "</td></tr>"+pasteCell(4,r.fix,r.fixUrl); }).join("");
+  document.getElementById("noProblems").classList.toggle("hidden",probs.length>0);
+
+  // not checked
+  var man=lastRows.filter(function(r){ return r.bucket==="manual"; });
+  document.getElementById("manualRows").innerHTML=man.map(function(r){
+    return '<tr><td class="cat">'+esc(r.category)+"</td><td>"+esc(r.text)+
+      '</td><td class="note">'+esc(r.note)+'</td><td class="mono">'+esc(r.href)+"</td></tr>"; }).join("");
+  document.getElementById("noManual").classList.toggle("hidden",man.length>0);
+
+  // everything
+  document.getElementById("allRows").innerHTML=lastRows.map(function(r){
+    var note=esc(r.note||""); if(r.suggest) note+="<b>"+esc(r.suggest)+"</b>";
+    return '<tr><td class="cat">'+esc(r.category)+"</td><td>"+esc(r.text)+
+      '</td><td class="mono">'+esc(r.file||"\u2014")+'</td><td class="verdict '+r.cls+'">'+
+      esc(r.verdict)+'</td><td class="note">'+note+"</td></tr>"; }).join("");
+
+  document.getElementById("results").classList.remove("hidden");
+  renderOrphans();
+  wireCopyButtons();
+}
+
+var JUNK=/(historic|draft|archive|superseded|obsolete|\bold\b)/i;
+
+function renderOrphans(){
+  var hideJunk=document.getElementById("hideJunk").checked;
+  var extra=document.getElementById("alsoHide").value.trim().toLowerCase();
+  var shown=0, html="";
+
+  lastOrphans.forEach(function(o){
+    var hay=o.folder+"/"+o.name;
+    var hide=(hideJunk&&JUNK.test(hay))||(extra&&hay.toLowerCase().indexOf(extra)>=0);
+    if(hide) return;
+    shown++;
+    html+='<tr class="info"><td class="mono">'+esc(o.name)+
+          '</td><td class="mono cat">'+esc(o.folder)+"</td></tr>"+pasteCell(2,o.line,o.url);
+  });
+
+  document.getElementById("orphanRows").innerHTML=html;
+  document.getElementById("noOrphans").classList.toggle("hidden",shown>0);
+  document.getElementById("tabOrphans").textContent="Not on your page ("+shown+")";
+  wireCopyButtons();
+}
+
+function wireCopyButtons(){
+  document.querySelectorAll("button.cp").forEach(function(b){
+    if(b.dataset.wired) return; b.dataset.wired="1";
+    b.onclick=function(){
+      var box=b.closest(".paste");
+      var sel=b.getAttribute("data-part")==="url"?"code.url":"code:not(.url)";
+      var code=box.querySelector(sel).textContent;
+      navigator.clipboard.writeText(code).then(function(){
+        var was=b.textContent; b.textContent="Copied";
+        setTimeout(function(){ b.textContent=was; },1600);
+      },function(){ var w=b.textContent; b.textContent="Blocked";
+        setTimeout(function(){ b.textContent=w; },1800); });
+    }; });
+}
+
+function showIqy(){
+  if(!iqyUrls.length) return;
+  document.getElementById("iqyList").innerHTML=iqyUrls.map(function(u){
+    return '<div class="row"><code>'+esc(u.url)+'</code><span><a href="'+esc(u.url)+
+           '" target="_blank" rel="noopener">open</a></span></div>'; }).join("");
+  document.getElementById("iqyPanel").classList.remove("hidden");
+}
+
+/* ---------- intake ---------- */
+function wireDrop(dropId,inputId,handler){
+  var d=document.getElementById(dropId), i=document.getElementById(inputId);
+  d.addEventListener("click",function(){ i.click(); });
+  d.addEventListener("keydown",function(e){
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); i.click(); } });
+  ["dragenter","dragover"].forEach(function(ev){
+    d.addEventListener(ev,function(e){ e.preventDefault(); d.classList.add("over"); }); });
+  ["dragleave","drop"].forEach(function(ev){
+    d.addEventListener(ev,function(e){ e.preventDefault(); d.classList.remove("over"); }); });
+  d.addEventListener("drop",function(e){ handler(e.dataTransfer.files); });
+  i.addEventListener("change",function(){ handler(i.files); });
+}
+
+function loadPageHtml(html,label){
+  pageLinks=parsePage(html);
+  var sp=pageLinks.filter(function(l){ return l.kind==="file"; }).length;
+  document.getElementById("pageInfo").innerHTML="<strong>"+esc(label)+
+    "</strong> — "+pageLinks.length+" links, "+sp+" of them SharePoint files.";
+  audit();
+}
+
+document.getElementById("btnFetch").onclick=function(){
+  var url=document.getElementById("pageUrl").value.trim();
+  var msg=document.getElementById("fetchMsg");
+  if(!url){ msg.className="fetchmsg bad"; msg.textContent="Enter a URL first."; return; }
+  msg.className="fetchmsg"; msg.textContent="Fetching…";
+  var bust=url+(url.indexOf("?")<0?"?":"&")+"cb="+Date.now();
+  fetch(bust,{cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
+    .then(function(t){
+      msg.className="fetchmsg";
+      msg.textContent="Fetched "+(t.length/1024).toFixed(0)+" KB at "+new Date().toLocaleTimeString()+".";
+      loadPageHtml(t,url.split("/").pop()||url); })
+    .catch(function(e){
+      msg.className="fetchmsg bad";
+      msg.innerHTML="Could not fetch ("+esc(e.message)+"). The browser blocks cross-site reads "+
+        "unless the server allows them. Put this file in your repo and open it at "+
+        "<code>sh-rx.github.io/link-audit.html</code> — then it is same-origin and always works. "+
+        "Otherwise use the file picker below."; });
+};
+
+document.getElementById("pageUrl").addEventListener("keydown",function(e){
+  if(e.key==="Enter") document.getElementById("btnFetch").click(); });
+
+// Same-origin shortcut: if this file is served from the site, fetch on load
+if(location.protocol.indexOf("http")===0){
+  document.getElementById("pageUrl").value=new URL("index.html",location.href).href;
+  document.getElementById("btnFetch").click();
+}
+
+wireDrop("dropPage","filePage",function(files){
+  if(!files||!files.length) return;
+  var fr=new FileReader();
+  fr.onload=function(){
+    pageLinks=parsePage(fr.result);
+    var sp=pageLinks.filter(function(l){ return l.kind==="file"; }).length;
+    document.getElementById("pageInfo").innerHTML="<strong>"+esc(files[0].name)+
+      "</strong> — "+pageLinks.length+" links, "+sp+" of them SharePoint files.";
+    audit(); };
+  fr.readAsText(files[0]);
+});
+
+wireDrop("dropList","fileList",function(files){
+  if(!files||!files.length) return;
+  var all=[],done=0,names=[],total=files.length;
+  Array.prototype.forEach.call(files,function(f){
+    var fr=new FileReader();
+    fr.onload=function(){
+      if(/\.iqy$/i.test(f.name)){
+        var url=parseIqy(fr.result);
+        if(url&&!iqyUrls.some(function(x){ return x.url===url; })) iqyUrls.push({url:url});
+        names.push(f.name+" — pointer only, see below");
+      } else {
+        var rows=parseListing(fr.result,f.name);
+        all=all.concat(rows); names.push(f.name+" ("+rows.length+" files)"); }
+      if(++done===total){
+        showIqy();
+        if(all.length) library=buildLibrary(all);
+        document.getElementById("listInfo").innerHTML=
+          (library?"<strong>"+library.count+" files</strong> loaded from:"
+                  :"<strong>No file data yet.</strong> Loaded:")+
+          "<ul><li>"+names.map(esc).join("</li><li>")+"</li></ul>";
+        audit(); } };
+    fr.readAsText(f); });
+});
+
+/* ---------- tabs ---------- */
+var TABS=[["tabProblems","viewProblems"],["tabOrphans","viewOrphans"],
+          ["tabManual","viewManual"],["tabAll","viewAll"]];
+TABS.forEach(function(t){
+  document.getElementById(t[0]).onclick=function(){
+    TABS.forEach(function(x){
+      var on=(x[0]===t[0]);
+      document.getElementById(x[0]).setAttribute("aria-pressed",on?"true":"false");
+      document.getElementById(x[1]).classList.toggle("hidden",!on); }); };
+});
+
+document.getElementById("hideJunk").onchange=renderOrphans;
+document.getElementById("alsoHide").oninput=renderOrphans;
+
+function bulkCopy(btn,lines,label){
+  if(!lines.length){ btn.textContent="Nothing to copy";
+    setTimeout(function(){ btn.textContent=label; },1800); return; }
+  navigator.clipboard.writeText(lines.join("\n")).then(function(){
+    btn.textContent="Copied "+lines.length+" lines";
+    setTimeout(function(){ btn.textContent=label; },2200);
+  },function(){ btn.textContent="Copy blocked — select the text";
+    setTimeout(function(){ btn.textContent=label; },2600); });
+}
+
+document.getElementById("pCopy").onclick=function(){
+  bulkCopy(this,lastRows.filter(function(r){ return r.bucket==="problem"&&r.fix; })
+    .map(function(r){ return r.fix; }),"Copy all replacement lines"); };
+
+document.getElementById("oCopy").onclick=function(){
+  var lines=[];
+  document.querySelectorAll("#orphanRows .paste code").forEach(function(c){
+    if(!c.classList.contains("none")&&!c.classList.contains("url")) lines.push(c.textContent); });
+  bulkCopy(this,lines,"Copy all lines shown"); };
+</script>
+</div>
+</body>
+</html>
