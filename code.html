@@ -8,8 +8,7 @@
 :root{
   --ink:#13262c; --soft:#5d7270; --paper:#eef1f0; --card:#fff;
   --rule:#cfd8d6; --hair:#e5e9e8; --teal:#0f6c6a;
-  --red:#a32a20; --redbg:#fbe7e4; --amb:#8f5d0f; --ambbg:#fbf1dc;
-  --ok:#2c6b45; --okbg:#e6f0e9;
+  --red:#a32a20; --redbg:#fbe7e4; --amb:#8f5d0f; --ambbg:#fbf1dc; --ok:#2c6b45;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -19,7 +18,6 @@ button,input{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
 :focus-visible{outline:2px solid var(--teal);outline-offset:1px}
 .wrap{max-width:1100px;margin:0 auto;padding:0 10px}
 
-/* top strip */
 .top{background:#0a4a49;color:#e8f3f1}
 .top .wrap{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:6px 10px}
 .top h1{margin:0;font-size:13px;font-weight:700;letter-spacing:-.01em}
@@ -34,7 +32,6 @@ button,input{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
 .b.p{background:var(--teal);border-color:var(--teal);color:#fff}
 .b.p:hover{background:#0a4a49}
 
-/* status bar */
 .bar{background:var(--card);border-bottom:1px solid var(--rule)}
 .bar .wrap{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:6px 10px}
 #soon{font-size:12.5px;min-width:0;flex:1 1 320px}
@@ -46,14 +43,13 @@ button,input{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
 .k b{font-size:14px;color:var(--ink)}
 .k.hot b{color:var(--red)}
 
-/* bays */
-main{padding:8px 10px 30px}
-.bag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:1100px;margin:0 auto}
+main{padding:8px 10px 40px}
+.bag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:1100px;margin:0 auto;align-items:start}
 .bay{background:var(--card);border:1px solid var(--rule);border-radius:3px}
 .bay h2{margin:0;padding:4px 8px;border-bottom:1px solid var(--hair);
  font-size:11.5px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
 .bay h2 em{font-style:normal;font-weight:400;color:var(--soft)}
-.it{padding:4px 8px 5px;border-bottom:1px solid var(--hair)}
+.it{padding:4px 8px 5px;border-bottom:1px solid var(--hair);position:relative}
 .it:last-child{border-bottom:0}
 .it.r{background:var(--redbg)}
 .it.a{background:var(--ambbg)}
@@ -62,25 +58,37 @@ main{padding:8px 10px 30px}
 .nm b s{text-decoration:none;font-weight:400;color:var(--soft)}
 .st{font-size:11px;font-weight:700;color:var(--ok);white-space:nowrap}
 .st.r{color:var(--red)} .st.a{color:var(--amb)} .st.e{color:var(--soft);font-weight:400}
-.lot{display:flex;gap:4px;margin-top:3px;align-items:center}
-.q{width:42px;height:24px;text-align:center;border:1px solid var(--rule);border-radius:3px;
- padding:0 2px;background:#fff;-moz-appearance:textfield}
-.q::-webkit-outer-spin-button,.q::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.lot{display:flex;gap:5px;margin-top:3px;align-items:center}
+.q{width:44px;height:24px;text-align:center;border:1px solid var(--rule);border-radius:3px;
+ padding:0 2px;background:#fff}
 .dt{flex:1;min-width:0;height:24px;border:1px solid var(--rule);border-radius:3px;
- padding:0 3px;background:#fff;font-size:12px}
-.dt.r{border-color:var(--red);color:var(--red)}
-.dt.a{border-color:var(--amb);color:var(--amb)}
-.mini{border:1px solid var(--rule);background:#fff;border-radius:3px;width:22px;height:24px;
- cursor:pointer;color:var(--soft);line-height:1;padding:0}
-.mini:hover{background:#f2f5f4;color:var(--ink)}
+ padding:0 5px;background:#fff;font-size:12px}
+.dt::placeholder{color:#9aa8a6}
+.dt.r{border-color:var(--red);color:var(--red);font-weight:600}
+.dt.a{border-color:var(--amb);color:var(--amb);font-weight:600}
+.na{flex:1;font-size:11px;color:var(--soft)}
+
+/* calendar */
+.cal{position:absolute;z-index:50;background:#fff;border:1px solid var(--rule);border-radius:4px;
+ box-shadow:0 8px 22px rgba(10,34,32,.18);padding:5px;width:186px;user-select:none}
+.cal .ch{display:flex;align-items:center;justify-content:space-between;padding:1px 2px 4px;font-size:11.5px;font-weight:700}
+.cal .ch button{border:0;background:transparent;cursor:pointer;color:var(--soft);padding:0 5px;font-size:13px;line-height:1}
+.cal .ch button:hover{color:var(--ink)}
+.cal table{border-collapse:collapse;width:100%}
+.cal th{font-size:9.5px;font-weight:600;color:var(--soft);padding:0 0 2px}
+.cal td{padding:0}
+.cal td div{text-align:center;font-size:11px;padding:2.5px 0;border-radius:2px;cursor:pointer}
+.cal td div:hover{background:#e6efee}
+.cal .eom{background:#dcebe9;font-weight:700;color:#0a4a49}
+.cal .sel{background:var(--teal);color:#fff;font-weight:700}
+.cal .tdy{box-shadow:inset 0 0 0 1px var(--soft)}
+.cal .ft{font-size:10px;color:var(--soft);padding:3px 2px 0;text-align:center}
+
 .nt{margin:2px 0 0;font-size:11px;color:var(--soft)}
 
-/* report */
-dialog{border:1px solid var(--rule);border-radius:4px;padding:0;width:min(640px,94vw);
- background:#fff;color:var(--ink)}
+dialog{border:1px solid var(--rule);border-radius:4px;padding:0;width:min(640px,94vw);background:#fff;color:var(--ink)}
 dialog::backdrop{background:rgba(10,34,32,.4)}
-.rt{display:flex;justify-content:space-between;align-items:center;gap:10px;
- padding:7px 10px;border-bottom:1px solid var(--rule)}
+.rt{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--rule)}
 .rt h2{margin:0;font-size:13px}
 .rb{padding:8px 10px 12px;max-height:72vh;overflow:auto;font-size:12.5px}
 .rb h3{margin:10px 0 3px;font-size:12px}
@@ -106,13 +114,13 @@ dialog::backdrop{background:rgba(10,34,32,.4)}
   <h1>Code Backpack</h1>
   <span id="when">not checked</span>
   <span class="sp"></span>
-  <input id="who" placeholder="init" maxlength="6">
-  <button class="b" id="sign">Sign off</button>
-  <button class="b p" id="open">Report</button>
+  <input id="who" placeholder="init" maxlength="6" tabindex="-1">
+  <button class="b" id="sign" tabindex="-1">Sign off</button>
+  <button class="b p" id="open" tabindex="-1">Report</button>
 </div></div>
 
 <div class="bar"><div class="wrap">
-  <div id="soon">Enter counts and dates below.</div>
+  <div id="soon">Type a count, tab, type the date as 08 27 or 08 31 27.</div>
   <div class="k" id="kr">restock <b>0</b></div>
   <div class="k" id="ke">expired <b>0</b></div>
 </div></div>
@@ -120,10 +128,10 @@ dialog::backdrop{background:rgba(10,34,32,.4)}
 <main><div class="bag" id="bag"></div></main>
 
 <div class="foot">
-  <button class="b" id="exp">Export</button>
-  <button class="b" id="imp">Import</button>
+  <button class="b" id="exp" tabindex="-1">Export</button>
+  <button class="b" id="imp" tabindex="-1">Import</button>
   <input type="file" id="file" accept="application/json" hidden>
-  <button class="b" id="clr">Clear</button>
+  <button class="b" id="clr" tabindex="-1">Clear</button>
   <em id="saved"></em>
 </div>
 
@@ -154,73 +162,172 @@ const KIT=[
   {id:'d5w',name:'D5W',dose:'250 mL',par:1}]}
 ];
 
-const KEY='code-backpack-v1';let mem=null;
+/* ---- storage ---- */
+const KEY='code-backpack-v2';let mem=null;
 const rd=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):mem}catch(e){return mem}};
 const wr=v=>{mem=v;try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}};
-const blank=()=>({lots:{},who:'',when:''});
-let S=Object.assign(blank(),rd()||{});if(!S.lots)S.lots={};
-const L=id=>(S.lots[id]&&S.lots[id].length)?S.lots[id]:(S.lots[id]=[{q:'',e:''}]);
+const blank=()=>({c:{},who:'',when:''});
+let S=Object.assign(blank(),rd()||{});if(!S.c)S.c={};
+const C=id=>S.c[id]||(S.c[id]={q:'',e:''});
 
+/* ---- dates ---- */
 const t0=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
 const pd=s=>{if(!s)return null;const d=new Date(s+'T00:00:00');return isNaN(d)?null:d};
 const dz=s=>{const d=pd(s);return d===null?null:Math.round((d-t0())/864e5)};
+const iso=(y,m,d)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+const eom=(y,m)=>new Date(y,m,0).getDate();
+const show=s=>{const d=pd(s);return d?String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2):''};
 const nice=s=>{const d=pd(s);return d?d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'2-digit'}):'—'};
 const cd=n=>n===null?'':n<0?'expired '+(-n)+'d ago':n===0?'expires today':n+'d left';
 
-function A(it){const lots=L(it.id);let u=0,x=0,s=null;
- lots.forEach(l=>{const q=parseInt(l.q,10);if(!q||q<0)return;
-  const d=it.dated===false?null:dz(l.e);
-  if(d!==null&&d<0){x+=q;return}
-  u+=q;if(d!==null&&(s===null||d<s.d))s={d:d,e:l.e}});
- return{lots:lots,u:u,x:x,short:Math.max(0,it.par-u),s:s}}
+/* digits -> {y,m,d} guess while typing */
+function guess(g){
+  const now=new Date(),cy=now.getFullYear();
+  let m=parseInt(g.slice(0,2)||'0',10);
+  if(g.length===1)m=parseInt(g,10);
+  if(!(m>=1&&m<=12))m=now.getMonth()+1;
+  let y=cy,d=null;
+  if(g.length===3||g.length===4){
+    const n=parseInt(g.slice(2),10);
+    const yy=2000+n;
+    if(g.length===4&&yy>=cy){y=yy}else{d=n;y=cy}
+  }else if(g.length===5||g.length===6){
+    d=parseInt(g.slice(2,4),10);y=2000+parseInt(g.slice(4),10)*(g.length===5?10:1);
+    if(g.length===5)y=2020+parseInt(g.slice(4),10);
+  }else if(g.length>=7){
+    d=parseInt(g.slice(2,4),10);y=parseInt((g.slice(4)+'0000').slice(0,4),10);
+  }
+  if(d!==null&&(d<1||d>eom(y,m)))d=null;
+  if(y<cy-1||y>cy+30)y=cy;
+  return{y:y,m:m,d:d};
+}
+/* digits -> final ISO, blank if unusable */
+function commit(g){
+  if(!g)return'';
+  const now=new Date(),cy=now.getFullYear();
+  if(g.length<=2){const m=parseInt(g,10);if(!(m>=1&&m<=12))return'';
+    let y=cy;if(new Date(y,m,0)<t0())y++;return iso(y,m,eom(y,m))}
+  const v=guess(g);
+  if(g.length===3||g.length===4){
+    if(v.d===null)return iso(v.y,v.m,eom(v.y,v.m));
+    return iso(v.y,v.m,v.d);
+  }
+  return v.d===null?iso(v.y,v.m,eom(v.y,v.m)):iso(v.y,v.m,v.d);
+}
 
+/* ---- item math ---- */
+function A(it){const c=C(it.id),q=parseInt(c.q,10)||0;
+ const d=it.dated===false?null:dz(c.e);
+ const expired=(d!==null&&d<0)?q:0, u=expired?0:q;
+ return{q:q,u:u,x:expired,short:Math.max(0,it.par-u),d:d,e:c.e}}
+
+/* ---- build ---- */
 const bag=document.getElementById('bag');
 KIT.forEach(b=>{const s=document.createElement('section');s.className='bay';
  s.innerHTML='<h2>'+b.bay+'<em>'+b.where+'</em></h2>';
  b.items.forEach(i=>s.appendChild(row(i)));bag.appendChild(s)});
 
-function row(it){const el=document.createElement('div');el.className='it';el.dataset.i=it.id;
+function row(it){const c=C(it.id);
+ const el=document.createElement('div');el.className='it';el.dataset.i=it.id;
  el.innerHTML='<div class="nm"><b>'+it.name+' <s>'+it.dose+'</s></b><span class="st"></span></div>'
-  +'<div class="ls"></div>'+(it.note?'<p class="nt">'+it.note+'</p>':'');
- draw(it,el);return el}
+  +'<div class="lot"><input class="q" inputmode="numeric" value="'+(c.q||'')+'" aria-label="count '+it.name+'">'
+  +(it.dated===false?'<span class="na">no expiration</span>'
+    :'<input class="dt" inputmode="numeric" autocomplete="off" placeholder="mm/yy" value="'+show(c.e)+'" aria-label="expiration '+it.name+'">')
+  +'</div>'+(it.note?'<p class="nt">'+it.note+'</p>':'');
 
-function draw(it,el){const h=el.querySelector('.ls'),lots=L(it.id);h.innerHTML='';
- lots.forEach((lot,i)=>{const d=document.createElement('div');d.className='lot';
-  d.innerHTML='<input class="q" type="number" min="0" inputmode="numeric" value="'+lot.q+'" aria-label="count '+it.name+'">'
-   +(it.dated===false?'<span class="dt" style="border:0;color:#5d7270;font-size:11px">no expiration tracked</span>'
-     :'<input class="dt" type="date" value="'+lot.e+'" aria-label="expiration '+it.name+'">')
-   +(it.dated===false?'':'<button class="mini" data-a title="'+(i===lots.length-1?'Add another date':'')+'">'+(i===lots.length-1?'+':'')+'</button>')
-   +(lots.length>1?'<button class="mini" data-d title="Remove">&times;</button>':'');
-  const q=d.querySelector('.q');q.addEventListener('input',()=>{lot.q=q.value;up(it);save()});
-  const dt=d.querySelector('input.dt');if(dt)dt.addEventListener('input',()=>{lot.e=dt.value;up(it);save()});
-  const ad=d.querySelector('[data-a]');
-  if(ad){if(i!==lots.length-1){ad.style.visibility='hidden'}else{
-   ad.addEventListener('click',()=>{lots.push({q:'',e:''});draw(it,el);up(it);save();
-    el.querySelector('.ls').lastElementChild.querySelector('.q').focus()})}}
-  const de=d.querySelector('[data-d]');
-  if(de)de.addEventListener('click',()=>{lots.splice(i,1);draw(it,el);up(it);save()});
-  h.appendChild(d)})}
+ const q=el.querySelector('.q');
+ q.addEventListener('input',()=>{q.value=q.value.replace(/\D/g,'').slice(0,3);c.q=q.value;up(it);save()});
+ q.addEventListener('focus',()=>q.select());
 
+ const dt=el.querySelector('.dt');
+ if(dt){
+  let g='';
+  const open=()=>{cal.open(el,dt,guess(g||digitsFrom(c.e)),chosen)};
+  const chosen=v=>{c.e=v;dt.value=show(v);g='';up(it);save();cal.close();dt.focus()};
+  dt.addEventListener('focus',()=>{g='';dt.select();open()});
+  dt.addEventListener('input',()=>{
+    g=dt.value.replace(/\D/g,'').slice(0,8);
+    dt.value=g.length<=2?g:g.length<=4?g.slice(0,2)+'/'+g.slice(2):g.slice(0,2)+'/'+g.slice(2,4)+'/'+g.slice(4);
+    open();
+  });
+  dt.addEventListener('blur',()=>{
+    if(g){c.e=commit(g);g=''}
+    dt.value=show(c.e);up(it);save();cal.close();
+  });
+  dt.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){cal.close();dt.blur()}
+    if(e.key==='Enter'){e.preventDefault();dt.blur();nextField(dt)}
+  });
+ }
+ q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();nextField(q)}});
+ return el;
+}
+const digitsFrom=e=>{const d=pd(e);return d?String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+String(d.getFullYear()).slice(2):''};
+function nextField(el){const f=[...document.querySelectorAll('.q,.dt')];const i=f.indexOf(el);if(i>-1&&f[i+1])f[i+1].focus()}
+
+/* ---- calendar ---- */
+const cal=(function(){
+ let box=null,view=null,cb=null;
+ function close(){if(box){box.remove();box=null}}
+ function open(host,input,v,onPick){
+  cb=onPick;
+  if(!box){box=document.createElement('div');box.className='cal';
+   box.addEventListener('mousedown',e=>e.preventDefault());
+   document.body.appendChild(box)}
+  view={y:v.y,m:v.m,d:v.d};
+  render();
+  const r=input.getBoundingClientRect();
+  const h=box.offsetHeight, below=window.innerHeight-r.bottom;
+  box.style.left=Math.min(r.left+window.scrollX, window.scrollX+document.documentElement.clientWidth-196)+'px';
+  box.style.top=(below<h+8?r.top+window.scrollY-h-4:r.bottom+window.scrollY+4)+'px';
+ }
+ function render(){
+  const y=view.y,m=view.m,last=eom(y,m),first=new Date(y,m-1,1).getDay();
+  const now=t0(),sel=view.d;
+  let cells='';
+  for(let i=0;i<first;i++)cells+='<td></td>';
+  for(let d=1;d<=last;d++){
+   if((first+d-1)%7===0&&d>1)cells+='</tr><tr>';
+   const isT=now.getFullYear()===y&&now.getMonth()===m-1&&now.getDate()===d;
+   const c=[d===last?'eom':'',d===sel?'sel':'',isT?'tdy':''].filter(Boolean).join(' ');
+   cells+='<td><div class="'+c+'" data-d="'+d+'">'+d+'</div></td>';
+  }
+  box.innerHTML='<div class="ch"><button data-s="-1">&lsaquo;</button>'
+   +new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'})
+   +'<button data-s="1">&rsaquo;</button></div>'
+   +'<table><tr><th>S</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th></tr><tr>'
+   +cells+'</tr></table><div class="ft">last day of month '+last+'</div>';
+  box.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{
+   let m2=view.m+ +b.dataset.s,y2=view.y;
+   if(m2<1){m2=12;y2--}if(m2>12){m2=1;y2++}
+   view={y:y2,m:m2,d:null};render();
+  });
+  box.querySelectorAll('[data-d]').forEach(c=>c.onclick=()=>cb(iso(view.y,view.m,+c.dataset.d)));
+ }
+ window.addEventListener('scroll',close,true);
+ return{open:open,close:close};
+})();
+
+/* ---- status ---- */
 function up(it){const el=bag.querySelector('[data-i="'+it.id+'"]'),a=A(it),st=el.querySelector('.st');
  let t,c='st';
- if(a.u===0&&a.x===0){t='—';c='st e'}
+ if(a.q===0&&!a.e){t='—';c='st e'}
+ else if(a.x>0){t=a.x+' expired · add '+it.par;c='st r'}
  else if(a.short>0){t=a.u+'/'+it.par+' · add '+a.short;c='st r'}
- else{t=a.u+'/'+it.par}
- if(a.x>0){t+=' · '+a.x+' exp';c='st r'}
- else if(a.s&&a.s.d<=30&&a.short===0){t+=' · '+cd(a.s.d);c='st a'}
+ else{t=a.u+'/'+it.par;if(a.d!==null&&a.d<=30){t+=' · '+cd(a.d);c='st a'}}
  st.textContent=t;st.className=c;
- el.className='it'+(a.short>0||a.x>0?' r':(a.s&&a.s.d<=30?' a':''));
- el.querySelectorAll('input.dt').forEach(x=>{const d=dz(x.value);
-  x.classList.toggle('r',d!==null&&d<0);x.classList.toggle('a',d!==null&&d>=0&&d<=30)});
+ el.className='it'+(a.short>0||a.x>0?' r':(a.d!==null&&a.d<=30?' a':''));
+ const dt=el.querySelector('.dt');
+ if(dt){dt.classList.toggle('r',a.d!==null&&a.d<0);dt.classList.toggle('a',a.d!==null&&a.d>=0&&a.d<=30)}
  sum()}
 
 const all=()=>KIT.flatMap(b=>b.items.map(i=>Object.assign({bay:b.bay},i)));
 
 function sum(){let r=0,x=0,f=null;
  all().forEach(it=>{const a=A(it);if(a.short>0)r++;x+=a.x;
-  if(a.s&&(f===null||a.s.d<f.d))f={d:a.s.d,e:a.s.e,it:it}});
+  if(a.e&&a.d!==null&&(f===null||a.d<f.d))f={d:a.d,e:a.e,it:it}});
  const e=document.getElementById('soon');
- if(!f){e.className='';e.textContent='Enter counts and dates below.'}
+ if(!f){e.className='';e.textContent='Type a count, tab, type the date as 08 27 or 08 31 27.'}
  else{e.className=f.d<0?'r':f.d<=30?'a':'';
   e.innerHTML='First to expire: <b>'+f.it.name+'</b> <i>'+nice(f.e)+' · '+cd(f.d)+' · '+f.it.bay+'</i>'}
  const kr=document.getElementById('kr'),ke=document.getElementById('ke');
@@ -230,16 +337,16 @@ function sum(){let r=0,x=0,f=null;
 let tid;function save(){clearTimeout(tid);tid=setTimeout(()=>{wr(S);
  document.getElementById('saved').textContent='saved '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})},250)}
 
+/* ---- report ---- */
 const dlg=document.getElementById('rep');
 document.getElementById('open').onclick=()=>{build();dlg.showModal()};
 document.getElementById('cls').onclick=()=>dlg.close();
 document.getElementById('prt').onclick=()=>window.print();
-
 function build(){const o=[],ds=[],un=[];
  all().forEach(it=>{const a=A(it);
-  if(a.u===0&&a.x===0)un.push(it);
+  if(a.q===0&&!a.e)un.push(it);
   if(a.short>0)o.push({it:it,a:a});
-  a.lots.forEach(l=>{const q=parseInt(l.q,10);if(q&&l.e)ds.push({it:it,q:q,e:l.e,d:dz(l.e)})})});
+  if(a.q&&a.e)ds.push({it:it,q:a.q,e:a.e,d:a.d})});
  ds.sort((a,b)=>a.d-b.d);
  const li=(m,s,x)=>'<li><span>'+m+(x?' <s>'+x+'</s>':'')+'</span><span>'+s+'</span></li>';
  let h='<p>'+(S.who||S.when?'Checked by '+(S.who||'—')+' · '+(S.when||'—'):'Not signed off')
@@ -253,6 +360,7 @@ function build(){const o=[],ds=[],un=[];
  if(un.length)h+='<h3>Not counted</h3><ul>'+un.map(i=>li(i.name+' '+i.dose,'',i.bay)).join('')+'</ul>';
  document.getElementById('rb').innerHTML=h}
 
+/* ---- misc ---- */
 const who=document.getElementById('who');who.value=S.who||'';
 who.oninput=()=>{S.who=who.value;save()};
 const stamp=()=>document.getElementById('when').textContent=S.when?'checked '+S.when:'not checked';
@@ -262,7 +370,7 @@ document.getElementById('exp').onclick=()=>{const b=new Blob([JSON.stringify(S,n
  a.download='code-backpack-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)};
 document.getElementById('imp').onclick=()=>document.getElementById('file').click();
 document.getElementById('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();
- fr.onload=()=>{try{const n=JSON.parse(fr.result);if(!n||!n.lots)throw 0;
+ fr.onload=()=>{try{const n=JSON.parse(fr.result);if(!n||!n.c)throw 0;
   S=Object.assign(blank(),n);wr(S);location.reload()}catch(x){alert('Not a backpack backup file.')}};
  fr.readAsText(f);e.target.value=''};
 document.getElementById('clr').onclick=()=>{if(confirm('Clear all counts and dates?')){S=blank();wr(S);location.reload()}};
