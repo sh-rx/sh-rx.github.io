@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Code Backpack</title>
+<style>
+:root{
+  --ink:#13262c; --soft:#5d7270; --paper:#eef1f0; --card:#fff;
+  --rule:#cfd8d6; --hair:#e5e9e8; --teal:#0f6c6a;
+  --red:#a32a20; --redbg:#fbe7e4; --amb:#8f5d0f; --ambbg:#fbf1dc;
+  --ok:#2c6b45; --okbg:#e6f0e9;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font:13px/1.35 "Helvetica Neue",-apple-system,system-ui,"Segoe UI",sans-serif;
+ font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 10px}
+
+/* top strip */
+.top{background:#0a4a49;color:#e8f3f1}
+.top .wrap{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:6px 10px}
+.top h1{margin:0;font-size:13px;font-weight:700;letter-spacing:-.01em}
+.top .sp{flex:1}
+.top input{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);
+ color:#e8f3f1;border-radius:3px;padding:2px 5px;width:7ch;font-size:12px}
+.top input::placeholder{color:#8bb0ac}
+.top span{font-size:11.5px;color:#9cc0bc}
+.b{background:#fff;border:1px solid var(--rule);border-radius:3px;padding:3px 8px;
+ font-size:12px;cursor:pointer;line-height:1.3}
+.b:hover{background:#f2f5f4}
+.b.p{background:var(--teal);border-color:var(--teal);color:#fff}
+.b.p:hover{background:#0a4a49}
+
+/* status bar */
+.bar{background:var(--card);border-bottom:1px solid var(--rule)}
+.bar .wrap{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:6px 10px}
+#soon{font-size:12.5px;min-width:0;flex:1 1 320px}
+#soon b{font-weight:700}
+#soon.r b,#soon.r i{color:var(--red)}
+#soon.a b,#soon.a i{color:var(--amb)}
+#soon i{font-style:normal;color:var(--soft)}
+.k{font-size:12px;color:var(--soft);white-space:nowrap}
+.k b{font-size:14px;color:var(--ink)}
+.k.hot b{color:var(--red)}
+
+/* bays */
+main{padding:8px 10px 30px}
+.bag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:1100px;margin:0 auto}
+.bay{background:var(--card);border:1px solid var(--rule);border-radius:3px}
+.bay h2{margin:0;padding:4px 8px;border-bottom:1px solid var(--hair);
+ font-size:11.5px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.bay h2 em{font-style:normal;font-weight:400;color:var(--soft)}
+.it{padding:4px 8px 5px;border-bottom:1px solid var(--hair)}
+.it:last-child{border-bottom:0}
+.it.r{background:var(--redbg)}
+.it.a{background:var(--ambbg)}
+.nm{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.nm b{font-size:12.5px;font-weight:600}
+.nm b s{text-decoration:none;font-weight:400;color:var(--soft)}
+.st{font-size:11px;font-weight:700;color:var(--ok);white-space:nowrap}
+.st.r{color:var(--red)} .st.a{color:var(--amb)} .st.e{color:var(--soft);font-weight:400}
+.lot{display:flex;gap:4px;margin-top:3px;align-items:center}
+.q{width:42px;height:24px;text-align:center;border:1px solid var(--rule);border-radius:3px;
+ padding:0 2px;background:#fff;-moz-appearance:textfield}
+.q::-webkit-outer-spin-button,.q::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.dt{flex:1;min-width:0;height:24px;border:1px solid var(--rule);border-radius:3px;
+ padding:0 3px;background:#fff;font-size:12px}
+.dt.r{border-color:var(--red);color:var(--red)}
+.dt.a{border-color:var(--amb);color:var(--amb)}
+.mini{border:1px solid var(--rule);background:#fff;border-radius:3px;width:22px;height:24px;
+ cursor:pointer;color:var(--soft);line-height:1;padding:0}
+.mini:hover{background:#f2f5f4;color:var(--ink)}
+.nt{margin:2px 0 0;font-size:11px;color:var(--soft)}
+
+/* report */
+dialog{border:1px solid var(--rule);border-radius:4px;padding:0;width:min(640px,94vw);
+ background:#fff;color:var(--ink)}
+dialog::backdrop{background:rgba(10,34,32,.4)}
+.rt{display:flex;justify-content:space-between;align-items:center;gap:10px;
+ padding:7px 10px;border-bottom:1px solid var(--rule)}
+.rt h2{margin:0;font-size:13px}
+.rb{padding:8px 10px 12px;max-height:72vh;overflow:auto;font-size:12.5px}
+.rb h3{margin:10px 0 3px;font-size:12px}
+.rb h3:first-of-type{margin-top:4px}
+.rb ul{margin:0;padding:0;list-style:none}
+.rb li{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;border-bottom:1px solid var(--hair)}
+.rb li s{text-decoration:none;color:var(--soft);font-size:11px}
+.rb li span:last-child{flex:none;font-weight:700}
+.rb p{margin:2px 0;color:var(--soft);font-size:11.5px}
+.due{color:var(--red)} .sn{color:var(--amb)}
+
+.foot{max-width:1100px;margin:8px auto 0;padding:0 10px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.foot em{margin-left:auto;font-style:normal;font-size:11px;color:var(--soft)}
+
+@media(max-width:900px){.bag{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.bag{grid-template-columns:1fr}}
+@media print{.top,.bar,main,.foot{display:none}dialog{border:0}.rt .b{display:none}.rb{max-height:none}}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="wrap">
+  <h1>Code Backpack</h1>
+  <span id="when">not checked</span>
+  <span class="sp"></span>
+  <input id="who" placeholder="init" maxlength="6">
+  <button class="b" id="sign">Sign off</button>
+  <button class="b p" id="open">Report</button>
+</div></div>
+
+<div class="bar"><div class="wrap">
+  <div id="soon">Enter counts and dates below.</div>
+  <div class="k" id="kr">restock <b>0</b></div>
+  <div class="k" id="ke">expired <b>0</b></div>
+</div></div>
+
+<main><div class="bag" id="bag"></div></main>
+
+<div class="foot">
+  <button class="b" id="exp">Export</button>
+  <button class="b" id="imp">Import</button>
+  <input type="file" id="file" accept="application/json" hidden>
+  <button class="b" id="clr">Clear</button>
+  <em id="saved"></em>
+</div>
+
+<dialog id="rep">
+  <div class="rt"><h2>Restock report</h2>
+    <div><button class="b" id="prt">Print</button> <button class="b" id="cls">Close</button></div>
+  </div>
+  <div class="rb" id="rb"></div>
+</dialog>
+
+<script>
+const KIT=[
+ {bay:'Right tray',where:'inside',items:[
+  {id:'epi',name:'Epinephrine 1:10,000',dose:'1 mg/10 mL',par:12}]},
+ {bay:'Left tray',where:'inside',items:[
+  {id:'lido',name:'Lidocaine 2%',dose:'100 mg/5 mL',par:3},
+  {id:'atro',name:'Atropine',dose:'1 mg/10 mL adult',par:3},
+  {id:'cacl',name:'Calcium chloride 10%',dose:'1 gm/10 mL',par:2},
+  {id:'fl',name:'NaCl flush',dose:'10 mL',par:10,note:'Par 10 or more.'}]},
+ {bay:'Right pocket',where:'outside',items:[
+  {id:'tub',name:'Continu-Flo set',dose:'primary tubing',par:3,dated:false}]},
+ {bay:'Left pocket',where:'outside',items:[
+  {id:'dop',name:'Dopamine',dose:'400 mg/250 mL',par:1},
+  {id:'levo',name:'Norepinephrine',dose:'8 mg/250 mL',par:1,note:'Or supplies to mix.'}]},
+ {bay:'Center slot',where:'bottom',items:[
+  {id:'bic',name:'Sodium bicarb 8.4%',dose:'50 mEq/50 mL',par:5},
+  {id:'d50',name:'Dextrose 50%',dose:'25 gm/50 mL',par:1},
+  {id:'d5w',name:'D5W',dose:'250 mL',par:1}]}
+];
+
+const KEY='code-backpack-v1';let mem=null;
+const rd=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):mem}catch(e){return mem}};
+const wr=v=>{mem=v;try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}};
+const blank=()=>({lots:{},who:'',when:''});
+let S=Object.assign(blank(),rd()||{});if(!S.lots)S.lots={};
+const L=id=>(S.lots[id]&&S.lots[id].length)?S.lots[id]:(S.lots[id]=[{q:'',e:''}]);
+
+const t0=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const pd=s=>{if(!s)return null;const d=new Date(s+'T00:00:00');return isNaN(d)?null:d};
+const dz=s=>{const d=pd(s);return d===null?null:Math.round((d-t0())/864e5)};
+const nice=s=>{const d=pd(s);return d?d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'2-digit'}):'—'};
+const cd=n=>n===null?'':n<0?'expired '+(-n)+'d ago':n===0?'expires today':n+'d left';
+
+function A(it){const lots=L(it.id);let u=0,x=0,s=null;
+ lots.forEach(l=>{const q=parseInt(l.q,10);if(!q||q<0)return;
+  const d=it.dated===false?null:dz(l.e);
+  if(d!==null&&d<0){x+=q;return}
+  u+=q;if(d!==null&&(s===null||d<s.d))s={d:d,e:l.e}});
+ return{lots:lots,u:u,x:x,short:Math.max(0,it.par-u),s:s}}
+
+const bag=document.getElementById('bag');
+KIT.forEach(b=>{const s=document.createElement('section');s.className='bay';
+ s.innerHTML='<h2>'+b.bay+'<em>'+b.where+'</em></h2>';
+ b.items.forEach(i=>s.appendChild(row(i)));bag.appendChild(s)});
+
+function row(it){const el=document.createElement('div');el.className='it';el.dataset.i=it.id;
+ el.innerHTML='<div class="nm"><b>'+it.name+' <s>'+it.dose+'</s></b><span class="st"></span></div>'
+  +'<div class="ls"></div>'+(it.note?'<p class="nt">'+it.note+'</p>':'');
+ draw(it,el);return el}
+
+function draw(it,el){const h=el.querySelector('.ls'),lots=L(it.id);h.innerHTML='';
+ lots.forEach((lot,i)=>{const d=document.createElement('div');d.className='lot';
+  d.innerHTML='<input class="q" type="number" min="0" inputmode="numeric" value="'+lot.q+'" aria-label="count '+it.name+'">'
+   +(it.dated===false?'<span class="dt" style="border:0;color:#5d7270;font-size:11px">no expiration tracked</span>'
+     :'<input class="dt" type="date" value="'+lot.e+'" aria-label="expiration '+it.name+'">')
+   +(it.dated===false?'':'<button class="mini" data-a title="'+(i===lots.length-1?'Add another date':'')+'">'+(i===lots.length-1?'+':'')+'</button>')
+   +(lots.length>1?'<button class="mini" data-d title="Remove">&times;</button>':'');
+  const q=d.querySelector('.q');q.addEventListener('input',()=>{lot.q=q.value;up(it);save()});
+  const dt=d.querySelector('input.dt');if(dt)dt.addEventListener('input',()=>{lot.e=dt.value;up(it);save()});
+  const ad=d.querySelector('[data-a]');
+  if(ad){if(i!==lots.length-1){ad.style.visibility='hidden'}else{
+   ad.addEventListener('click',()=>{lots.push({q:'',e:''});draw(it,el);up(it);save();
+    el.querySelector('.ls').lastElementChild.querySelector('.q').focus()})}}
+  const de=d.querySelector('[data-d]');
+  if(de)de.addEventListener('click',()=>{lots.splice(i,1);draw(it,el);up(it);save()});
+  h.appendChild(d)})}
+
+function up(it){const el=bag.querySelector('[data-i="'+it.id+'"]'),a=A(it),st=el.querySelector('.st');
+ let t,c='st';
+ if(a.u===0&&a.x===0){t='—';c='st e'}
+ else if(a.short>0){t=a.u+'/'+it.par+' · add '+a.short;c='st r'}
+ else{t=a.u+'/'+it.par}
+ if(a.x>0){t+=' · '+a.x+' exp';c='st r'}
+ else if(a.s&&a.s.d<=30&&a.short===0){t+=' · '+cd(a.s.d);c='st a'}
+ st.textContent=t;st.className=c;
+ el.className='it'+(a.short>0||a.x>0?' r':(a.s&&a.s.d<=30?' a':''));
+ el.querySelectorAll('input.dt').forEach(x=>{const d=dz(x.value);
+  x.classList.toggle('r',d!==null&&d<0);x.classList.toggle('a',d!==null&&d>=0&&d<=30)});
+ sum()}
+
+const all=()=>KIT.flatMap(b=>b.items.map(i=>Object.assign({bay:b.bay},i)));
+
+function sum(){let r=0,x=0,f=null;
+ all().forEach(it=>{const a=A(it);if(a.short>0)r++;x+=a.x;
+  if(a.s&&(f===null||a.s.d<f.d))f={d:a.s.d,e:a.s.e,it:it}});
+ const e=document.getElementById('soon');
+ if(!f){e.className='';e.textContent='Enter counts and dates below.'}
+ else{e.className=f.d<0?'r':f.d<=30?'a':'';
+  e.innerHTML='First to expire: <b>'+f.it.name+'</b> <i>'+nice(f.e)+' · '+cd(f.d)+' · '+f.it.bay+'</i>'}
+ const kr=document.getElementById('kr'),ke=document.getElementById('ke');
+ kr.innerHTML='restock <b>'+r+'</b>';kr.className='k'+(r?' hot':'');
+ ke.innerHTML='expired <b>'+x+'</b>';ke.className='k'+(x?' hot':'')}
+
+let tid;function save(){clearTimeout(tid);tid=setTimeout(()=>{wr(S);
+ document.getElementById('saved').textContent='saved '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})},250)}
+
+const dlg=document.getElementById('rep');
+document.getElementById('open').onclick=()=>{build();dlg.showModal()};
+document.getElementById('cls').onclick=()=>dlg.close();
+document.getElementById('prt').onclick=()=>window.print();
+
+function build(){const o=[],ds=[],un=[];
+ all().forEach(it=>{const a=A(it);
+  if(a.u===0&&a.x===0)un.push(it);
+  if(a.short>0)o.push({it:it,a:a});
+  a.lots.forEach(l=>{const q=parseInt(l.q,10);if(q&&l.e)ds.push({it:it,q:q,e:l.e,d:dz(l.e)})})});
+ ds.sort((a,b)=>a.d-b.d);
+ const li=(m,s,x)=>'<li><span>'+m+(x?' <s>'+x+'</s>':'')+'</span><span>'+s+'</span></li>';
+ let h='<p>'+(S.who||S.when?'Checked by '+(S.who||'—')+' · '+(S.when||'—'):'Not signed off')
+  +' · printed '+new Date().toLocaleString([],{dateStyle:'short',timeStyle:'short'})+'</p>';
+ h+='<h3>Restock</h3>'+(o.length?'<ul>'+o.map(v=>li(v.it.name+' '+v.it.dose,'add '+v.a.short,
+   v.it.bay+' · '+v.a.u+'/'+v.it.par+(v.a.x?' · pull '+v.a.x+' expired':''))).join('')+'</ul>'
+   :'<p>All items at par.</p>');
+ h+='<h3>By expiration</h3>'+(ds.length?'<ul>'+ds.map(d=>li(d.it.name+' '+d.it.dose,
+   '<span class="'+(d.d<0?'due':d.d<=30?'sn':'')+'">'+nice(d.e)+'</span>',
+   d.it.bay+' · '+d.q+' ea · '+cd(d.d))).join('')+'</ul>':'<p>No dates entered.</p>');
+ if(un.length)h+='<h3>Not counted</h3><ul>'+un.map(i=>li(i.name+' '+i.dose,'',i.bay)).join('')+'</ul>';
+ document.getElementById('rb').innerHTML=h}
+
+const who=document.getElementById('who');who.value=S.who||'';
+who.oninput=()=>{S.who=who.value;save()};
+const stamp=()=>document.getElementById('when').textContent=S.when?'checked '+S.when:'not checked';
+document.getElementById('sign').onclick=()=>{S.when=new Date().toLocaleString([],{dateStyle:'short',timeStyle:'short'});stamp();save()};
+document.getElementById('exp').onclick=()=>{const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(b);
+ a.download='code-backpack-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('imp').onclick=()=>document.getElementById('file').click();
+document.getElementById('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();
+ fr.onload=()=>{try{const n=JSON.parse(fr.result);if(!n||!n.lots)throw 0;
+  S=Object.assign(blank(),n);wr(S);location.reload()}catch(x){alert('Not a backpack backup file.')}};
+ fr.readAsText(f);e.target.value=''};
+document.getElementById('clr').onclick=()=>{if(confirm('Clear all counts and dates?')){S=blank();wr(S);location.reload()}};
+
+stamp();all().forEach(up);sum();
+</script>
+</body>
+</html>
